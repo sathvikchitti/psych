@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PsychSense – AI Powered Multi-Modal Depression Detection</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'psych-dark': '#020617',
+            'psych-cyan': '#06b6d4',
+            'psych-magenta': '#d946ef',
+            'psych-violet': '#8b5cf6',
+          },
+          fontFamily: {
+            'sans': ['Inter', 'ui-sans-serif', 'system-ui'],
+            'display': ['Space Grotesk', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Background Effects -->
+<div style="position:fixed;inset:0;z-index:0;pointer-events:none;">
+  <div class="pillar"></div>
+  <canvas id="neural-canvas" style="width:100%;height:100%;opacity:0.3;"></canvas>
+</div>
+
+<!-- Top-right Controls -->
+<div id="top-controls" style="position:fixed;top:24px;right:24px;z-index:100;display:flex;align-items:center;gap:12px;">
+  <div id="user-badge-container"></div>
+  <button id="login-signup-btn" onclick="openAuthModal()" style="display:flex;align-items:center;gap:8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);padding:10px 22px;border-radius:9999px;color:#06b6d4;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;backdrop-filter:blur(8px);" onmouseover="this.style.background='rgba(6,182,212,0.2)';this.style.boxShadow='0 0 20px rgba(6,182,212,0.3)'" onmouseout="this.style.background='rgba(6,182,212,0.1)';this.style.boxShadow='none'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Login / Sign Up
+  </button>
+</div>
+
+<!-- Profile Modal -->
+<div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
+  <div class="glass-card glow-border fade-in" style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
+    <!-- Close -->
+    <button onclick="closeProfileModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- Avatar -->
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;">
+      <img id="profile-modal-avatar" src="" referrerpolicy="no-referrer"
+        style="width:88px;height:88px;border-radius:50%;border:2px solid rgba(6,182,212,0.4);object-fit:cover;margin-bottom:12px;" />
+      <h2 id="profile-modal-name" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;"></h2>
+      <p id="profile-modal-email" style="color:#64748b;font-size:12px;"></p>
+    </div>
+
+    <!-- Credentials -->
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+          <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#06b6d4;font-weight:700;margin-bottom:6px;">Age</p>
+          <p id="profile-modal-age" style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">—</p>
+        </div>
+        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+          <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:6px;">Gender</p>
+          <p id="profile-modal-gender" style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;text-transform:capitalize;">—</p>
+        </div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+        <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#d946ef;font-weight:700;margin-bottom:6px;">Email</p>
+        <p id="profile-modal-email-full" style="font-size:13px;color:#cbd5e1;word-break:break-all;">—</p>
+      </div>
+    </div>
+
+    <!-- Past Reports -->
+    <div style="margin-bottom:20px;">
+      <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:10px;">Past Assessments</p>
+      <div id="profile-modal-reports" style="display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,0.3) transparent;">
+        <p style="color:#475569;font-size:11px;text-align:center;padding:12px;">No past assessments yet.</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:12px;">
+      <button onclick="closeProfileModal();goTo('landing');" class="btn-glow-cyan" style="flex:1;justify-content:center;padding:12px;font-size:13px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Home
+      </button>
+      <button onclick="window.firebaseSignOut();closeProfileModal();" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.3);border-radius:9999px;padding:12px;color:#d946ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='rgba(217,70,239,0.2)'" onmouseout="this.style.background='rgba(217,70,239,0.1)'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Modal -->
+<div id="auth-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
+  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
+    <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg,rgba(6,182,212,0.2),rgba(139,92,246,0.2));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;border:1px solid rgba(139,92,246,0.3);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px;">Welcome to PsychSense</h2>
+      <p style="color:#94a3b8;font-size:13px;">Sign in or create an account to continue</p>
+    </div>
+    <div style="display:flex;background:rgba(0,0,0,0.3);border-radius:12px;padding:4px;margin-bottom:28px;border:1px solid rgba(255,255,255,0.05);">
+      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);">Login</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:transparent;color:#64748b;">Sign Up</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div id="auth-name-field" style="display:none;">
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#8b5cf6;font-weight:700;display:block;margin-bottom:8px;">Full Name</label>
+        <input type="text" id="auth-name" placeholder="Enter your full name" />
+      </div>
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Email Address</label>
+        <input type="email" id="auth-email" placeholder="Enter your email" />
+      </div>
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Password</label>
+        <div style="position:relative;">
+          <input type="password" id="auth-password" placeholder="Enter your password" style="padding-right:48px;" />
+          <button onclick="togglePasswordVis()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;padding:0;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
+            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="auth-confirm-field" style="display:none;">
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Confirm Password</label>
+        <input type="password" id="auth-confirm" placeholder="Confirm your password" />
+      </div>
+    </div>
+    <div id="auth-error" style="display:none;margin-top:14px;padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:12px;color:#f87171;"></div>
+    <button id="auth-submit-btn" onclick="handleAuthSubmit()" class="btn-glow-purple" style="width:100%;justify-content:center;margin-top:24px;font-size:14px;">Login</button>
+    <div style="display:flex;align-items:center;gap:12px;margin:20px 0;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+      <span style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">or continue with</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+    </div>
+    <button class="google-btn" onclick="handleGoogleLogin()" style="width:100%;justify-content:center;">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      </svg>
+      Login / Sign Up with Google
+    </button>
+  </div>
+</div>
+
+<!-- ================================ PAGE: LANDING ================================ -->
+<div id="page-landing" class="page active fade-in" style="position:relative;z-index:10;">
+  <div style="width:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px;position:relative;z-index:10;">
+    <div style="max-width:520px;">
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(48px,7vw,88px);font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#06b6d4,#d946ef);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" class="glow-text">PsychSense</h1>
+      <p style="font-family:'Space Grotesk',sans-serif;font-size:18px;color:#06b6d4;margin-bottom:20px;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">AI Powered Multi-Modal Depression Detection System</p>
+      <p style="color:#94a3b8;font-size:15px;margin-bottom:48px;line-height:1.7;">Harnessing advanced neural architectures to analyze linguistic patterns, vocal biomarkers, and facial micro-expressions for early mental health intervention.</p>
+
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:16px;">
+  <button class="btn-glow-cyan" onclick="window.currentUser ? goTo('user-info') : openAuthModal()" style="font-size:18px;padding:18px 48px;">
+    Start Analysis
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+  </button>
+</div>
+    </div>
+  </div>
+  <div style="width:50%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;">
+    <canvas id="neural-head-canvas" style="width:100%;height:100%;"></canvas>
+  </div>
+</div>
+
+<!-- ================================ PAGE: USER INFO ================================ -->
+<div id="page-user-info" class="page" style="position:relative;z-index:10;align-items:center;justify-content:center;padding:24px;">
+  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:440px;border-radius:28px;padding:40px;">
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;text-align:center;margin-bottom:8px;">User Information</h2>
+    <p style="color:#94a3b8;text-align:center;margin-bottom:24px;font-size:14px;">Basic details before assessment</p>
+
+    <!-- Profile photo slot (populated by JS when logged in via Google) -->
+    <div id="user-info-photo-wrap" style="display:flex;flex-direction:column;align-items:center;margin-bottom:24px;min-height:0;"></div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Full Name</label>
+        <input type="text" id="input-name" placeholder="Enter your name" />
+      </div>
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Age</label>
+        <input type="number" id="input-age" placeholder="Enter your age" />
+      </div>
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Gender</label>
+        <select id="input-gender">
+          <option value="" disabled selected>Select Gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+          <option value="prefer-not-to-say">Prefer not to say</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:36px;align-items:center;">
+      <button onclick="goTo('landing')" style="flex:1;background:none;border:none;color:#64748b;cursor:pointer;font-size:13px;font-weight:600;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">Cancel</button>
+      <button class="btn-glow-purple" style="flex:2;justify-content:center;" onclick="goTo('assessment')">
+        Continue
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================ PAGE: ASSESSMENT ================================ -->
+<div id="page-assessment" class="page" style="position:relative;z-index:10;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+  <div class="glass-card glow-border fade-in" style="width:100%;max-width:1100px;border-radius:28px;padding:40px;margin-bottom:20px;">
+    <div style="text-align:center;margin-bottom:40px;">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:700;background:linear-gradient(135deg,#06b6d4,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Multi-Modal Assessment</h2>
+      <p style="color:#94a3b8;margin-top:8px;font-size:14px;">Provide text, voice, or both inputs. At least one is required.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;">
+      <!-- Text Section -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="padding:8px;background:rgba(6,182,212,0.15);border-radius:10px;color:#06b6d4;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;">Text Expression</span>
+          </div>
+          <span id="char-count" style="font-family:monospace;font-size:11px;color:#06b6d4;background:rgba(6,182,212,0.1);padding:4px 12px;border-radius:9999px;border:1px solid rgba(6,182,212,0.2);">0 chars</span>
+        </div>
+        <textarea id="text-input" placeholder="Describe your current emotional state, thoughts, or any challenges you've been facing recently..." style="min-height:320px;" oninput="document.getElementById('char-count').textContent=this.value.length+' chars';updateAssessBtn();"></textarea>
+      </div>
+
+      <!-- Right Section: Audio -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- Audio Panel -->
+        <div style="background:rgba(0,0,0,0.2);border-radius:20px;border:1px solid rgba(255,255,255,0.05);padding:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="padding:6px;background:rgba(217,70,239,0.15);border-radius:8px;color:#d946ef;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+              </div>
+              <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Audio Biomarkers</span>
+            </div>
+            <button id="remove-audio-btn" onclick="removeAudio()" style="display:none;background:none;border:none;color:#64748b;cursor:pointer;padding:6px;border-radius:8px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+
+          <div id="audio-display" style="width:100%;height:100px;background:rgba(0,0,0,0.3);border-radius:12px;border:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;margin-bottom:16px;overflow:hidden;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0.4;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+              <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;">Mic Ready</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <button id="record-btn" class="btn-glow-magenta" style="width:100%;justify-content:center;padding:10px 20px;font-size:11px;" onclick="toggleRecording()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+              Start Recording
+            </button>
+            <div style="position:relative;">
+              <input type="file" id="audio-upload" accept=".wav,.mp3,audio/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="handleAudioUpload(event)" />
+              <button style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9999px;padding:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.3s;pointer-events:none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                Upload Audio
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Panel -->
+        <div style="background:rgba(0,0,0,0.2);border-radius:20px;border:1px solid rgba(255,255,255,0.05);padding:24px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="padding:6px;background:rgba(139,92,246,0.15);border-radius:8px;color:#8b5cf6;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </div>
+            <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Video Biomarkers</span>
+          </div>
+          <div id="video-display" style="width:100%;height:70px;background:rgba(0,0,0,0.3);border-radius:12px;border:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0.4;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              <span style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">Camera Ready</span>
+            </div>
+          </div>
+          <div style="position:relative;">
+            <input type="file" accept="video/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="handleVideoUpload(event)" />
+            <button id="video-upload-btn" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9999px;padding:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s;pointer-events:none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              Upload Video
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:40px;padding-top:28px;border-top:1px solid rgba(255,255,255,0.05);">
+      <button onclick="goTo('user-info')" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back
+      </button>
+      <button id="assess-continue-btn" class="btn-glow-cyan" onclick="runInitialAnalysis()" style="font-size:18px;padding:16px 60px;" disabled>
+        Complete Assessment
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================ PAGE: QUESTIONNAIRE ================================ -->
+<div id="page-questioning" class="page" style="position:relative;z-index:10;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:900px;border-radius:32px;overflow:hidden;">
+    <div style="background:rgba(255,255,255,0.03);padding:32px 40px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;">Screening Questionnaire</h2>
+        <p style="color:#94a3b8;margin-top:4px;font-size:13px;">Clinical assessment for mood disorders</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;color:#8b5cf6;background:rgba(139,92,246,0.1);padding:8px 16px;border-radius:9999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border:1px solid rgba(139,92,246,0.2);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Step 3 of 3
+      </div>
+    </div>
+
+    <!-- Depression detected banner - shown only when ML flags risk -->
+    <div id="questionnaire-banner" style="display:none;align-items:center;gap:14px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);padding:16px 40px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <p style="font-size:13px;color:#fca5a5;line-height:1.5;">
+        Our model detected a <strong id="banner-risk" style="color:#f87171;"></strong> risk of depression with <strong id="banner-confidence" style="color:#f87171;"></strong> confidence. Please complete this questionnaire so we can refine the assessment and provide better recommendations.
+      </p>
+    </div>
+
+    <div class="scrollable" style="padding:40px;max-height:70vh;display:flex;flex-direction:column;gap:40px;">
+      <!-- Mania Screening -->
+      <section>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Mania Screening</h3>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Elevated Mood</h4><p style="color:#94a3b8;font-size:12px;">Unusually high energy or euphoria</p></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="toggle-btn off" id="toggle-elevatedMood" onclick="toggleAnswer('elevatedMood', this)"><span class="toggle-thumb"></span></button>
+              <span class="toggle-label" id="label-elevatedMood" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
+            </div>
+          </div>
+          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Reduced Sleep</h4><p style="color:#94a3b8;font-size:12px;">Needing less sleep than usual</p></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="toggle-btn off" id="toggle-reducedSleep" onclick="toggleAnswer('reducedSleep', this)"><span class="toggle-thumb"></span></button>
+              <span class="toggle-label" id="label-reducedSleep" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
+            </div>
+          </div>
+          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Impulsivity</h4><p style="color:#94a3b8;font-size:12px;">Acting without thinking of consequences</p></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="toggle-btn off" id="toggle-impulsivity" onclick="toggleAnswer('impulsivity', this)"><span class="toggle-thumb"></span></button>
+              <span class="toggle-label" id="label-impulsivity" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
+            </div>
+          </div>
+          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Racing Thoughts</h4><p style="color:#94a3b8;font-size:12px;">Thoughts moving very quickly</p></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="toggle-btn off" id="toggle-racingThoughts" onclick="toggleAnswer('racingThoughts', this)"><span class="toggle-thumb"></span></button>
+              <span class="toggle-label" id="label-racingThoughts" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional Sections -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Duration of Symptoms</label>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <input type="number" id="q-duration" value="0" style="width:80px;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#06b6d4;text-align:center;padding:10px;" />
+            <span style="color:#64748b;font-weight:500;">months</span>
+          </div>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Seasonal Pattern</label>
+          </div>
+          <select id="q-seasonal" style="border-radius:12px;padding:12px;">
+            <option>No seasonal pattern</option>
+            <option>Winter onset</option>
+            <option>Spring onset</option>
+            <option>Summer onset</option>
+            <option>Autumn onset</option>
+          </select>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Postpartum Indicator</label>
+          </div>
+          <select id="q-postpartum" style="border-radius:12px;padding:12px;">
+            <option>Not applicable</option>
+            <option>Within 4 weeks postpartum</option>
+            <option>Beyond 4 weeks postpartum</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Impairment -->
+      <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Functional Impairment Level</label>
+          </div>
+          <span id="impairment-label" style="color:#d946ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;">Mild (30%)</span>
+        </div>
+        <input type="range" id="q-impairment" min="0" max="100" value="30" style="width:100%;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;accent-color:#d946ef;cursor:pointer;" oninput="updateImpairmentLabel()" />
+        <div style="display:flex;justify-content:space-between;margin-top:12px;">
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Mild</span>
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Moderate</span>
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Severe</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:16px;">
+        <button onclick="goTo('assessment')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">Back to Assessment</button>
+        <button class="btn-glow-purple" onclick="completeQuestionnaire()" style="padding:14px 48px;">
+          Complete Assessment
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================ PAGE: ANALYSIS ================================ -->
+<div id="page-analysis" class="page" style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="position:relative;width:200px;height:200px;margin-bottom:40px;">
+    <div class="spin" style="position:absolute;inset:0;border-top:4px solid #06b6d4;border-radius:50%;"></div>
+    <div class="spin-rev" style="position:absolute;inset:16px;border-bottom:4px solid #d946ef;border-radius:50%;opacity:0.6;"></div>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+      <svg class="pulse" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+  </div>
+  <h2 style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:700;margin-bottom:12px;text-align:center;">Synthesizing Data</h2>
+  <p style="color:#94a3b8;text-transform:uppercase;letter-spacing:0.15em;font-size:13px;text-align:center;">Aggregating multi-modal biomarkers...</p>
+</div>
+
+<!-- ================================ PAGE: RESULTS ================================ -->
+<div id="page-results" class="page scrollable" style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;">
+  <div class="glass-card glow-border fade-in" id="results-card" style="width:100%;max-width:1100px;border-radius:28px;padding:40px;margin:20px 0;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;flex-wrap:wrap;gap:20px;">
+      <div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;margin-bottom:6px;">Diagnostic Synthesis</h2>
+        <p id="results-patient" style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;"></p>
+      </div>
+      <div style="display:flex;gap:16px;">
+        <div style="background:rgba(6,182,212,0.1);color:#06b6d4;padding:12px 24px;border-radius:16px;border:1px solid rgba(6,182,212,0.2);text-align:center;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:4px;">Confidence</div>
+          <div id="results-confidence" style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;">—</div>
+        </div>
+        <div style="background:rgba(217,70,239,0.1);color:#d946ef;padding:12px 24px;border-radius:16px;border:1px solid rgba(217,70,239,0.2);text-align:center;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:4px;">Risk Level</div>
+          <div id="results-risk" style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:32px;">
+      <!-- Left -->
+      <div style="display:flex;flex-direction:column;gap:24px;">
+        <!-- Ring -->
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;text-align:center;">
+          <svg id="confidence-ring" width="180" height="180" style="transform:rotate(-90deg);margin-bottom:16px;">
+            <circle cx="90" cy="90" r="80" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+            <circle id="ring-progress" cx="90" cy="90" r="80" fill="transparent" stroke="#06b6d4" stroke-width="10" stroke-dasharray="502" stroke-dashoffset="502" stroke-linecap="round" style="transition:stroke-dashoffset 2s ease-out;"/>
+          </svg>
+          <div style="margin-top:-16px;">
+            <div id="ring-label" style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;margin-bottom:4px;">—</div>
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;">Classification</div>
+          </div>
+          <p id="ring-desc" style="font-size:12px;color:#94a3b8;line-height:1.6;font-style:italic;margin-top:12px;"></p>
+        </div>
+
+        <!-- Signals -->
+        <div style="background:rgba(0,0,0,0.2);padding:20px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <h4 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#06b6d4;margin-bottom:16px;">Detected Emotional Signals</h4>
+          <div id="signals-container" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+
+        <!-- Contributions -->
+        <div style="background:rgba(0,0,0,0.2);padding:20px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <h4 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;margin-bottom:16px;">Prediction Contribution</h4>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;"><span>Text Analysis</span><span id="contrib-text-val">—</span></div><div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-text" class="bar-fill" style="width:0;background:#06b6d4;"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;"><span>Video Analysis</span><span id="contrib-video-val">—</span></div><div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-video" class="bar-fill" style="width:0;background:#8b5cf6;"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;"><span>Audio Analysis</span><span id="contrib-audio-val">—</span></div><div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-audio" class="bar-fill" style="width:0;background:#d946ef;"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;"><span>Questionnaire</span><span id="contrib-quest-val">—</span></div><div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-quest" class="bar-fill" style="width:0;background:#06b6d4;"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- Modality Cards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="background:rgba(6,182,212,0.05);padding:20px;border-radius:16px;border:1px solid rgba(6,182,212,0.2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#06b6d4;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Text Analysis</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;margin-bottom:10px;"><div id="bar-text" class="bar-fill" style="width:0;background:#06b6d4;"></div></div>
+            <p id="point-text" style="font-size:11px;color:#cbd5e1;line-height:1.5;"></p>
+          </div>
+          <div style="background:rgba(139,92,246,0.05);padding:20px;border-radius:16px;border:1px solid rgba(139,92,246,0.2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#8b5cf6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Video Analysis</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;margin-bottom:10px;"><div id="bar-video" class="bar-fill" style="width:0;background:#8b5cf6;"></div></div>
+            <p id="point-video" style="font-size:11px;color:#cbd5e1;line-height:1.5;"></p>
+          </div>
+          <div style="background:rgba(217,70,239,0.05);padding:20px;border-radius:16px;border:1px solid rgba(217,70,239,0.2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#d946ef;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Audio Analysis</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;margin-bottom:10px;"><div id="bar-audio" class="bar-fill" style="width:0;background:#d946ef;"></div></div>
+            <p id="point-audio" style="font-size:11px;color:#cbd5e1;line-height:1.5;"></p>
+          </div>
+          <div style="background:rgba(6,182,212,0.05);padding:20px;border-radius:16px;border:1px solid rgba(6,182,212,0.2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#06b6d4;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Questionnaire</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;margin-bottom:10px;"><div id="bar-quest" class="bar-fill" style="width:0;background:#06b6d4;"></div></div>
+            <p id="point-quest" style="font-size:11px;color:#cbd5e1;line-height:1.5;"></p>
+          </div>
+        </div>
+
+        <!-- AI Explanation -->
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;">AI Explanation Panel</h3>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+            <div><h4 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#06b6d4;margin-bottom:12px;">Text Analysis</h4><ul id="insights-text" style="display:flex;flex-direction:column;gap:8px;list-style:none;"></ul></div>
+            <div><h4 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#8b5cf6;margin-bottom:12px;">Video Analysis</h4><ul id="insights-video" style="display:flex;flex-direction:column;gap:8px;list-style:none;"></ul></div>
+            <div><h4 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#d946ef;margin-bottom:12px;">Audio Analysis</h4><ul id="insights-audio" style="display:flex;flex-direction:column;gap:8px;list-style:none;"></ul></div>
+          </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;">Suggested Actions</h3>
+          </div>
+          <div id="recommendations-container" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:16px;">
+          <button onclick="downloadReport()" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#06b6d4;cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#06b6d4'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Report
+          </button>
+          <button class="btn-glow-magenta" onclick="handleReset()" style="padding:12px 40px;">New Assessment</button>
+        </div>
+        <p style="font-size:10px;color:#475569;text-align:center;margin-top:16px;line-height:1.6;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05);">
+          Mental Health Disclaimer: This system is designed for early mental health screening only and is not a clinical diagnosis. Please consult a qualified mental health professional for professional advice.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================ PAGE: ERROR ================================ -->
+<div id="page-error" class="page" style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+  <div class="glass-card fade-in" style="width:100%;max-width:480px;border-radius:28px;padding:48px;text-align:center;border:1px solid rgba(239,68,68,0.3);">
+    <div style="width:64px;height:64px;background:rgba(239,68,68,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-bottom:12px;color:#f87171;">Analysis Failed</h2>
+    <p id="error-message" style="color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:12px;">An unexpected error occurred.</p>
+    <p style="color:#475569;font-size:12px;line-height:1.6;margin-bottom:32px;">Make sure the Flask backend is running:<br/><code style="background:rgba(255,255,255,0.07);padding:4px 10px;border-radius:6px;font-size:11px;color:#06b6d4;">python app.py</code></p>
+    <div style="display:flex;gap:16px;justify-content:center;">
+      <button onclick="goTo('questioning')" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9999px;padding:12px 28px;color:#94a3b8;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+        Try Again
+      </button>
+      <button onclick="handleReset()" class="btn-glow-cyan" style="padding:12px 28px;font-size:12px;">
+        Start Over
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<!-- Login Modal -->
+<div id="login-modal" class="modal-overlay" onclick="if(event.target === this) closeLoginModal()">
+  <div class="glass-card glow-border-purple modal-content fade-in" style="padding:40px; position: relative;">
+    <button onclick="closeLoginModal()" style="position:absolute; top:20px; right:20px; background:none; border:none; color:#64748b; cursor:pointer;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;text-align:center;margin-bottom:8px;">Login / Signup</h2>
+    <p style="color:#94a3b8;text-align:center;margin-bottom:32px;font-size:14px;">Complete your profile to get started</p>
+    
+    <div style="display:flex;flex-direction:column;gap:20px;margin-bottom:32px;">
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Full Name</label>
+        <input type="text" id="modal-input-name" placeholder="Enter your name" oninput="syncModalInputs()" />
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div>
+          <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Age</label>
+          <input type="number" id="modal-input-age" placeholder="Age" oninput="syncModalInputs()" />
+        </div>
+        <div>
+          <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Gender</label>
+          <select id="modal-input-gender" onchange="syncModalInputs()">
+            <option value="" disabled selected>Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <button class="btn-glow-purple" style="width:100%; justify-content:center;" onclick="closeLoginModal(); goTo('assessment')">
+        Continue to Assessment
+      </button>
+      <div style="display:flex; align-items:center; gap:10px; margin: 8px 0;">
+        <div style="flex:1; height:1px; background:rgba(255,255,255,0.1);"></div>
+        <span style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">or</span>
+        <div style="flex:1; height:1px; background:rgba(255,255,255,0.1);"></div>
+      </div>
+      <button class="google-btn" style="width:100%; justify-content:center;" onclick="handleGoogleLogin()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </svg>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/backgrounds.js"></script>
+
+</body>
+</html>
