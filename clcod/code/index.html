@@ -322,127 +322,46 @@
 </div>
 
 <!-- ================================ PAGE: QUESTIONNAIRE ================================ -->
+<!-- ================================ PAGE: QUESTIONING ================================ -->
 <div id="page-questioning" class="page" style="position:relative;z-index:10;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
-  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:900px;border-radius:32px;overflow:hidden;">
-    <div style="background:rgba(255,255,255,0.03);padding:32px 40px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;">Screening Questionnaire</h2>
-        <p style="color:#94a3b8;margin-top:4px;font-size:13px;">Clinical assessment for mood disorders</p>
+  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:680px;border-radius:32px;overflow:hidden;">
+
+    <!-- Header -->
+    <div style="background:rgba(255,255,255,0.03);padding:28px 36px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;">Depression Screening</h2>
+        <span id="q-counter" style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:#8b5cf6;background:rgba(139,92,246,0.1);padding:6px 14px;border-radius:9999px;border:1px solid rgba(139,92,246,0.2);">1 / 12</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;color:#8b5cf6;background:rgba(139,92,246,0.1);padding:8px 16px;border-radius:9999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border:1px solid rgba(139,92,246,0.2);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Step 3 of 3
+      <!-- Progress Bar -->
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+        <div id="q-progress-bar" style="height:100%;width:8.33%;background:linear-gradient(90deg,#8b5cf6,#06b6d4);border-radius:3px;transition:width 0.4s ease;"></div>
       </div>
     </div>
 
-    <!-- Depression detected banner - shown only when ML flags risk -->
-    <div id="questionnaire-banner" style="display:none;align-items:center;gap:14px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);padding:16px 40px;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <p style="font-size:13px;color:#fca5a5;line-height:1.5;">
-        Our model detected a <strong id="banner-risk" style="color:#f87171;"></strong> risk of depression with <strong id="banner-confidence" style="color:#f87171;"></strong> confidence. Please complete this questionnaire so we can refine the assessment and provide better recommendations.
+    <!-- Depression detected banner -->
+    <div id="questionnaire-banner" style="display:none;align-items:center;gap:12px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);padding:14px 36px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <p style="font-size:12px;color:#fca5a5;line-height:1.5;">
+        Our model detected a <strong id="banner-risk" style="color:#f87171;"></strong> risk of depression with <strong id="banner-confidence" style="color:#f87171;"></strong> confidence. Please answer to identify the type of depression.
       </p>
     </div>
 
-    <div class="scrollable" style="padding:40px;max-height:70vh;display:flex;flex-direction:column;gap:40px;">
-      <!-- Mania Screening -->
-      <section>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Mania Screening</h3>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
-            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Elevated Mood</h4><p style="color:#94a3b8;font-size:12px;">Unusually high energy or euphoria</p></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button class="toggle-btn off" id="toggle-elevatedMood" onclick="toggleAnswer('elevatedMood', this)"><span class="toggle-thumb"></span></button>
-              <span class="toggle-label" id="label-elevatedMood" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
-            </div>
-          </div>
-          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
-            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Reduced Sleep</h4><p style="color:#94a3b8;font-size:12px;">Needing less sleep than usual</p></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button class="toggle-btn off" id="toggle-reducedSleep" onclick="toggleAnswer('reducedSleep', this)"><span class="toggle-thumb"></span></button>
-              <span class="toggle-label" id="label-reducedSleep" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
-            </div>
-          </div>
-          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
-            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Impulsivity</h4><p style="color:#94a3b8;font-size:12px;">Acting without thinking of consequences</p></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button class="toggle-btn off" id="toggle-impulsivity" onclick="toggleAnswer('impulsivity', this)"><span class="toggle-thumb"></span></button>
-              <span class="toggle-label" id="label-impulsivity" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
-            </div>
-          </div>
-          <div class="q-card" style="background:rgba(0,0,0,0.2);padding:20px;border-radius:16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
-            <div style="flex:1;padding-right:16px;"><h4 style="font-weight:700;margin-bottom:4px;">Racing Thoughts</h4><p style="color:#94a3b8;font-size:12px;">Thoughts moving very quickly</p></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <button class="toggle-btn off" id="toggle-racingThoughts" onclick="toggleAnswer('racingThoughts', this)"><span class="toggle-thumb"></span></button>
-              <span class="toggle-label" id="label-racingThoughts" style="font-size:10px;font-weight:700;color:#64748b;width:28px;letter-spacing:0.1em;">NO</span>
-            </div>
-          </div>
-        </div>
-      </section>
+    <!-- Question Body -->
+    <div style="padding:40px 36px;">
+      <p id="q-question-text" style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;line-height:1.6;color:#e2e8f0;margin-bottom:32px;min-height:64px;"></p>
 
-      <!-- Additional Sections -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
-        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
-          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Duration of Symptoms</label>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <input type="number" id="q-duration" value="0" style="width:80px;font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#06b6d4;text-align:center;padding:10px;" />
-            <span style="color:#64748b;font-weight:500;">months</span>
-          </div>
-        </div>
-        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
-          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Seasonal Pattern</label>
-          </div>
-          <select id="q-seasonal" style="border-radius:12px;padding:12px;">
-            <option>No seasonal pattern</option>
-            <option>Winter onset</option>
-            <option>Spring onset</option>
-            <option>Summer onset</option>
-            <option>Autumn onset</option>
-          </select>
-        </div>
-        <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
-          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;margin-bottom:16px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Postpartum Indicator</label>
-          </div>
-          <select id="q-postpartum" style="border-radius:12px;padding:12px;">
-            <option>Not applicable</option>
-            <option>Within 4 weeks postpartum</option>
-            <option>Beyond 4 weeks postpartum</option>
-          </select>
-        </div>
-      </div>
+      <!-- Option Buttons -->
+      <div id="q-options-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;"></div>
 
-      <!-- Impairment -->
-      <div style="background:rgba(0,0,0,0.2);padding:28px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-          <div style="display:flex;align-items:center;gap:8px;color:#94a3b8;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Functional Impairment Level</label>
-          </div>
-          <span id="impairment-label" style="color:#d946ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;">Mild (30%)</span>
-        </div>
-        <input type="range" id="q-impairment" min="0" max="100" value="30" style="width:100%;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;accent-color:#d946ef;cursor:pointer;" oninput="updateImpairmentLabel()" />
-        <div style="display:flex;justify-content:space-between;margin-top:12px;">
-          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Mild</span>
-          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Moderate</span>
-          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Severe</span>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:16px;">
-        <button onclick="goTo('assessment')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">Back to Assessment</button>
-        <button class="btn-glow-purple" onclick="completeQuestionnaire()" style="padding:14px 48px;">
-          Complete Assessment
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <!-- Navigation -->
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <button id="q-back-btn" onclick="qPrev()" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <button id="q-next-btn" onclick="qNext()" class="btn-glow-purple" style="padding:12px 40px;font-size:13px;" disabled>
+          Next
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
     </div>
@@ -470,6 +389,10 @@
       <div>
         <h2 style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;margin-bottom:6px;">Diagnostic Synthesis</h2>
         <p id="results-patient" style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;"></p>
+        <div id="depression-type-badge" style="display:none;margin-top:10px;display:inline-flex;align-items:center;gap:8px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);padding:6px 16px;border-radius:9999px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:11px;font-weight:700;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.1em;">Type: <span id="depression-type-label">—</span></span>
+        </div>
       </div>
       <div style="display:flex;gap:16px;">
         <div style="background:rgba(6,182,212,0.1);color:#06b6d4;padding:12px 24px;border-radius:16px;border:1px solid rgba(6,182,212,0.2);text-align:center;">

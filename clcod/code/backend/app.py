@@ -401,28 +401,35 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
 
     p_dep   = float(probs[1])
     p_nodep = float(probs[0])
-    pred    = int(p_dep >= THRESHOLD)
 
     # ── 4. Questionnaire adjustment ──────────────────────────────────
-    # Blend model probability with questionnaire severity
     answers    = q.get("answers", {})
     pos_count  = sum(1 for v in answers.values() if v)
     impairment = q.get("impairment", 30) / 100.0
     q_score    = (pos_count / 4) * 0.5 + impairment * 0.5   # 0–1
 
-    # Weighted blend: 70% model, 30% questionnaire
-    blended_p_dep = 0.70 * p_dep + 0.30 * q_score
+    # FIX: Only blend questionnaire when it has REAL answers.
+    # On the first pass (empty questionnaire), trust the model fully.
+    # impairment default is 30, pos_count is 0 → that's the empty first-pass signal.
+    has_real_questionnaire = pos_count > 0 or q.get("impairment", 30) != 30
+    if has_real_questionnaire:
+        blended_p_dep = 0.70 * p_dep + 0.30 * q_score
+    else:
+        blended_p_dep = p_dep  # pure model output on first pass
 
-    # Re-derive risk level from blended probability
-    if blended_p_dep >= 0.65:
-        risk_level      = "High"
+    # FIX: Stricter thresholds to avoid false positives at borderline confidence.
+    # Old: High >= 0.65, Moderate >= 0.40  (too sensitive — 47% triggered Moderate)
+    # New: High >= 0.70, Moderate >= 0.55  (requires clearer signal)
+    if blended_p_dep >= 0.70:
+        risk_level       = "High"
         confidence_score = round(blended_p_dep * 100, 1)
-    elif blended_p_dep >= 0.40:
-        risk_level      = "Moderate"
+    elif blended_p_dep >= 0.55:
+        risk_level       = "Moderate"
         confidence_score = round(blended_p_dep * 100, 1)
     else:
-        risk_level      = "Low"
-        confidence_score = round((1 - blended_p_dep) * 100, 1)
+        risk_level       = "Low"
+        # FIX: Show actual depression probability (not inverted) for consistency
+        confidence_score = round(blended_p_dep * 100, 1)
 
     # ── 5. Build full response ───────────────────────────────────────
     contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
@@ -463,9 +470,9 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
         video_points.append("No video input provided — visual modality not analysed.")
 
     return {
-        "riskLevel":       risk_level,
-        "confidenceScore": confidence_score,
-        "contributions":   contribs,
+        "riskLevel":        risk_level,
+        "confidenceScore":  confidence_score,
+        "contributions":    contribs,
         "emotionalSignals": signals,
         "insights": {
             "text":          {"points": text_points},
@@ -475,8 +482,8 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
         },
         "recommendations": recs,
         # Extra fields saved to Firestore but not rendered in UI
-        "modelProb":    round(p_dep * 100, 2),
-        "threshold":    round(THRESHOLD, 2),
+        "modelProb":  round(p_dep * 100, 2),
+        "threshold":  round(THRESHOLD, 2),
     }
 
 
@@ -519,14 +526,14 @@ def analyze():
         video_file = request.files.get("video")
 
         if audio_file and audio_file.filename:
-            suffix     = os.path.splitext(audio_file.filename)[-1] or ".wav"
-            tmp_audio  = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            suffix    = os.path.splitext(audio_file.filename)[-1] or ".wav"
+            tmp_audio = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
             audio_file.save(tmp_audio.name)
             tmp_audio.close()
 
         if video_file and video_file.filename:
-            suffix     = os.path.splitext(video_file.filename)[-1] or ".mp4"
-            tmp_video  = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            suffix    = os.path.splitext(video_file.filename)[-1] or ".mp4"
+            tmp_video = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
             video_file.save(tmp_video.name)
             tmp_video.close()
 
@@ -560,5 +567,5 @@ def analyze():
 # ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,12 +1,12 @@
 // ---- Auth Modal ----
 let currentAuthTab = 'login';
 
-window.openAuthModal = function() {
+window.openAuthModal = function () {
   const modal = document.getElementById('auth-modal');
   if (modal) { modal.style.display = 'flex'; switchAuthTab('login'); }
 };
 
-window.closeAuthModal = function() {
+window.closeAuthModal = function () {
   const modal = document.getElementById('auth-modal');
   if (modal) modal.style.display = 'none';
   clearAuthError();
@@ -22,36 +22,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-window.switchAuthTab = function(tab) {
+window.switchAuthTab = function (tab) {
   currentAuthTab = tab;
-  const nameField    = document.getElementById('auth-name-field');
+  const nameField = document.getElementById('auth-name-field');
   const confirmField = document.getElementById('auth-confirm-field');
-  const submitBtn    = document.getElementById('auth-submit-btn');
-  const tabLogin     = document.getElementById('tab-login');
-  const tabSignup    = document.getElementById('tab-signup');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const tabLogin = document.getElementById('tab-login');
+  const tabSignup = document.getElementById('tab-signup');
 
-  const activeStyle   = 'background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+  const activeStyle = 'background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
   const inactiveStyle = 'background:transparent;color:#64748b;box-shadow:none;';
 
   if (tab === 'login') {
-    if (nameField)    nameField.style.display    = 'none';
+    if (nameField) nameField.style.display = 'none';
     if (confirmField) confirmField.style.display = 'none';
-    if (submitBtn)    submitBtn.textContent       = 'Login';
-    if (tabLogin)     tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
-    if (tabSignup)    tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
+    if (submitBtn) submitBtn.textContent = 'Login';
+    if (tabLogin) tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
+    if (tabSignup) tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
   } else {
-    if (nameField)    nameField.style.display    = 'block';
+    if (nameField) nameField.style.display = 'block';
     if (confirmField) confirmField.style.display = 'block';
-    if (submitBtn)    submitBtn.textContent       = 'Create Account';
-    if (tabSignup)    tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
-    if (tabLogin)     tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
+    if (submitBtn) submitBtn.textContent = 'Create Account';
+    if (tabSignup) tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
+    if (tabLogin) tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
   }
   clearAuthError();
 };
 
-window.togglePasswordVis = function() {
+window.togglePasswordVis = function () {
   const input = document.getElementById('auth-password');
-  const icon  = document.getElementById('eye-icon');
+  const icon = document.getElementById('eye-icon');
   if (!input) return;
   if (input.type === 'password') {
     input.type = 'text';
@@ -72,20 +72,20 @@ function clearAuthError() {
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
 
-window.handleAuthSubmit = async function() {
+window.handleAuthSubmit = async function () {
   clearAuthError();
-  const email    = document.getElementById('auth-email')?.value.trim();
+  const email = document.getElementById('auth-email')?.value.trim();
   const password = document.getElementById('auth-password')?.value;
-  const btn      = document.getElementById('auth-submit-btn');
+  const btn = document.getElementById('auth-submit-btn');
 
   if (!email || !password) { showAuthError('Please fill in all fields.'); return; }
 
   if (currentAuthTab === 'signup') {
-    const name    = document.getElementById('auth-name')?.value.trim();
+    const name = document.getElementById('auth-name')?.value.trim();
     const confirm = document.getElementById('auth-confirm')?.value;
-    if (!name)              { showAuthError('Please enter your full name.'); return; }
-    if (password !== confirm){ showAuthError('Passwords do not match.'); return; }
-    if (password.length < 6){ showAuthError('Password must be at least 6 characters.'); return; }
+    if (!name) { showAuthError('Please enter your full name.'); return; }
+    if (password !== confirm) { showAuthError('Passwords do not match.'); return; }
+    if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
   }
 
   if (btn) { btn.textContent = currentAuthTab === 'login' ? 'Signing in…' : 'Creating account…'; btn.disabled = true; }
@@ -106,12 +106,12 @@ window.handleAuthSubmit = async function() {
     window.goTo('user-info');
   } catch (err) {
     const msgs = {
-      'auth/user-not-found':       'No account found with this email.',
-      'auth/wrong-password':       'Incorrect password.',
+      'auth/user-not-found': 'No account found with this email.',
+      'auth/wrong-password': 'Incorrect password.',
       'auth/email-already-in-use': 'An account with this email already exists.',
-      'auth/invalid-email':        'Invalid email address.',
-      'auth/too-many-requests':    'Too many attempts. Please try again later.',
-      'auth/invalid-credential':   'Invalid email or password.',
+      'auth/invalid-email': 'Invalid email address.',
+      'auth/too-many-requests': 'Too many attempts. Please try again later.',
+      'auth/invalid-credential': 'Invalid email or password.',
     };
     showAuthError(msgs[err.code] || 'Something went wrong. Please try again.');
   } finally {
@@ -133,6 +133,7 @@ let recordingTimer = null;
 let recordingTime = 0;
 let aiResult = null;
 let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false };
+
 // ── BACKEND URL CONFIG ──────────────────────────────────────────────────────
 // For local development, keep this as http://127.0.0.1:5000
 // Before deploying to production, change this to your hosted backend URL, e.g.:
@@ -140,7 +141,7 @@ let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivi
 const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
 // ────────────────────────────────────────────────────────────────────────────
 
-window.goTo = function(page) {
+window.goTo = function (page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const targetPage = document.getElementById('page-' + page);
   if (targetPage) targetPage.classList.add('active');
@@ -151,9 +152,9 @@ window.goTo = function(page) {
 function prefillUserInfo() {
   if (!window.currentUser) return;
 
-  const nameInput   = document.getElementById('input-name');
+  const nameInput = document.getElementById('input-name');
   const genderInput = document.getElementById('input-gender');
-  const photoWrap   = document.getElementById('user-info-photo-wrap');
+  const photoWrap = document.getElementById('user-info-photo-wrap');
 
   if (nameInput && window.currentUser.name) {
     nameInput.value = window.currentUser.name;
@@ -181,7 +182,7 @@ function prefillUserInfo() {
   }
 }
 
-window.handlePhotoChange = function(event) {
+window.handlePhotoChange = function (event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -196,18 +197,182 @@ window.handlePhotoChange = function(event) {
   reader.readAsDataURL(file);
 };
 
-window.handleGoogleLogin = function() { 
-  if (window.firebaseSignIn) window.firebaseSignIn(); 
+window.handleGoogleLogin = function () {
+  if (window.firebaseSignIn) window.firebaseSignIn();
 };
 
-window.updateAssessBtn = function() {
+window.updateAssessBtn = function () {
   textInputVal = document.getElementById('text-input').value;
   const btn = document.getElementById('assess-continue-btn');
   if (btn) btn.disabled = !textInputVal.trim() && !videoBase64 && !audioBase64;
 };
 
-// ---- Toggle answers ----
-window.toggleAnswer = function(key, btn) {
+// ---- 12-Question Depression Screening ----
+const DEPRESSION_QUESTIONS = [
+  {
+    text: "Over the past 2 weeks, how often have you felt sad, hopeless, empty, or like a failure?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "sadness"
+  },
+  {
+    text: "How often have you had little interest or pleasure in things you used to enjoy?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "anhedonia"
+  },
+  {
+    text: "How often have you had trouble falling or staying asleep, or waking too early?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "insomnia"
+  },
+  {
+    text: "How often have you been sleeping MUCH MORE than usual (hard to get out of bed even after long sleep)?",
+    options: ["Not at all — sleep is normal or reduced", "Several days — slightly more than usual", "More than half the days — clearly oversleeping", "Nearly every day — excessive sleep most days"],
+    key: "hypersomnia"
+  },
+  {
+    text: "How often have you felt exhausted or had very little energy, even for small tasks?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "fatigue"
+  },
+  {
+    text: "How often have you had noticeably INCREASED appetite — especially craving carbs, sweets, or comfort food?",
+    options: ["Not at all — appetite normal or reduced", "Several days — mild cravings", "More than half the days — noticeable carb/sweet cravings", "Nearly every day — strong cravings, possible weight gain"],
+    key: "appetite"
+  },
+  {
+    text: "How often have you had trouble concentrating, felt mentally foggy, or struggled to make decisions?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "concentration"
+  },
+  {
+    text: "Do your symptoms follow a seasonal pattern — clearly worse in autumn/winter and better in spring/summer?",
+    options: ["No clear seasonal pattern", "Possibly slightly worse in winter", "Yes — clearly worse in autumn/winter", "Definitely — happens every year without exception"],
+    key: "seasonal"
+  },
+  {
+    text: "How long have you been experiencing these depressive symptoms most days?",
+    options: ["Less than a few weeks (recent onset)", "A few weeks to several months", "Around 1–2 years (persistent, may fluctuate)", "2 or more years almost continuously (chronic)"],
+    key: "duration"
+  },
+  {
+    text: "When something genuinely good happens, does your mood noticeably lift — even if only temporarily?",
+    options: ["No — mood stays low regardless of positive events", "Slightly — very minor lifts that fade immediately", "Yes — I do feel meaningfully better during good events", "Definitely — positive events clearly brighten my mood"],
+    key: "moodReactivity"
+  },
+  {
+    text: "Did your depressive symptoms begin within 4 weeks of giving birth (or within the first year postpartum)?",
+    options: ["No / Not applicable", "Possibly — symptoms worsened after childbirth", "Yes — symptoms clearly started after giving birth", "Yes — severe symptoms starting shortly after delivery"],
+    key: "postpartum"
+  },
+  {
+    text: "How often have you had thoughts of being better off dead, or of hurting yourself?",
+    options: ["Not at all", "Several days — fleeting thoughts, no plan", "More than half the days — recurring thoughts", "Nearly every day — frequent or distressing thoughts"],
+    key: "suicidality"
+  }
+];
+
+let qCurrentIndex = 0;
+let qAnswers = new Array(12).fill(null);
+
+function qRender() {
+  const q = DEPRESSION_QUESTIONS[qCurrentIndex];
+  const total = DEPRESSION_QUESTIONS.length;
+
+  document.getElementById('q-counter').textContent = `${qCurrentIndex + 1} / ${total}`;
+  document.getElementById('q-progress-bar').style.width = `${((qCurrentIndex + 1) / total) * 100}%`;
+  document.getElementById('q-question-text').textContent = q.text;
+
+  const container = document.getElementById('q-options-container');
+  container.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const isSelected = qAnswers[qCurrentIndex] === i;
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.style.cssText = `
+      width:100%;text-align:left;padding:14px 20px;border-radius:14px;cursor:pointer;
+      font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+      transition:all 0.2s;border:1px solid;
+      background:${isSelected ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)'};
+      border-color:${isSelected ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.07)'};
+      color:${isSelected ? '#c4b5fd' : '#94a3b8'};
+    `;
+    btn.onclick = () => {
+      qAnswers[qCurrentIndex] = i;
+      document.getElementById('q-next-btn').disabled = false;
+      qRender();
+    };
+    container.appendChild(btn);
+  });
+
+  // Back button visibility
+  document.getElementById('q-back-btn').style.visibility = qCurrentIndex === 0 ? 'hidden' : 'visible';
+
+  // Next button label
+  const nextBtn = document.getElementById('q-next-btn');
+  nextBtn.disabled = qAnswers[qCurrentIndex] === null;
+  nextBtn.innerHTML = qCurrentIndex === total - 1
+    ? 'Submit <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'
+    : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+}
+
+window.qNext = function () {
+  if (qCurrentIndex < DEPRESSION_QUESTIONS.length - 1) {
+    qCurrentIndex++;
+    qRender();
+  } else {
+    completeQuestionnaire();
+  }
+};
+
+window.qPrev = function () {
+  if (qCurrentIndex > 0) {
+    qCurrentIndex--;
+    qRender();
+  }
+};
+
+function resetQuestionnaire() {
+  qCurrentIndex = 0;
+  qAnswers = new Array(12).fill(null);
+}
+
+// ---- Classify Depression Type from answers ----
+function classifyDepressionType(answers) {
+  const get = (key) => {
+    const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
+    return idx >= 0 ? (answers[idx] ?? 0) : 0;
+  };
+
+  const seasonal   = get('seasonal');
+  const postpartum = get('postpartum');
+  const duration   = get('duration');
+  const hypersomnia= get('hypersomnia');
+  const appetite   = get('appetite');
+  const moodReact  = get('moodReactivity');
+  const sadness    = get('sadness');
+  const anhedonia  = get('anhedonia');
+
+  // Postpartum Depression
+  if (postpartum >= 2) return "Postpartum Depression";
+
+  // Seasonal Affective Disorder
+  if (seasonal >= 2) return "Seasonal Affective Disorder (SAD)";
+
+  // Atypical Depression (mood reactivity + hypersomnia + appetite)
+  if (moodReact >= 2 && (hypersomnia >= 2 || appetite >= 2)) return "Atypical Depression";
+
+  // Persistent Depressive Disorder (chronic)
+  if (duration >= 3) return "Persistent Depressive Disorder (Dysthymia)";
+
+  // Major Depressive Disorder
+  if (sadness >= 2 && anhedonia >= 2) return "Major Depressive Disorder (MDD)";
+
+  // Mild/Moderate
+  return "Depressive Episode";
+}
+
+// ---- Toggle answers (kept for backward compat) ----
+window.toggleAnswer = function (key, btn) {
   questionnaireAnswers[key] = !questionnaireAnswers[key];
   btn.className = 'toggle-btn ' + (questionnaireAnswers[key] ? 'on' : 'off');
   const label = document.getElementById('label-' + key);
@@ -217,7 +382,7 @@ window.toggleAnswer = function(key, btn) {
   }
 };
 
-window.updateImpairmentLabel = function() {
+window.updateImpairmentLabel = function () {
   const el = document.getElementById('q-impairment');
   if (!el) return;
   const val = parseInt(el.value);
@@ -227,7 +392,7 @@ window.updateImpairmentLabel = function() {
 };
 
 // ---- Audio Recording ----
-window.toggleRecording = async function() {
+window.toggleRecording = async function () {
   if (!isRecording) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -300,7 +465,7 @@ function showAudioRecorded() {
   }
 }
 
-window.removeAudio = function() {
+window.removeAudio = function () {
   audioBase64 = null; audioUrl = null; isRecording = false;
   if (recordingTimer) clearInterval(recordingTimer);
   const display = document.getElementById('audio-display');
@@ -316,7 +481,7 @@ window.removeAudio = function() {
   window.updateAssessBtn();
 };
 
-window.handleAudioUpload = function(event) {
+window.handleAudioUpload = function (event) {
   const file = event.target.files[0];
   if (!file) return;
   audioUrl = URL.createObjectURL(file);
@@ -336,7 +501,7 @@ window.handleAudioUpload = function(event) {
   if (removeBtn) removeBtn.style.display = 'block';
 };
 
-window.handleVideoUpload = function(event) {
+window.handleVideoUpload = function (event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -348,35 +513,34 @@ window.handleVideoUpload = function(event) {
   if (uploadBtn) uploadBtn.textContent = 'Replace Video';
 };
 
-// ---- Questionnaire Complete ----
-// ---- STEP 1: Run ML model first when user clicks "Complete Assessment" on assessment page ----
-window.runInitialAnalysis = async function() {
-  userInfo.name   = document.getElementById('input-name').value;
-  userInfo.age    = document.getElementById('input-age').value;
+// ---- STEP 1: Run ML model first when user clicks "Complete Assessment" ----
+window.runInitialAnalysis = async function () {
+  userInfo.name = document.getElementById('input-name').value;
+  userInfo.age = document.getElementById('input-age').value;
   userInfo.gender = document.getElementById('input-gender').value;
   if (window.currentUser) {
     window.currentUser.gender = userInfo.gender;
-    window.currentUser.age    = userInfo.age;
+    window.currentUser.age = userInfo.age;
     if (window.saveUserProfile) {
       await window.saveUserProfile({
-        name:   userInfo.name,
-        age:    userInfo.age,
+        name: userInfo.name,
+        age: userInfo.age,
         gender: userInfo.gender,
-        email:  window.currentUser.email,
-        photo:  window.currentUser.photo || null,
+        email: window.currentUser.email,
+        photo: window.currentUser.photo || null,
         updatedAt: new Date().toISOString()
       });
     }
   }
   textInputVal = document.getElementById('text-input').value;
 
-  // Run ML with empty questionnaire first
+  // Empty questionnaire for first pass — backend detects this and uses pure model output
   const emptyQuestionnaire = {
     answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false },
     duration: 0,
     seasonalPattern: 'No seasonal pattern',
     postpartum: 'Not applicable',
-    impairment: 30,
+    impairment: 30,   // default value — backend uses this to detect "empty" first pass
   };
 
   window.goTo('analysis');
@@ -384,28 +548,33 @@ window.runInitialAnalysis = async function() {
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, emptyQuestionnaire);
     aiResult = result;
 
-    // If depression likely → show questionnaire for more details
-    if (result.riskLevel === 'High' || result.riskLevel === 'Moderate') {
-      // Show a banner on questionnaire page explaining why
+    // FIX: Only show questionnaire for HIGH risk.
+    // Moderate and Low both go straight to results — avoids false positives
+    // at borderline confidence (e.g. 47–54%) triggering unnecessary questionnaire.
+    if (result.riskLevel === 'High') {
+      // Show banner on questionnaire page explaining why
       const banner = document.getElementById('questionnaire-banner');
       if (banner) {
         banner.style.display = 'flex';
         banner.querySelector('#banner-risk').textContent = result.riskLevel;
         banner.querySelector('#banner-confidence').textContent = result.confidenceScore + '%';
       }
+      // Reset and render questionnaire from Q1
+      resetQuestionnaire();
+      qRender();
       window.goTo('questioning');
     } else {
-      // Low risk → go straight to results
+      // Low or Moderate risk → go straight to results
       renderResults(result);
       if (window.saveReport) {
         await window.saveReport({
-          userInfo:        { ...userInfo },
-          riskLevel:       result.riskLevel,
+          userInfo: { ...userInfo },
+          riskLevel: result.riskLevel,
           confidenceScore: result.confidenceScore,
           emotionalSignals: result.emotionalSignals,
-          contributions:   result.contributions,
+          contributions: result.contributions,
           recommendations: result.recommendations,
-          questionnaire:   emptyQuestionnaire,
+          questionnaire: emptyQuestionnaire,
         });
       }
       window.goTo('results');
@@ -418,31 +587,45 @@ window.runInitialAnalysis = async function() {
   }
 };
 
-// ---- STEP 2: After questionnaire is filled (only reached if depression was flagged) ----
-window.completeQuestionnaire = async function() {
-  const questionnaireData = {
-    answers: { ...questionnaireAnswers },
-    duration: parseInt(document.getElementById('q-duration').value) || 0,
-    seasonalPattern: document.getElementById('q-seasonal').value,
-    postpartum: document.getElementById('q-postpartum').value,
-    impairment: parseInt(document.getElementById('q-impairment').value),
+// ---- STEP 2: After questionnaire is filled (only reached if High risk was flagged) ----
+window.completeQuestionnaire = async function () {
+  const getScore = (key) => {
+    const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
+    return idx >= 0 ? (qAnswers[idx] ?? 0) : 0;
   };
+
+  const questionnaireData = {
+    answers: {
+      elevatedMood:   false,
+      reducedSleep:   getScore('insomnia') >= 2,
+      impulsivity:    false,
+      racingThoughts: false,
+    },
+    duration:        getScore('duration'),
+    seasonalPattern: getScore('seasonal') >= 2 ? 'Winter onset' : 'No seasonal pattern',
+    postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
+    impairment:      Math.round((getScore('sadness') + getScore('anhedonia') + getScore('fatigue')) / 9 * 100),
+    scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
+  };
+
+  const depressionType = classifyDepressionType(qAnswers);
 
   window.goTo('analysis');
   try {
-    // Re-run with full questionnaire data for refined result
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, questionnaireData);
     aiResult = result;
-    renderResults(result);
+    aiResult.depressionType = depressionType;
+    renderResults(result, depressionType);
     if (window.saveReport) {
       await window.saveReport({
-        userInfo:        { ...userInfo },
-        riskLevel:       result.riskLevel,
-        confidenceScore: result.confidenceScore,
+        userInfo:         { ...userInfo },
+        riskLevel:        result.riskLevel,
+        confidenceScore:  result.confidenceScore,
         emotionalSignals: result.emotionalSignals,
-        contributions:   result.contributions,
-        recommendations: result.recommendations,
-        questionnaire:   questionnaireData,
+        contributions:    result.contributions,
+        recommendations:  result.recommendations,
+        questionnaire:    questionnaireData,
+        depressionType:   depressionType,
       });
     }
     window.goTo('results');
@@ -474,7 +657,7 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
 
   // Questionnaire + userInfo as JSON strings
   formData.append('questionnaire', JSON.stringify(questionnaireData));
-  formData.append('userInfo',      JSON.stringify(userInfo));
+  formData.append('userInfo', JSON.stringify(userInfo));
 
   // Audio — convert base64 data URL → Blob → File
   if (audioBase64) {
@@ -513,20 +696,28 @@ function dataURLtoBlob(dataURL) {
   return new Blob([arr], { type: mime });
 }
 
-function renderResults(result) {
+function renderResults(result, depressionType) {
   const name = userInfo.name || 'Anonymous';
   const patientEl = document.getElementById('results-patient');
-  if (patientEl) patientEl.textContent = `Patient: ${name} • ID: PS-${Math.floor(Math.random()*9000)+1000}`;
-  
+  if (patientEl) patientEl.textContent = `Patient: ${name} • ID: PS-${Math.floor(Math.random() * 9000) + 1000}`;
+
   const confidenceEl = document.getElementById('results-confidence');
   if (confidenceEl) confidenceEl.textContent = `${result.confidenceScore}%`;
-  
+
   const riskEl = document.getElementById('results-risk');
   if (riskEl) riskEl.textContent = result.riskLevel;
-  
+
+  // Show depression type badge if available
+  const typeBadge = document.getElementById('depression-type-badge');
+  const typeLabel = document.getElementById('depression-type-label');
+  if (typeBadge && typeLabel && depressionType) {
+    typeBadge.style.display = 'inline-flex';
+    typeLabel.textContent = depressionType;
+  }
+
   const ringLabelEl = document.getElementById('ring-label');
   if (ringLabelEl) ringLabelEl.textContent = result.riskLevel === 'Low' ? 'Stable' : result.riskLevel;
-  
+
   const ringDescEl = document.getElementById('ring-desc');
   if (ringDescEl) {
     ringDescEl.textContent = result.riskLevel === 'Low'
@@ -542,8 +733,8 @@ function renderResults(result) {
   }
 
   const c = result.contributions;
-  ['text','video','audio','quest'].forEach((k, i) => {
-    const key = ['text','video','audio','questionnaire'][i];
+  ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
+    const key = ['text', 'video', 'audio', 'questionnaire'][i];
     const val = c[key] ?? 25;
     const valEl = document.getElementById(`contrib-${k}-val`);
     if (valEl) valEl.textContent = `${val}%`;
@@ -558,17 +749,17 @@ function renderResults(result) {
     ).join('');
   }
 
-  ['text','video','audio','quest'].forEach((k, i) => {
-    const key = ['text','video','audio','questionnaire'][i];
+  ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
+    const key = ['text', 'video', 'audio', 'questionnaire'][i];
     const insights = result.insights?.[key];
     const firstPoint = insights?.points?.[0] ?? 'Analysis complete.';
     const pointEl = document.getElementById(`point-${k}`);
     if (pointEl) pointEl.textContent = firstPoint;
     const barEl = document.getElementById(`bar-${k}`);
-    if (barEl) setTimeout(() => { barEl.style.width = `${70 + Math.random()*25}%`; }, 200);
+    if (barEl) setTimeout(() => { barEl.style.width = `${70 + Math.random() * 25}%`; }, 200);
   });
 
-  ['text','video','audio'].forEach(k => {
+  ['text', 'video', 'audio'].forEach(k => {
     const ul = document.getElementById(`insights-${k}`);
     if (ul) {
       const points = result.insights?.[k]?.points ?? [];
@@ -584,7 +775,7 @@ function renderResults(result) {
   }
 }
 
-window.downloadReport = function() {
+window.downloadReport = function () {
   const lines = [
     '=== PsychSense Mental Health Report ===',
     '',
@@ -594,6 +785,7 @@ window.downloadReport = function() {
     `Generated: ${new Date().toLocaleString()}`,
     '',
     `Risk Level: ${aiResult?.riskLevel ?? 'N/A'}`,
+    `Depression Type: ${aiResult?.depressionType ?? 'N/A'}`,
     `Confidence: ${aiResult?.confidenceScore ?? '—'}%`,
     '',
     'Recommendations:',
@@ -608,25 +800,25 @@ window.downloadReport = function() {
   a.click();
 };
 
-window.openProfileModal = async function() {
+window.openProfileModal = async function () {
   const modal = document.getElementById('profile-modal');
   if (!modal || !window.currentUser) return;
 
   const u = window.currentUser;
   const displayName = u.name || u.email || 'User';
-  const avatarSeed  = displayName.includes('@') ? displayName.split('@')[0] : displayName;
-  const avatarUrl   = u.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarSeed)}&background=06b6d4&color=fff&size=128`;
+  const avatarSeed = displayName.includes('@') ? displayName.split('@')[0] : displayName;
+  const avatarUrl = u.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarSeed)}&background=06b6d4&color=fff&size=128`;
 
-  const nameVal   = document.getElementById('input-name')?.value   || u.name   || '—';
-  const ageVal    = document.getElementById('input-age')?.value    || u.age    || '—';
+  const nameVal = document.getElementById('input-name')?.value || u.name || '—';
+  const ageVal = document.getElementById('input-age')?.value || u.age || '—';
   const genderVal = document.getElementById('input-gender')?.value || u.gender || '—';
 
-  document.getElementById('profile-modal-avatar').src             = avatarUrl;
-  document.getElementById('profile-modal-name').textContent       = nameVal;
-  document.getElementById('profile-modal-email').textContent      = u.email || '';
+  document.getElementById('profile-modal-avatar').src = avatarUrl;
+  document.getElementById('profile-modal-name').textContent = nameVal;
+  document.getElementById('profile-modal-email').textContent = u.email || '';
   document.getElementById('profile-modal-email-full').textContent = u.email || '—';
-  document.getElementById('profile-modal-age').textContent        = ageVal;
-  document.getElementById('profile-modal-gender').textContent     = genderVal;
+  document.getElementById('profile-modal-age').textContent = ageVal;
+  document.getElementById('profile-modal-gender').textContent = genderVal;
 
   modal.style.display = 'flex';
   modal.onclick = (e) => { if (e.target === modal) window.closeProfileModal(); };
@@ -640,7 +832,7 @@ window.openProfileModal = async function() {
       reportsEl.innerHTML = `<p style="color:#475569;font-size:11px;text-align:center;padding:12px;">No past assessments yet.</p>`;
     } else {
       reportsEl.innerHTML = reports.map(r => {
-        const date  = new Date(r.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
+        const date = new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
         const color = r.riskLevel === 'Low' ? '#06b6d4' : r.riskLevel === 'Moderate' ? '#f59e0b' : '#ef4444';
         return `<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
           <div>
@@ -657,12 +849,12 @@ window.openProfileModal = async function() {
   }
 };
 
-window.closeProfileModal = function() {
+window.closeProfileModal = function () {
   const modal = document.getElementById('profile-modal');
   if (modal) modal.style.display = 'none';
 };
 
-window.handleReset = function() {
+window.handleReset = function () {
   textInputVal = ''; videoBase64 = null; audioBase64 = null; audioUrl = null;
   aiResult = null; isRecording = false;
   if (recordingTimer) clearInterval(recordingTimer);

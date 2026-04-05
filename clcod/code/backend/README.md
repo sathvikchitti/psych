@@ -1,22 +1,3 @@
----
-title: PsychSense
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
-app_port: 7860
----
-
----
-title: PsychSense
-emoji: ??
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
-app_port: 7860
----
-
 # PsychSense — Setup Guide
 
 ## Folder structure after setup
@@ -164,5 +145,3 @@ cannot run inside a browser. To enable it:
 | `CORS error in browser console` | Flask already has CORS enabled — check you're on port 3000 |
 | `torch not found` | Run `pip install -r requirements.txt` |
 | `WavLM download slow` | First run downloads ~360MB — normal, cached after that |
-
-
