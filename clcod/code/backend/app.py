@@ -235,19 +235,20 @@ def extract_clnf_from_video(video_path):
 def questionnaire_contribution(q: dict, has_audio: bool, has_video: bool, has_text: bool) -> dict:
     """
     Derive contribution percentages for the four modalities.
-    Questionnaire weight is fixed; the remaining 70% is split
-    proportionally among the available modalities.
+    If no real questionnaire was filled, questionnaire gets 0%.
     """
-    q_weight = 30
-
-    # Score how many mania/symptom indicators are positive
     answers   = q.get("answers", {})
     pos_count = sum(1 for v in answers.values() if v)
     impairment= q.get("impairment", 30)
+    scores    = q.get("scores", {})
 
-    # Boost questionnaire weight slightly if many positives
-    if pos_count >= 3 or impairment >= 66:
-        q_weight = 35
+    # Detect if a real questionnaire was filled
+    has_real_questionnaire = pos_count > 0 or impairment != 30 or bool(scores)
+
+    if has_real_questionnaire:
+        q_weight = 35 if (pos_count >= 3 or impairment >= 66) else 30
+    else:
+        q_weight = 0  # No questionnaire filled — give it 0%
 
     remainder  = 100 - q_weight
     modalities = []
@@ -258,14 +259,12 @@ def questionnaire_contribution(q: dict, has_audio: bool, has_video: bool, has_te
     if not modalities:
         return {"text": 0, "audio": 0, "video": 0, "questionnaire": 100}
 
-    # Text gets slightly more weight than audio; video slightly less
     weights = {"text": 1.2, "audio": 1.0, "video": 0.8}
     total_w = sum(weights[m] for m in modalities)
     contribs = {}
     for m in ["text", "audio", "video"]:
         contribs[m] = round(remainder * weights[m] / total_w) if m in modalities else 0
 
-    # Normalise so everything sums to exactly 100
     contribs["questionnaire"] = q_weight
     diff = 100 - sum(contribs.values())
     if modalities:
@@ -315,22 +314,39 @@ def build_questionnaire_insights(q: dict) -> list:
 # ─────────────────────────────────────────────────────────────────────
 # RISK → EMOTIONAL SIGNALS  (derived from model output + questionnaire)
 # ─────────────────────────────────────────────────────────────────────
-SIGNAL_MAP = {
-    "High": ["Depressive Episode", "Anhedonia", "Fatigue", "Cognitive Impairment", "Social Withdrawal"],
-    "Moderate": ["Low Mood", "Fatigue", "Reduced Motivation", "Sleep Disruption"],
-    "Low": ["Stability", "Emotional Coherence", "Resilience"],
-}
+def derive_signals(p_dep: float, risk_level: str, q: dict) -> list:
+    """Derive emotional signals from actual model probability and questionnaire scores."""
+    scores  = q.get("scores", {})
+    signals = []
 
-def derive_signals(risk_level: str, q: dict) -> list:
-    base    = SIGNAL_MAP.get(risk_level, ["Stability"])
+    # Core signal from model probability
+    if p_dep >= 0.70:
+        signals.append("Depressive Episode")
+    elif p_dep >= 0.55:
+        signals.append("Low Mood")
+    else:
+        signals.append("Emotional Stability")
+
+    # From questionnaire scores (only if filled)
+    if scores.get("anhedonia", 0) >= 2:    signals.append("Anhedonia")
+    if scores.get("fatigue", 0) >= 2:      signals.append("Fatigue")
+    if scores.get("insomnia", 0) >= 2:     signals.append("Insomnia")
+    if scores.get("hypersomnia", 0) >= 2:  signals.append("Hypersomnia")
+    if scores.get("concentration", 0) >= 2: signals.append("Cognitive Fog")
+    if scores.get("appetite", 0) >= 2:     signals.append("Appetite Changes")
+    if scores.get("seasonal", 0) >= 2:     signals.append("Seasonal Pattern")
+    if scores.get("sadness", 0) >= 2:      signals.append("Persistent Sadness")
+
+    # Fallback signals from answers dict (old format)
     answers = q.get("answers", {})
-    extras  = []
-    if answers.get("racingThoughts"): extras.append("Racing Thoughts")
-    if answers.get("reducedSleep"):   extras.append("Insomnia")
-    if answers.get("impulsivity"):    extras.append("Impulsivity")
-    if "winter" in q.get("seasonalPattern", "").lower(): extras.append("Seasonal Pattern")
-    combined = list(dict.fromkeys(base + extras))   # deduplicate, preserve order
-    return combined[:6]
+    if answers.get("reducedSleep"):   signals.append("Insomnia")
+    if answers.get("racingThoughts"): signals.append("Racing Thoughts")
+
+    # If only low risk and no questionnaire, show positive signals
+    if risk_level == "Low" and len(signals) <= 1:
+        signals = ["Emotional Stability", "Resilience", "Coherent Thought"]
+
+    return list(dict.fromkeys(signals))[:6]  # deduplicate, max 6
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -433,7 +449,7 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
 
     # ── 5. Build full response ───────────────────────────────────────
     contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
-    signals  = derive_signals(risk_level, q)
+    signals  = derive_signals(p_dep, risk_level, q)
     recs     = get_recommendations(risk_level, q)
     q_points = build_questionnaire_insights(q)
 
