@@ -320,7 +320,7 @@ window.qNext = function () {
     qCurrentIndex++;
     qRender();
   } else {
-    completeQuestionnaire();
+    window.completeQuestionnaire();   // FIX: was bare completeQuestionnaire() — questionnaire data never reached backend
   }
 };
 
