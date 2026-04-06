@@ -16,7 +16,6 @@
 
 import os
 import json
-import uuid
 import tempfile
 import warnings
 import traceback
@@ -24,7 +23,6 @@ import traceback
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import librosa
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -45,7 +43,7 @@ MAX_DUR         = 300   # 5 minutes max audio
 print(f"[PsychSense] Device: {DEVICE}  |  FP16: {FP16}")
 
 # ─────────────────────────────────────────────────────────────────────
-# SAME MODEL ARCHITECTURE AS TRAINING
+# MODEL ARCHITECTURE
 # ─────────────────────────────────────────────────────────────────────
 class DepressionNet(nn.Module):
     def __init__(self, clnf_dim, hidden=256, dropout=0.4):
@@ -81,7 +79,7 @@ class DepressionNet(nn.Module):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# SAME SAFE CLEAN AS TRAINING
+# UTILS
 # ─────────────────────────────────────────────────────────────────────
 def safe_clean(arr, clip=1e6):
     arr = np.array(arr, dtype=np.float32)
@@ -93,14 +91,14 @@ def safe_clean(arr, clip=1e6):
 # LOAD CHECKPOINT + PRETRAINED MODELS
 # ─────────────────────────────────────────────────────────────────────
 def load_everything():
-    print("[PsychSense] Loading checkpoint …")
+    print("[PsychSense] Loading checkpoint ...")
     if not os.path.exists(CHECKPOINT_PATH):
         raise FileNotFoundError(
             f"Checkpoint not found at '{CHECKPOINT_PATH}'.\n"
             f"Set MODEL_PATH env var to the correct path of model_corrected.pt"
         )
 
-    ckpt = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
+    ckpt      = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
     clnf_dim  = ckpt["CLNF_DIM"]
     threshold = ckpt["threshold"]
     sc_audio  = ckpt["sc_audio"]
@@ -113,23 +111,23 @@ def load_everything():
     model.to(DEVICE)
     print(f"[PsychSense] DepressionNet loaded  CLNF_DIM={clnf_dim}  threshold={threshold:.2f}")
 
-    print("[PsychSense] Loading WavLM …")
-    wav_feat  = Wav2Vec2FeatureExtractor.from_pretrained("microsoft/wavlm-base-plus")
-    wavlm     = WavLMModel.from_pretrained("microsoft/wavlm-base-plus")
+    print("[PsychSense] Loading WavLM ...")
+    wav_feat = Wav2Vec2FeatureExtractor.from_pretrained("microsoft/wavlm-base-plus")
+    wavlm    = WavLMModel.from_pretrained("microsoft/wavlm-base-plus")
     wavlm.eval()
     for p in wavlm.parameters(): p.requires_grad = False
     if FP16: wavlm = wavlm.half()
     wavlm = wavlm.to(DEVICE)
-    print("[PsychSense] WavLM loaded ✓")
+    print("[PsychSense] WavLM loaded")
 
-    print("[PsychSense] Loading BERT …")
+    print("[PsychSense] Loading BERT ...")
     tok  = AutoTokenizer.from_pretrained("bert-base-uncased")
     bert = AutoModel.from_pretrained("bert-base-uncased")
     bert.eval()
     for p in bert.parameters(): p.requires_grad = False
     if FP16: bert = bert.half()
     bert = bert.to(DEVICE)
-    print("[PsychSense] BERT loaded ✓")
+    print("[PsychSense] BERT loaded")
 
     return model, clnf_dim, threshold, sc_audio, sc_text, sc_clnf, wav_feat, wavlm, tok, bert
 
@@ -140,13 +138,9 @@ def load_everything():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# FEATURE EXTRACTION  (same logic as training — no drift)
+# FEATURE EXTRACTION
 # ─────────────────────────────────────────────────────────────────────
 def extract_audio_embedding(audio_path):
-    """
-    Load audio → chunk into CHUNK_SEC windows → WavLM → mean-pool.
-    Returns (768,) float32 or zeros if anything fails.
-    """
     try:
         y, _ = librosa.load(audio_path, sr=SR, mono=True, duration=MAX_DUR)
         chunk_n = SR * CHUNK_SEC
@@ -162,21 +156,16 @@ def extract_audio_embedding(audio_path):
                 inp = WAV_FEAT(ch, sampling_rate=SR,
                                return_tensors="pt", padding=True).input_values.to(DEVICE)
                 if FP16: inp = inp.half()
-                out = WAVLM(inp).last_hidden_state   # (1, T, 768)
+                out = WAVLM(inp).last_hidden_state
                 embs.append(out.mean(1).squeeze(0).float().cpu().numpy())
 
-        emb = safe_clean(np.mean(embs, axis=0).astype(np.float32))
-        return emb
+        return safe_clean(np.mean(embs, axis=0).astype(np.float32))
     except Exception as e:
         print(f"[WARN] Audio extraction failed: {e}")
         return np.zeros(768, dtype=np.float32)
 
 
 def extract_text_embedding(text: str):
-    """
-    BERT [CLS] embedding for the user's written expression.
-    Returns (768,) float32.
-    """
     if not text or not text.strip():
         text = "no input provided"
     try:
@@ -194,61 +183,25 @@ def extract_text_embedding(text: str):
 
 
 def extract_clnf_from_video(video_path):
-    """
-    The training used pre-extracted CLNF CSV files from OpenFace.
-    At inference time from the browser we receive a raw video file.
-
-    Production path  → run OpenFace on the video, parse the CSVs.
-    Current path     → return zeros (visual branch is still active
-                        but carries no signal; model handles this
-                        since CLNF was already sparse in training).
-
-    To enable full visual inference:
-      1. Install OpenFace: https://github.com/TadasBaltrusaitis/OpenFace
-      2. Uncomment and configure the subprocess call below.
-    """
-    clnf = np.zeros(CLNF_DIM, dtype=np.float32)
-
-    # ── Optional: run OpenFace ──────────────────────────────────────
-    # import subprocess, pandas as pd
-    # out_dir = tempfile.mkdtemp()
-    # subprocess.run([
-    #     "FeatureExtraction", "-f", video_path,
-    #     "-out_dir", out_dir, "-aus", "-pose", "-gaze"
-    # ], check=True)
-    # au_file = next((os.path.join(out_dir,f) for f in os.listdir(out_dir)
-    #                 if f.endswith('.csv')), None)
-    # if au_file:
-    #     df  = pd.read_csv(au_file)
-    #     num = df.select_dtypes(include=[np.number])
-    #     vec = np.concatenate([num.mean(0).values, num.std(0).fillna(0).values])
-    #     n   = min(len(vec), CLNF_DIM)
-    #     clnf[:n] = vec[:n]
-    # ───────────────────────────────────────────────────────────────
-
-    return safe_clean(clnf)
+    # OpenFace not available on HF — return zeros (visual branch handles sparse input)
+    return safe_clean(np.zeros(CLNF_DIM, dtype=np.float32))
 
 
 # ─────────────────────────────────────────────────────────────────────
-# QUESTIONNAIRE → CONTRIBUTION WEIGHTS
+# QUESTIONNAIRE HELPERS
 # ─────────────────────────────────────────────────────────────────────
-def questionnaire_contribution(q: dict, has_audio: bool, has_video: bool, has_text: bool) -> dict:
-    """
-    Derive contribution percentages for the four modalities.
-    If no real questionnaire was filled, questionnaire gets 0%.
-    """
-    answers   = q.get("answers", {})
-    pos_count = sum(1 for v in answers.values() if v)
-    impairment= q.get("impairment", 30)
-    scores    = q.get("scores", {})
+def questionnaire_contribution(q, has_audio, has_video, has_text):
+    answers    = q.get("answers", {})
+    pos_count  = sum(1 for v in answers.values() if v)
+    impairment = q.get("impairment", 30)
+    scores     = q.get("scores", {})
 
-    # Detect if a real questionnaire was filled
     has_real_questionnaire = pos_count > 0 or impairment != 30 or bool(scores)
 
     if has_real_questionnaire:
         q_weight = 35 if (pos_count >= 3 or impairment >= 66) else 30
     else:
-        q_weight = 0  # No questionnaire filled — give it 0%
+        q_weight = 0
 
     remainder  = 100 - q_weight
     modalities = []
@@ -273,11 +226,8 @@ def questionnaire_contribution(q: dict, has_audio: bool, has_video: bool, has_te
     return contribs
 
 
-# ─────────────────────────────────────────────────────────────────────
-# QUESTIONNAIRE → INSIGHTS  (deterministic, clinically grounded)
-# ─────────────────────────────────────────────────────────────────────
-def build_questionnaire_insights(q: dict) -> list:
-    points = []
+def build_questionnaire_insights(q):
+    points     = []
     answers    = q.get("answers", {})
     duration   = q.get("duration", 0)
     seasonal   = q.get("seasonalPattern", "No seasonal pattern")
@@ -311,15 +261,10 @@ def build_questionnaire_insights(q: dict) -> list:
     return points
 
 
-# ─────────────────────────────────────────────────────────────────────
-# RISK → EMOTIONAL SIGNALS  (derived from model output + questionnaire)
-# ─────────────────────────────────────────────────────────────────────
-def derive_signals(p_dep: float, risk_level: str, q: dict) -> list:
-    """Derive emotional signals from actual model probability and questionnaire scores."""
+def derive_signals(p_dep, risk_level, q):
     scores  = q.get("scores", {})
     signals = []
 
-    # Core signal from model probability
     if p_dep >= 0.70:
         signals.append("Depressive Episode")
     elif p_dep >= 0.55:
@@ -327,31 +272,25 @@ def derive_signals(p_dep: float, risk_level: str, q: dict) -> list:
     else:
         signals.append("Emotional Stability")
 
-    # From questionnaire scores (only if filled)
-    if scores.get("anhedonia", 0) >= 2:    signals.append("Anhedonia")
-    if scores.get("fatigue", 0) >= 2:      signals.append("Fatigue")
-    if scores.get("insomnia", 0) >= 2:     signals.append("Insomnia")
-    if scores.get("hypersomnia", 0) >= 2:  signals.append("Hypersomnia")
+    if scores.get("anhedonia", 0) >= 2:     signals.append("Anhedonia")
+    if scores.get("fatigue", 0) >= 2:       signals.append("Fatigue")
+    if scores.get("insomnia", 0) >= 2:      signals.append("Insomnia")
+    if scores.get("hypersomnia", 0) >= 2:   signals.append("Hypersomnia")
     if scores.get("concentration", 0) >= 2: signals.append("Cognitive Fog")
-    if scores.get("appetite", 0) >= 2:     signals.append("Appetite Changes")
-    if scores.get("seasonal", 0) >= 2:     signals.append("Seasonal Pattern")
-    if scores.get("sadness", 0) >= 2:      signals.append("Persistent Sadness")
+    if scores.get("appetite", 0) >= 2:      signals.append("Appetite Changes")
+    if scores.get("seasonal", 0) >= 2:      signals.append("Seasonal Pattern")
+    if scores.get("sadness", 0) >= 2:       signals.append("Persistent Sadness")
 
-    # Fallback signals from answers dict (old format)
     answers = q.get("answers", {})
     if answers.get("reducedSleep"):   signals.append("Insomnia")
     if answers.get("racingThoughts"): signals.append("Racing Thoughts")
 
-    # If only low risk and no questionnaire, show positive signals
     if risk_level == "Low" and len(signals) <= 1:
         signals = ["Emotional Stability", "Resilience", "Coherent Thought"]
 
-    return list(dict.fromkeys(signals))[:6]  # deduplicate, max 6
+    return list(dict.fromkeys(signals))[:6]
 
 
-# ─────────────────────────────────────────────────────────────────────
-# RECOMMENDATIONS  (risk-level aware, questionnaire aware)
-# ─────────────────────────────────────────────────────────────────────
 RECS = {
     "High": [
         "Seek an urgent appointment with a licensed psychiatrist or clinical psychologist.",
@@ -367,45 +306,37 @@ RECS = {
     ],
     "Low": [
         "Maintain your current sleep/wake schedule — consistent sleep is the single most protective factor.",
-        "Continue regular physical activity; 30 minutes of aerobic exercise 3× per week is clinically effective.",
+        "Continue regular physical activity; 30 minutes of aerobic exercise 3x per week is clinically effective.",
         "Stay socially connected — even brief positive interactions buffer against future episodes.",
         "Periodic self-check-ins with a counsellor or GP are a proactive way to maintain mental wellness.",
     ],
 }
 
-def get_recommendations(risk_level: str, q: dict) -> list:
-    recs = list(RECS.get(risk_level, RECS["Low"]))
-    # Inject SAD-specific rec if seasonal pattern present
+def get_recommendations(risk_level, q):
+    recs     = list(RECS.get(risk_level, RECS["Low"]))
     seasonal = q.get("seasonalPattern", "No seasonal pattern")
     if "No seasonal" not in seasonal and risk_level != "Low":
-        recs[1] = ("Light therapy (10,000 lux lamp, 20–30 min each morning) "
+        recs[1] = ("Light therapy (10,000 lux lamp, 20-30 min each morning) "
                    "is the first-line treatment for Seasonal Affective Disorder.")
     return recs
 
 
 # ─────────────────────────────────────────────────────────────────────
-# CORE PREDICT FUNCTION
+# CORE PREDICT
 # ─────────────────────────────────────────────────────────────────────
-def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or None
-    """
-    Run the full DepressionNet inference pipeline.
-    Returns a dict that maps 1-to-1 with what renderResults() reads.
-    """
+def predict(text, audio_path, video_path, q):
     has_audio = audio_path is not None
     has_video = video_path is not None
     has_text  = bool(text and text.strip())
 
-    # ── 1. Extract embeddings ────────────────────────────────────────
     ae = extract_audio_embedding(audio_path) if has_audio else np.zeros(768, dtype=np.float32)
     te = extract_text_embedding(text)
     ce = extract_clnf_from_video(video_path) if has_video else np.zeros(CLNF_DIM, dtype=np.float32)
 
-    # ── 2. Scale (TRAIN-fitted scalers — no leakage) ─────────────────
     ae = safe_clean(SC_AUDIO.transform(ae.reshape(1, -1))[0].astype(np.float32))
     te = safe_clean(SC_TEXT.transform(te.reshape(1, -1))[0].astype(np.float32))
     ce = safe_clean(SC_CLNF.transform(ce.reshape(1, -1))[0].astype(np.float32))
 
-    # ── 3. Forward pass ──────────────────────────────────────────────
     at = torch.from_numpy(ae).unsqueeze(0).to(DEVICE)
     tt = torch.from_numpy(te).unsqueeze(0).to(DEVICE)
     ct = torch.from_numpy(ce).unsqueeze(0).to(DEVICE)
@@ -415,27 +346,16 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
         logits = MODEL(at, tt, ct)
         probs  = torch.softmax(logits, dim=1).cpu().numpy()[0]
 
-    p_dep   = float(probs[1])
-    p_nodep = float(probs[0])
+    p_dep = float(probs[1])
 
-    # ── 4. Questionnaire adjustment ──────────────────────────────────
     answers    = q.get("answers", {})
     pos_count  = sum(1 for v in answers.values() if v)
     impairment = q.get("impairment", 30) / 100.0
-    q_score    = (pos_count / 4) * 0.5 + impairment * 0.5   # 0–1
+    q_score    = (pos_count / 4) * 0.5 + impairment * 0.5
 
-    # FIX: Only blend questionnaire when it has REAL answers.
-    # On the first pass (empty questionnaire), trust the model fully.
-    # impairment default is 30, pos_count is 0 → that's the empty first-pass signal.
     has_real_questionnaire = pos_count > 0 or q.get("impairment", 30) != 30
-    if has_real_questionnaire:
-        blended_p_dep = 0.70 * p_dep + 0.30 * q_score
-    else:
-        blended_p_dep = p_dep  # pure model output on first pass
+    blended_p_dep = 0.70 * p_dep + 0.30 * q_score if has_real_questionnaire else p_dep
 
-    # FIX: Stricter thresholds to avoid false positives at borderline confidence.
-    # Old: High >= 0.65, Moderate >= 0.40  (too sensitive — 47% triggered Moderate)
-    # New: High >= 0.70, Moderate >= 0.55  (requires clearer signal)
     if blended_p_dep >= 0.70:
         risk_level       = "High"
         confidence_score = round(blended_p_dep * 100, 1)
@@ -444,10 +364,8 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
         confidence_score = round(blended_p_dep * 100, 1)
     else:
         risk_level       = "Low"
-        # FIX: Show actual depression probability (not inverted) for consistency
         confidence_score = round(blended_p_dep * 100, 1)
 
-    # ── 5. Build full response ───────────────────────────────────────
     contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
     signals  = derive_signals(p_dep, risk_level, q)
     recs     = get_recommendations(risk_level, q)
@@ -497,7 +415,6 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
             "questionnaire": {"points": q_points},
         },
         "recommendations": recs,
-        # Extra fields saved to Firestore but not rendered in UI
         "modelProb":  round(p_dep * 100, 2),
         "threshold":  round(THRESHOLD, 2),
     }
@@ -508,8 +425,6 @@ def predict(text, audio_path, video_path, q):  # audio_path/video_path: str or N
 # ─────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 
-# ── CORS: set ALLOWED_ORIGIN env var in production (e.g. https://yourapp.vercel.app)
-# Leave unset in local dev to allow all origins.
 _ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 CORS(app, resources={r"/*": {"origins": _ALLOWED_ORIGIN}})
 print(f"[PsychSense] CORS origin: {_ALLOWED_ORIGIN}")
@@ -526,18 +441,16 @@ def analyze():
     tmp_video = None
 
     try:
-        # ── Parse form fields ────────────────────────────────────────
-        text = request.form.get("text", "").strip()
-
+        text     = request.form.get("text", "").strip()
         raw_q    = request.form.get("questionnaire", "{}")
         raw_user = request.form.get("userInfo", "{}")
+
         try:
             q         = json.loads(raw_q)
             user_info = json.loads(raw_user)
         except json.JSONDecodeError as e:
             return jsonify({"error": f"Invalid JSON in form fields: {e}"}), 400
 
-        # ── Save uploaded files to temp ──────────────────────────────
         audio_file = request.files.get("audio")
         video_file = request.files.get("video")
 
@@ -553,11 +466,9 @@ def analyze():
             video_file.save(tmp_video.name)
             tmp_video.close()
 
-        # ── Require at least one input ───────────────────────────────
         if not text and tmp_audio is None and tmp_video is None:
             return jsonify({"error": "Provide at least one of: text, audio, or video."}), 400
 
-        # ── Run inference ────────────────────────────────────────────
         result = predict(
             text       = text,
             audio_path = tmp_audio.name if tmp_audio else None,
@@ -572,7 +483,6 @@ def analyze():
         return jsonify({"error": "Internal server error during analysis."}), 500
 
     finally:
-        # Always clean up temp files
         if tmp_audio and os.path.exists(tmp_audio.name):
             os.unlink(tmp_audio.name)
         if tmp_video and os.path.exists(tmp_video.name):
@@ -581,7 +491,10 @@ def analyze():
 
 # ─────────────────────────────────────────────────────────────────────
 # ENTRY POINT
+# FIX: HuggingFace Spaces requires port 7860.
+# Gunicorn (Dockerfile CMD) bypasses this block in production.
+# This block only runs on local: python app.py
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 7860))
     app.run(host="0.0.0.0", port=port, debug=False)
