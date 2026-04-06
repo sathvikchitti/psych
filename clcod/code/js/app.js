@@ -1,709 +1,889 @@
-# ╔══════════════════════════════════════════════════════════════════════╗
-# ║  PsychSense — Flask Backend  (UPGRADED MODEL VERSION)               ║
-# ║  Connects frontend (audio/text/video/questionnaire) to the          ║
-# ║  trained WavLM + RoBERTa + ViT UpgradedDepressionNet model.         ║
-# ║                                                                      ║
-# ║  POST /analyze                                                       ║
-# ║    Accepts multipart/form-data:                                      ║
-# ║      audio        : audio file (wav/mp3/webm)  [optional]           ║
-# ║      video        : video file (mp4/webm)      [optional]           ║
-# ║      text         : string                     [optional]           ║
-# ║      questionnaire: JSON string                [required]           ║
-# ║      userInfo     : JSON string                [required]           ║
-# ║                                                                      ║
-# ║  Returns JSON matching exactly what renderResults() expects          ║
-# ╚══════════════════════════════════════════════════════════════════════╝
-
-import os
-import json
-import tempfile
-import warnings
-import traceback
-
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import librosa
-from PIL import Image
-import cv2
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from transformers import (
-    Wav2Vec2FeatureExtractor,
-    WavLMModel,
-    RobertaTokenizer,
-    RobertaModel,
-)
-
-warnings.filterwarnings("ignore")
-
-# ─────────────────────────────────────────────────────────────────────
-# CONFIG
-# ─────────────────────────────────────────────────────────────────────
-CHECKPOINT_PATH = os.environ.get("MODEL_PATH", "model_upgraded.pt")
-DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-FP16            = torch.cuda.is_available()
-
-# Audio
-SR          = 16_000
-CHUNK_SEC   = 10
-MAX_DUR     = 300
-
-# Video
-FRAMES_PER_CLIP = 8
-IMG_SIZE        = 224
-
-# Text
-MAX_TEXT_LEN = 512
-
-print(f"[PsychSense] Device: {DEVICE}  |  FP16: {FP16}")
-
-# ─────────────────────────────────────────────────────────────────────
-# UPGRADED MODEL ARCHITECTURE  (must exactly match training code)
-# ─────────────────────────────────────────────────────────────────────
-
-class CrossModalAttention(nn.Module):
-    def __init__(self, dim, num_heads):
-        super().__init__()
-        self.attn = nn.MultiheadAttention(
-            dim, num_heads, dropout=0.1, batch_first=True
-        )
-        self.norm = nn.LayerNorm(dim)
-
-    def forward(self, query, key_value):
-        q  = query.unsqueeze(1)
-        kv = key_value.unsqueeze(1)
-        out, _ = self.attn(q, kv, kv)
-        return self.norm(out.squeeze(1) + query)
-
-
-class GatedFusion(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.gate = nn.Sequential(
-            nn.Linear(dim * 3, 3),
-            nn.Softmax(dim=-1)
-        )
-
-    def forward(self, a, t, v):
-        concat  = torch.cat([a, t, v], dim=-1)
-        w       = self.gate(concat)
-        stacked = torch.stack([a, t, v], dim=1)
-        return (stacked * w.unsqueeze(-1)).sum(dim=1)
-
-
-class UpgradedDepressionNet(nn.Module):
-    def __init__(self, audio_dim, text_dim, vis_dim,
-                 fusion_dim=256, num_heads=4, dropout=0.4):
-        super().__init__()
-
-        self.audio_proj = nn.Sequential(
-            nn.Linear(audio_dim, fusion_dim), nn.LayerNorm(fusion_dim),
-            nn.GELU(), nn.Dropout(dropout),
-            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
-        )
-        self.text_proj = nn.Sequential(
-            nn.Linear(text_dim, fusion_dim), nn.LayerNorm(fusion_dim),
-            nn.GELU(), nn.Dropout(dropout),
-            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
-        )
-        self.vis_proj = nn.Sequential(
-            nn.Linear(vis_dim, fusion_dim), nn.LayerNorm(fusion_dim),
-            nn.GELU(), nn.Dropout(dropout * 0.6),
-            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
-        )
-
-        self.a_attn_t = CrossModalAttention(fusion_dim, num_heads)
-        self.a_attn_v = CrossModalAttention(fusion_dim, num_heads)
-        self.t_attn_a = CrossModalAttention(fusion_dim, num_heads)
-        self.t_attn_v = CrossModalAttention(fusion_dim, num_heads)
-        self.v_attn_a = CrossModalAttention(fusion_dim, num_heads)
-        self.v_attn_t = CrossModalAttention(fusion_dim, num_heads)
-
-        self.modality_embed = nn.Embedding(3, fusion_dim)
-
-        enc_layer = nn.TransformerEncoderLayer(
-            d_model=fusion_dim, nhead=num_heads,
-            dim_feedforward=fusion_dim * 2,
-            dropout=dropout, batch_first=True, norm_first=True
-        )
-        self.transformer = nn.TransformerEncoder(enc_layer, num_layers=2)
-
-        self.gate_fusion = GatedFusion(fusion_dim)
-
-        self.classifier = nn.Sequential(
-            nn.Linear(fusion_dim, fusion_dim),
-            nn.LayerNorm(fusion_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(fusion_dim, fusion_dim // 2),
-            nn.GELU(),
-            nn.Dropout(dropout * 0.5),
-            nn.Linear(fusion_dim // 2, 2)
-        )
-
-    def forward(self, audio, text, vis):
-        a = self.audio_proj(audio)
-        t = self.text_proj(text)
-        v = self.vis_proj(vis)
-
-        a_r = (a + self.a_attn_t(a, t) + self.a_attn_v(a, v)) / 3
-        t_r = (t + self.t_attn_a(t, a) + self.t_attn_v(t, v)) / 3
-        v_r = (v + self.v_attn_a(v, a) + self.v_attn_t(v, t)) / 3
-
-        ids    = torch.arange(3, device=audio.device)
-        me     = self.modality_embed(ids)
-        tokens = torch.stack([a_r, t_r, v_r], dim=1) + me.unsqueeze(0)
-
-        fused       = self.transformer(tokens)
-        fa, ft, fv  = fused[:, 0], fused[:, 1], fused[:, 2]
-
-        agg = self.gate_fusion(fa, ft, fv)
-        return self.classifier(agg)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# UTILS
-# ─────────────────────────────────────────────────────────────────────
-def safe_clean(arr, clip=1e6):
-    arr = np.array(arr, dtype=np.float32)
-    arr[~np.isfinite(arr)] = 0.0
-    return np.clip(arr, -clip, clip).astype(np.float32)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# LOAD CHECKPOINT + PRETRAINED ENCODERS
-# ─────────────────────────────────────────────────────────────────────
-def load_everything():
-    print("[PsychSense] Loading checkpoint …")
-    if not os.path.exists(CHECKPOINT_PATH):
-        raise FileNotFoundError(
-            f"Checkpoint not found at '{CHECKPOINT_PATH}'.\n"
-            f"Set MODEL_PATH env var to the correct path of model_upgraded.pt"
-        )
-
-    ckpt       = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
-    AUDIO_DIM  = ckpt["AUDIO_DIM"]
-    TEXT_DIM   = ckpt["TEXT_DIM"]
-    VIS_DIM    = ckpt["VIS_DIM"]
-    FUSION_DIM = ckpt.get("FUSION_DIM", 256)
-    NUM_HEADS  = ckpt.get("NUM_HEADS", 4)
-    threshold  = ckpt["threshold"]
-    sc_audio   = ckpt["sc_audio"]
-    sc_text    = ckpt["sc_text"]
-    sc_vis     = ckpt["sc_vis"]
-
-    model = UpgradedDepressionNet(
-        audio_dim=AUDIO_DIM,
-        text_dim=TEXT_DIM,
-        vis_dim=VIS_DIM,
-        fusion_dim=FUSION_DIM,
-        num_heads=NUM_HEADS,
-    )
-    model.load_state_dict(ckpt["model_state"])
-    model.eval()
-    model.to(DEVICE)
-    print(f"[PsychSense] UpgradedDepressionNet loaded  threshold={threshold:.2f}")
-
-    # ── WavLM ────────────────────────────────────────────────────────
-    print("[PsychSense] Loading WavLM …")
-    AUDIO_MODEL = "microsoft/wavlm-base-plus"
-    wav_feat = Wav2Vec2FeatureExtractor.from_pretrained(AUDIO_MODEL)
-    wavlm    = WavLMModel.from_pretrained(AUDIO_MODEL)
-    wavlm.eval()
-    for p in wavlm.parameters(): p.requires_grad = False
-    if FP16: wavlm = wavlm.half()
-    wavlm = wavlm.to(DEVICE)
-    print("[PsychSense] WavLM loaded")
-
-    # ── RoBERTa (upgraded from BERT) ─────────────────────────────────
-    print("[PsychSense] Loading RoBERTa …")
-    TEXT_MODEL = "roberta-base"
-    roberta_tok   = RobertaTokenizer.from_pretrained(TEXT_MODEL)
-    roberta_model = RobertaModel.from_pretrained(TEXT_MODEL)
-    roberta_model.eval()
-    for p in roberta_model.parameters(): p.requires_grad = False
-    if FP16: roberta_model = roberta_model.half()
-    roberta_model = roberta_model.to(DEVICE)
-    print("[PsychSense] RoBERTa loaded")
-
-    # ── ViT (Vision Transformer) ─────────────────────────────────────
-    print("[PsychSense] Loading ViT …")
-    vit_backbone  = None
-    vit_transform = None
-    try:
-        import timm
-        vit_backbone = timm.create_model(
-            "vit_small_patch16_224", pretrained=True, num_classes=0
-        )
-        vit_backbone.eval()
-        for p in vit_backbone.parameters(): p.requires_grad = False
-        vit_backbone = vit_backbone.to(DEVICE)
-        print("[PsychSense] ViT (vit_small_patch16_224) loaded")
-    except Exception as e:
-        print(f"[PsychSense] ViT unavailable ({e}), falling back to ResNet-18")
-        import torchvision.models as tvm
-        vit_backbone = tvm.resnet18(pretrained=True)
-        vit_backbone.fc = nn.Identity()
-        vit_backbone.eval()
-        for p in vit_backbone.parameters(): p.requires_grad = False
-        vit_backbone = vit_backbone.to(DEVICE)
-
-    import torchvision.transforms as VT
-    vit_transform = VT.Compose([
-        VT.Resize((IMG_SIZE, IMG_SIZE)),
-        VT.ToTensor(),
-        VT.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225])
-    ])
-
-    return (model,
-            AUDIO_DIM, TEXT_DIM, VIS_DIM,
-            threshold,
-            sc_audio, sc_text, sc_vis,
-            wav_feat, wavlm,
-            roberta_tok, roberta_model,
-            vit_backbone, vit_transform)
-
-
-(MODEL,
- AUDIO_DIM, TEXT_DIM, VIS_DIM,
- THRESHOLD,
- SC_AUDIO, SC_TEXT, SC_VIS,
- WAV_FEAT, WAVLM,
- ROBERTA_TOK, ROBERTA_MODEL,
- VIT_BACKBONE, VIT_TRANSFORM) = load_everything()
-
-
-# ─────────────────────────────────────────────────────────────────────
-# FEATURE EXTRACTION
-# ─────────────────────────────────────────────────────────────────────
-
-def extract_audio_embedding(audio_path):
-    """WavLM chunked mean-pool → (AUDIO_DIM,). Returns zeros on failure."""
-    try:
-        y, _ = librosa.load(audio_path, sr=SR, mono=True, duration=MAX_DUR)
-        chunk_n = SR * CHUNK_SEC
-        min_n   = SR // 4
-        chunks  = [y[i:i + chunk_n]
-                   for i in range(0, len(y), chunk_n)
-                   if len(y[i:i + chunk_n]) >= min_n]
-        if not chunks:
-            return np.zeros(AUDIO_DIM, dtype=np.float32)
-
-        embs = []
-        with torch.no_grad():
-            for ch in chunks:
-                inp = WAV_FEAT(ch, sampling_rate=SR,
-                               return_tensors="pt", padding=True).input_values.to(DEVICE)
-                if FP16: inp = inp.half()
-                out = WAVLM(inp).last_hidden_state
-                embs.append(out.mean(1).squeeze(0).float().cpu().numpy())
-
-        return safe_clean(np.mean(embs, axis=0).astype(np.float32))
-    except Exception as e:
-        print(f"[WARN] Audio extraction failed: {e}")
-        return np.zeros(AUDIO_DIM, dtype=np.float32)
-
-
-def extract_text_embedding(text: str):
-    """
-    RoBERTa [CLS] → (TEXT_DIM,).
-    BUG FIX: returns true zero vector when no text is provided,
-    instead of embedding the placeholder string 'no input provided'
-    which caused the model to always output ~64.5% depression.
-    """
-    if not text or not text.strip():
-        return np.zeros(TEXT_DIM, dtype=np.float32)   # ← FIX: true zero, not fake BERT embedding
-
-    try:
-        enc = ROBERTA_TOK(text, return_tensors="pt", truncation=True,
-                          max_length=MAX_TEXT_LEN, padding="max_length")
-        ids = enc["input_ids"].to(DEVICE)
-        msk = enc["attention_mask"].to(DEVICE)
-        with torch.no_grad():
-            out = ROBERTA_MODEL(input_ids=ids, attention_mask=msk)
-        cls = out.last_hidden_state[:, 0, :].squeeze(0).float().cpu().numpy()
-        return safe_clean(cls.astype(np.float32))
-    except Exception as e:
-        print(f"[WARN] RoBERTa embedding failed: {e}")
-        return np.zeros(TEXT_DIM, dtype=np.float32)
-
-
-def extract_video_embedding(video_path):
-    """
-    ViT frame embeddings mean-pooled → (VIS_DIM,).
-    Samples FRAMES_PER_CLIP frames uniformly from the video.
-    Returns zeros if extraction fails.
-    """
-    try:
-        cap   = cv2.VideoCapture(video_path)
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total < 1:
-            cap.release()
-            return np.zeros(VIS_DIM, dtype=np.float32)
-
-        indices = set(np.linspace(0, total - 1, FRAMES_PER_CLIP, dtype=int).tolist())
-        frames  = []
-        idx     = 0
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            if idx in indices:
-                frames.append(frame)
-            idx += 1
-        cap.release()
-
-        if not frames:
-            return np.zeros(VIS_DIM, dtype=np.float32)
-
-        embs = []
-        with torch.no_grad():
-            for frame in frames:
-                try:
-                    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    t   = VIT_TRANSFORM(img).unsqueeze(0).to(DEVICE)
-                    out = VIT_BACKBONE(t)
-                    embs.append(out.squeeze(0).float().cpu().numpy())
-                except Exception:
-                    continue
-
-        if not embs:
-            return np.zeros(VIS_DIM, dtype=np.float32)
-
-        return safe_clean(np.mean(embs, axis=0).astype(np.float32))
-    except Exception as e:
-        print(f"[WARN] Video extraction failed: {e}")
-        return np.zeros(VIS_DIM, dtype=np.float32)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# QUESTIONNAIRE HELPERS
-# ─────────────────────────────────────────────────────────────────────
-
-def questionnaire_contribution(q, has_audio, has_video, has_text):
-    answers   = q.get("answers", {})
-    pos_count = sum(1 for v in answers.values() if v)
-    impairment = q.get("impairment", 30)
-    scores    = q.get("scores", {})
-
-    has_real_questionnaire = pos_count > 0 or impairment != 30 or bool(scores)
-
-    if has_real_questionnaire:
-        q_weight = 35 if (pos_count >= 3 or impairment >= 66) else 30
-    else:
-        q_weight = 0
-
-    remainder  = 100 - q_weight
-    modalities = []
-    if has_audio: modalities.append("audio")
-    if has_text:  modalities.append("text")
-    if has_video: modalities.append("video")
-
-    if not modalities:
-        return {"text": 0, "audio": 0, "video": 0, "questionnaire": 100}
-
-    weights    = {"text": 1.2, "audio": 1.0, "video": 0.8}
-    total_w    = sum(weights[m] for m in modalities)
-    contribs   = {}
-    for m in ["text", "audio", "video"]:
-        contribs[m] = round(remainder * weights[m] / total_w) if m in modalities else 0
-
-    contribs["questionnaire"] = q_weight
-    diff = 100 - sum(contribs.values())
-    if modalities:
-        contribs[modalities[0]] += diff
-
-    return contribs
-
-
-def build_questionnaire_insights(q):
-    points     = []
-    answers    = q.get("answers", {})
-    duration   = q.get("duration", 0)
-    seasonal   = q.get("seasonalPattern", "No seasonal pattern")
-    postpartum = q.get("postpartum", "Not applicable")
-    impairment = q.get("impairment", 30)
-
-    if answers.get("elevatedMood"):
-        points.append("Elevated mood episodes detected — may indicate bipolar spectrum features.")
-    if answers.get("reducedSleep"):
-        points.append("Reduced sleep need reported — associated with hypomanic/manic phases.")
-    if answers.get("impulsivity"):
-        points.append("Impulsive behaviour reported — clinically significant for mood disorders.")
-    if answers.get("racingThoughts"):
-        points.append("Racing thoughts present — linked to anxiety or manic episodes.")
-    if duration > 0:
-        points.append(f"Symptoms reported for {duration} month(s) — chronicity affects prognosis.")
-    if "No seasonal" not in seasonal:
-        points.append(f"Seasonal pattern noted ({seasonal}) — consistent with SAD profile.")
-    if "Not applicable" not in postpartum:
-        points.append(f"Postpartum indicator: {postpartum}.")
-    if impairment >= 66:
-        points.append(f"Severe functional impairment ({impairment}%) — urgent professional input advised.")
-    elif impairment >= 33:
-        points.append(f"Moderate functional impairment ({impairment}%) — professional evaluation recommended.")
-    else:
-        points.append(f"Mild functional impairment ({impairment}%) reported.")
-
-    if not points:
-        points.append("No significant questionnaire indicators noted.")
-
-    return points
-
-
-def derive_signals(p_dep, risk_level, q):
-    scores  = q.get("scores", {})
-    signals = []
-
-    if p_dep >= 0.70:
-        signals.append("Depressive Episode")
-    elif p_dep >= 0.55:
-        signals.append("Low Mood")
-    else:
-        signals.append("Emotional Stability")
-
-    if scores.get("anhedonia", 0) >= 2:     signals.append("Anhedonia")
-    if scores.get("fatigue", 0) >= 2:       signals.append("Fatigue")
-    if scores.get("insomnia", 0) >= 2:      signals.append("Insomnia")
-    if scores.get("hypersomnia", 0) >= 2:   signals.append("Hypersomnia")
-    if scores.get("concentration", 0) >= 2: signals.append("Cognitive Fog")
-    if scores.get("appetite", 0) >= 2:      signals.append("Appetite Changes")
-    if scores.get("seasonal", 0) >= 2:      signals.append("Seasonal Pattern")
-    if scores.get("sadness", 0) >= 2:       signals.append("Persistent Sadness")
-
-    answers = q.get("answers", {})
-    if answers.get("reducedSleep"):   signals.append("Insomnia")
-    if answers.get("racingThoughts"): signals.append("Racing Thoughts")
-
-    if risk_level == "Low" and len(signals) <= 1:
-        signals = ["Emotional Stability", "Resilience", "Coherent Thought"]
-
-    return list(dict.fromkeys(signals))[:6]
-
-
-RECS = {
-    "High": [
-        "Seek an urgent appointment with a licensed psychiatrist or clinical psychologist.",
-        "Reach out to a trusted person today — isolation worsens depressive symptoms.",
-        "Contact a crisis line if you feel unsafe: call/text 988 (US) or your local equivalent.",
-        "Avoid major life decisions while experiencing severe symptoms — give yourself space to stabilise.",
-    ],
-    "Moderate": [
-        "Schedule an appointment with a mental health professional within the next two weeks.",
-        "Establish a consistent daily routine — sleep, meals, and light exercise reduce symptom severity.",
-        "Practice structured mindfulness for 10 minutes daily; apps like Headspace or Calm can help.",
-        "Limit alcohol and caffeine, which amplify mood instability.",
-    ],
-    "Low": [
-        "Maintain your current sleep/wake schedule — consistent sleep is the single most protective factor.",
-        "Continue regular physical activity; 30 minutes of aerobic exercise 3x per week is clinically effective.",
-        "Stay socially connected — even brief positive interactions buffer against future episodes.",
-        "Periodic self-check-ins with a counsellor or GP are a proactive way to maintain mental wellness.",
-    ],
+// ---- Auth Modal ----
+let currentAuthTab = 'login';
+
+window.openAuthModal = function () {
+  const modal = document.getElementById('auth-modal');
+  if (modal) { modal.style.display = 'flex'; switchAuthTab('login'); }
+};
+
+window.closeAuthModal = function () {
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.style.display = 'none';
+  clearAuthError();
+};
+
+// Close on backdrop click
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('auth-modal');
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) window.closeAuthModal();
+    });
+  }
+});
+
+window.switchAuthTab = function (tab) {
+  currentAuthTab = tab;
+  const nameField = document.getElementById('auth-name-field');
+  const confirmField = document.getElementById('auth-confirm-field');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const tabLogin = document.getElementById('tab-login');
+  const tabSignup = document.getElementById('tab-signup');
+
+  const activeStyle = 'background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+  const inactiveStyle = 'background:transparent;color:#64748b;box-shadow:none;';
+
+  if (tab === 'login') {
+    if (nameField) nameField.style.display = 'none';
+    if (confirmField) confirmField.style.display = 'none';
+    if (submitBtn) submitBtn.textContent = 'Login';
+    if (tabLogin) tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
+    if (tabSignup) tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
+  } else {
+    if (nameField) nameField.style.display = 'block';
+    if (confirmField) confirmField.style.display = 'block';
+    if (submitBtn) submitBtn.textContent = 'Create Account';
+    if (tabSignup) tabSignup.setAttribute('style', tabSignup.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + activeStyle);
+    if (tabLogin) tabLogin.setAttribute('style', tabLogin.getAttribute('style').replace(/background:[^;]+;color:[^;]+;box-shadow:[^;]+;/, '') + inactiveStyle);
+  }
+  clearAuthError();
+};
+
+window.togglePasswordVis = function () {
+  const input = document.getElementById('auth-password');
+  const icon = document.getElementById('eye-icon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    input.type = 'password';
+    if (icon) icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+};
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
+function clearAuthError() {
+  const el = document.getElementById('auth-error');
+  if (el) { el.textContent = ''; el.style.display = 'none'; }
+}
 
-def get_recommendations(risk_level, q):
-    recs     = list(RECS.get(risk_level, RECS["Low"]))
-    seasonal = q.get("seasonalPattern", "No seasonal pattern")
-    if "No seasonal" not in seasonal and risk_level != "Low":
-        recs[1] = ("Light therapy (10,000 lux lamp, 20-30 min each morning) "
-                   "is the first-line treatment for Seasonal Affective Disorder.")
-    return recs
+window.handleAuthSubmit = async function () {
+  clearAuthError();
+  const email = document.getElementById('auth-email')?.value.trim();
+  const password = document.getElementById('auth-password')?.value;
+  const btn = document.getElementById('auth-submit-btn');
 
+  if (!email || !password) { showAuthError('Please fill in all fields.'); return; }
 
-# ─────────────────────────────────────────────────────────────────────
-# CORE PREDICT
-# ─────────────────────────────────────────────────────────────────────
+  if (currentAuthTab === 'signup') {
+    const name = document.getElementById('auth-name')?.value.trim();
+    const confirm = document.getElementById('auth-confirm')?.value;
+    if (!name) { showAuthError('Please enter your full name.'); return; }
+    if (password !== confirm) { showAuthError('Passwords do not match.'); return; }
+    if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  }
 
-def predict(text, audio_path, video_path, q):
-    has_audio = audio_path is not None
-    has_video = video_path is not None
-    has_text  = bool(text and text.strip())
+  if (btn) { btn.textContent = currentAuthTab === 'login' ? 'Signing in…' : 'Creating account…'; btn.disabled = true; }
 
-    # ── Extract features (zeros for missing modalities) ──────────────
-    ae = extract_audio_embedding(audio_path) if has_audio \
-         else np.zeros(AUDIO_DIM, dtype=np.float32)
+  try {
+    const { auth } = await import('./firebase-config.js');
+    const { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js');
 
-    te = extract_text_embedding(text)   # returns true zeros if no text
-
-    ve = extract_video_embedding(video_path) if has_video \
-         else np.zeros(VIS_DIM, dtype=np.float32)
-
-    # ── Scale using train-fitted scalers ─────────────────────────────
-    ae = safe_clean(SC_AUDIO.transform(ae.reshape(1, -1))[0].astype(np.float32))
-    te = safe_clean(SC_TEXT.transform(te.reshape(1, -1))[0].astype(np.float32))
-    ve = safe_clean(SC_VIS.transform(ve.reshape(1, -1))[0].astype(np.float32))
-
-    # ── Model inference ──────────────────────────────────────────────
-    at = torch.from_numpy(ae).unsqueeze(0).to(DEVICE)
-    tt = torch.from_numpy(te).unsqueeze(0).to(DEVICE)
-    vt = torch.from_numpy(ve).unsqueeze(0).to(DEVICE)
-
-    MODEL.eval()
-    with torch.no_grad():
-        logits = MODEL(at, tt, vt)
-        probs  = torch.softmax(logits, dim=1).cpu().numpy()[0]
-
-    p_dep = float(probs[1])
-
-    # ── Blend with questionnaire score ───────────────────────────────
-    answers    = q.get("answers", {})
-    pos_count  = sum(1 for v in answers.values() if v)
-    impairment = q.get("impairment", 30) / 100.0
-    q_score    = (pos_count / 4) * 0.5 + impairment * 0.5
-
-    has_real_questionnaire = pos_count > 0 or q.get("impairment", 30) != 30
-    blended_p_dep = 0.70 * p_dep + 0.30 * q_score if has_real_questionnaire else p_dep
-
-    # ── Risk classification ──────────────────────────────────────────
-    if blended_p_dep >= 0.70:
-        risk_level       = "High"
-        confidence_score = round(blended_p_dep * 100, 1)
-    elif blended_p_dep >= 0.55:
-        risk_level       = "Moderate"
-        confidence_score = round(blended_p_dep * 100, 1)
-    else:
-        risk_level       = "Low"
-        confidence_score = round(blended_p_dep * 100, 1)
-
-    # ── Build result payload ─────────────────────────────────────────
-    contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
-    signals  = derive_signals(p_dep, risk_level, q)
-    recs     = get_recommendations(risk_level, q)
-    q_points = build_questionnaire_insights(q)
-
-    text_points = []
-    if has_text:
-        word_count = len(text.split())
-        text_points.append(f"Analysed {word_count} words of written expression via RoBERTa encoder.")
-        if p_dep > 0.6:
-            text_points.append("Linguistic patterns show elevated negative affect and reduced future-orientation.")
-        elif p_dep > 0.4:
-            text_points.append("Moderate markers of emotional suppression detected in language use.")
-        else:
-            text_points.append("Language patterns largely stable with no prominent depressive markers.")
-    else:
-        text_points.append("No text input provided — text modality not analysed.")
-
-    audio_points = []
-    if has_audio:
-        audio_points.append(f"Audio processed at {SR}Hz in {CHUNK_SEC}s windows via WavLM-base-plus.")
-        if p_dep > 0.6:
-            audio_points.append("Vocal biomarkers suggest reduced prosodic variability consistent with depression.")
-        elif p_dep > 0.4:
-            audio_points.append("Mild vocal flatness detected; within borderline range.")
-        else:
-            audio_points.append("Vocal patterns within normal range — no significant acoustic depression markers.")
-    else:
-        audio_points.append("No audio input provided — audio modality not analysed.")
-
-    video_points = []
-    if has_video:
-        video_points.append(f"Video analysed: {FRAMES_PER_CLIP} frames sampled via ViT-Small patch encoder.")
-        if p_dep > 0.6:
-            video_points.append("Facial action units and gaze patterns show markers associated with low affect.")
-        elif p_dep > 0.4:
-            video_points.append("Mild flat affect detected in facial expression; borderline range.")
-        else:
-            video_points.append("Facial expression patterns within normal affective range.")
-    else:
-        video_points.append("No video input provided — visual modality not analysed.")
-
-    return {
-        "riskLevel":        risk_level,
-        "confidenceScore":  confidence_score,
-        "contributions":    contribs,
-        "emotionalSignals": signals,
-        "insights": {
-            "text":          {"points": text_points},
-            "audio":         {"points": audio_points},
-            "video":         {"points": video_points},
-            "questionnaire": {"points": q_points},
-        },
-        "recommendations": recs,
-        "modelProb":  round(p_dep * 100, 2),
-        "threshold":  round(THRESHOLD, 2),
+    if (currentAuthTab === 'login') {
+      await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      const name = document.getElementById('auth-name')?.value.trim();
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+      window.currentUser = { uid: cred.user.uid, name, email: cred.user.email, photo: null };
     }
+    window.closeAuthModal();
+    window.goTo('user-info');
+  } catch (err) {
+    const msgs = {
+      'auth/user-not-found': 'No account found with this email.',
+      'auth/wrong-password': 'Incorrect password.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/invalid-email': 'Invalid email address.',
+      'auth/too-many-requests': 'Too many attempts. Please try again later.',
+      'auth/invalid-credential': 'Invalid email or password.',
+    };
+    showAuthError(msgs[err.code] || 'Something went wrong. Please try again.');
+  } finally {
+    if (btn) { btn.textContent = currentAuthTab === 'login' ? 'Login' : 'Create Account'; btn.disabled = false; }
+  }
+};
 
+// ---- State ----
+let currentPage = 'landing';
+let userInfo = { name: '', age: '', gender: '' };
+let textInputVal = '';
+let videoBase64 = null;
+let audioBase64 = null;
+let audioUrl = null;
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingTime = 0;
+let aiResult = null;
+let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false };
 
-# ─────────────────────────────────────────────────────────────────────
-# FLASK APP
-# ─────────────────────────────────────────────────────────────────────
-app = Flask(__name__)
+// ── BACKEND URL CONFIG ──────────────────────────────────────────────────────
+// For local development, keep this as http://127.0.0.1:5000
+// Before deploying to production, change this to your hosted backend URL, e.g.:
+//   const FLASK_API_URL = 'https://your-backend.railway.app';
+const FLASK_API_URL = 'http://127.0.0.1:7860';
+// ────────────────────────────────────────────────────────────────────────────
 
-_ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
-CORS(app, resources={r"/*": {"origins": _ALLOWED_ORIGIN}})
-print(f"[PsychSense] CORS origin: {_ALLOWED_ORIGIN}")
+window.goTo = function (page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const targetPage = document.getElementById('page-' + page);
+  if (targetPage) targetPage.classList.add('active');
+  currentPage = page;
+  if (page === 'user-info') prefillUserInfo();
+};
 
+function prefillUserInfo() {
+  if (!window.currentUser) return;
 
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "ok", "device": str(DEVICE)}), 200
+  const nameInput = document.getElementById('input-name');
+  const genderInput = document.getElementById('input-gender');
+  const photoWrap = document.getElementById('user-info-photo-wrap');
 
+  if (nameInput && window.currentUser.name) {
+    nameInput.value = window.currentUser.name;
+  }
+  if (genderInput && window.currentUser.gender) {
+    genderInput.value = window.currentUser.gender;
+  }
 
-@app.route("/analyze", methods=["POST"])
-def analyze():
-    tmp_audio = None
-    tmp_video = None
+  // Inject profile photo above the form if not already there
+  if (photoWrap) {
+    const avatarUrl = window.currentUser.photo ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(window.currentUser.name || 'U')}&background=06b6d4&color=fff&size=128`;
+    photoWrap.innerHTML = `
+      <div style="position:relative;display:inline-block;margin-bottom:8px;">
+        <img src="${avatarUrl}" referrerpolicy="no-referrer"
+          style="width:80px;height:80px;border-radius:50%;border:2px solid rgba(6,182,212,0.4);object-fit:cover;display:block;" />
+        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;"
+          onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0"
+          onclick="document.getElementById('photo-file-input').click()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+      </div>
+      <input type="file" id="photo-file-input" accept="image/*" style="display:none;" onchange="handlePhotoChange(event)" />
+      <p style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">Profile Photo</p>`;
+  }
+}
 
-    try:
-        text     = request.form.get("text", "").strip()
-        raw_q    = request.form.get("questionnaire", "{}")
-        raw_user = request.form.get("userInfo", "{}")
+window.handlePhotoChange = function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    window.currentUser.photo = reader.result;
+    const img = document.querySelector('#user-info-photo-wrap img');
+    if (img) img.src = reader.result;
+    // also update the top badge
+    const badgeImg = document.querySelector('.user-badge img');
+    if (badgeImg) badgeImg.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+};
 
-        try:
-            q         = json.loads(raw_q)
-            user_info = json.loads(raw_user)
-        except json.JSONDecodeError as e:
-            return jsonify({"error": f"Invalid JSON in form fields: {e}"}), 400
+window.handleGoogleLogin = function () {
+  if (window.firebaseSignIn) window.firebaseSignIn();
+};
 
-        audio_file = request.files.get("audio")
-        video_file = request.files.get("video")
+window.updateAssessBtn = function () {
+  textInputVal = document.getElementById('text-input').value;
+  const btn = document.getElementById('assess-continue-btn');
+  if (btn) btn.disabled = !textInputVal.trim() && !videoBase64 && !audioBase64;
+};
 
-        if audio_file and audio_file.filename:
-            suffix    = os.path.splitext(audio_file.filename)[-1] or ".wav"
-            tmp_audio = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-            audio_file.save(tmp_audio.name)
-            tmp_audio.close()
+// ---- 12-Question Depression Screening ----
+const DEPRESSION_QUESTIONS = [
+  {
+    text: "Over the past 2 weeks, how often have you felt sad, hopeless, empty, or like a failure?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "sadness"
+  },
+  {
+    text: "How often have you had little interest or pleasure in things you used to enjoy?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "anhedonia"
+  },
+  {
+    text: "How often have you had trouble falling or staying asleep, or waking too early?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "insomnia"
+  },
+  {
+    text: "How often have you been sleeping MUCH MORE than usual (hard to get out of bed even after long sleep)?",
+    options: ["Not at all — sleep is normal or reduced", "Several days — slightly more than usual", "More than half the days — clearly oversleeping", "Nearly every day — excessive sleep most days"],
+    key: "hypersomnia"
+  },
+  {
+    text: "How often have you felt exhausted or had very little energy, even for small tasks?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "fatigue"
+  },
+  {
+    text: "How often have you had noticeably INCREASED appetite — especially craving carbs, sweets, or comfort food?",
+    options: ["Not at all — appetite normal or reduced", "Several days — mild cravings", "More than half the days — noticeable carb/sweet cravings", "Nearly every day — strong cravings, possible weight gain"],
+    key: "appetite"
+  },
+  {
+    text: "How often have you had trouble concentrating, felt mentally foggy, or struggled to make decisions?",
+    options: ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    key: "concentration"
+  },
+  {
+    text: "Do your symptoms follow a seasonal pattern — clearly worse in autumn/winter and better in spring/summer?",
+    options: ["No clear seasonal pattern", "Possibly slightly worse in winter", "Yes — clearly worse in autumn/winter", "Definitely — happens every year without exception"],
+    key: "seasonal"
+  },
+  {
+    text: "How long have you been experiencing these depressive symptoms most days?",
+    options: ["Less than a few weeks (recent onset)", "A few weeks to several months", "Around 1–2 years (persistent, may fluctuate)", "2 or more years almost continuously (chronic)"],
+    key: "duration"
+  },
+  {
+    text: "When something genuinely good happens, does your mood noticeably lift — even if only temporarily?",
+    options: ["No — mood stays low regardless of positive events", "Slightly — very minor lifts that fade immediately", "Yes — I do feel meaningfully better during good events", "Definitely — positive events clearly brighten my mood"],
+    key: "moodReactivity"
+  },
+  {
+    text: "Did your depressive symptoms begin within 4 weeks of giving birth (or within the first year postpartum)?",
+    options: ["No / Not applicable", "Possibly — symptoms worsened after childbirth", "Yes — symptoms clearly started after giving birth", "Yes — severe symptoms starting shortly after delivery"],
+    key: "postpartum"
+  },
+  {
+    text: "How often have you had thoughts of being better off dead, or of hurting yourself?",
+    options: ["Not at all", "Several days — fleeting thoughts, no plan", "More than half the days — recurring thoughts", "Nearly every day — frequent or distressing thoughts"],
+    key: "suicidality"
+  }
+];
 
-        if video_file and video_file.filename:
-            suffix    = os.path.splitext(video_file.filename)[-1] or ".mp4"
-            tmp_video = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-            video_file.save(tmp_video.name)
-            tmp_video.close()
+let qCurrentIndex = 0;
+let qAnswers = new Array(12).fill(null);
 
-        if not text and tmp_audio is None and tmp_video is None:
-            return jsonify({"error": "Provide at least one of: text, audio, or video."}), 400
+function qRender() {
+  const q = DEPRESSION_QUESTIONS[qCurrentIndex];
+  const total = DEPRESSION_QUESTIONS.length;
 
-        result = predict(
-            text       = text,
-            audio_path = tmp_audio.name if tmp_audio else None,
-            video_path = tmp_video.name if tmp_video else None,
-            q          = q,
-        )
+  document.getElementById('q-counter').textContent = `${qCurrentIndex + 1} / ${total}`;
+  document.getElementById('q-progress-bar').style.width = `${((qCurrentIndex + 1) / total) * 100}%`;
+  document.getElementById('q-question-text').textContent = q.text;
 
-        return jsonify(result), 200
+  const container = document.getElementById('q-options-container');
+  container.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const isSelected = qAnswers[qCurrentIndex] === i;
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.style.cssText = `
+      width:100%;text-align:left;padding:14px 20px;border-radius:14px;cursor:pointer;
+      font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+      transition:all 0.2s;border:1px solid;
+      background:${isSelected ? 'rgba(139,92,246,0.2)' : 'rgba(0,0,0,0.2)'};
+      border-color:${isSelected ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.07)'};
+      color:${isSelected ? '#c4b5fd' : '#94a3b8'};
+    `;
+    btn.onclick = () => {
+      qAnswers[qCurrentIndex] = i;
+      document.getElementById('q-next-btn').disabled = false;
+      qRender();
+    };
+    container.appendChild(btn);
+  });
 
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Internal server error during analysis."}), 500
+  // Back button visibility
+  document.getElementById('q-back-btn').style.visibility = qCurrentIndex === 0 ? 'hidden' : 'visible';
 
-    finally:
-        if tmp_audio and os.path.exists(tmp_audio.name):
-            os.unlink(tmp_audio.name)
-        if tmp_video and os.path.exists(tmp_video.name):
-            os.unlink(tmp_video.name)
+  // Next button label
+  const nextBtn = document.getElementById('q-next-btn');
+  nextBtn.disabled = qAnswers[qCurrentIndex] === null;
+  nextBtn.innerHTML = qCurrentIndex === total - 1
+    ? 'Submit <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'
+    : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+}
 
+window.qNext = function () {
+  if (qCurrentIndex < DEPRESSION_QUESTIONS.length - 1) {
+    qCurrentIndex++;
+    qRender();
+  } else {
+    window.completeQuestionnaire();   // FIX: was bare completeQuestionnaire() — questionnaire data never reached backend
+  }
+};
 
-# ─────────────────────────────────────────────────────────────────────
-# ENTRY POINT
-# Gunicorn (Dockerfile CMD) bypasses this in production.
-# Only runs on: python app.py
-# ─────────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))
-    app.run(host="0.0.0.0", port=port, debug=False)
+window.qPrev = function () {
+  if (qCurrentIndex > 0) {
+    qCurrentIndex--;
+    qRender();
+  }
+};
+
+function resetQuestionnaire() {
+  qCurrentIndex = 0;
+  qAnswers = new Array(12).fill(null);
+}
+
+// ---- Classify Depression Type from answers ----
+function classifyDepressionType(answers) {
+  const get = (key) => {
+    const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
+    return idx >= 0 ? (answers[idx] ?? 0) : 0;
+  };
+
+  const seasonal   = get('seasonal');
+  const postpartum = get('postpartum');
+  const duration   = get('duration');
+  const hypersomnia= get('hypersomnia');
+  const appetite   = get('appetite');
+  const moodReact  = get('moodReactivity');
+  const sadness    = get('sadness');
+  const anhedonia  = get('anhedonia');
+
+  // Postpartum Depression
+  if (postpartum >= 2) return "Postpartum Depression";
+
+  // Seasonal Affective Disorder
+  if (seasonal >= 2) return "Seasonal Affective Disorder (SAD)";
+
+  // Atypical Depression (mood reactivity + hypersomnia + appetite)
+  if (moodReact >= 2 && (hypersomnia >= 2 || appetite >= 2)) return "Atypical Depression";
+
+  // Persistent Depressive Disorder (chronic)
+  if (duration >= 3) return "Persistent Depressive Disorder (Dysthymia)";
+
+  // Major Depressive Disorder
+  if (sadness >= 2 && anhedonia >= 2) return "Major Depressive Disorder (MDD)";
+
+  // Mild/Moderate
+  return "Depressive Episode";
+}
+
+// ---- Toggle answers (kept for backward compat) ----
+window.toggleAnswer = function (key, btn) {
+  questionnaireAnswers[key] = !questionnaireAnswers[key];
+  btn.className = 'toggle-btn ' + (questionnaireAnswers[key] ? 'on' : 'off');
+  const label = document.getElementById('label-' + key);
+  if (label) {
+    label.textContent = questionnaireAnswers[key] ? 'YES' : 'NO';
+    label.style.color = questionnaireAnswers[key] ? '#8b5cf6' : '#64748b';
+  }
+};
+
+window.updateImpairmentLabel = function () {
+  const el = document.getElementById('q-impairment');
+  if (!el) return;
+  const val = parseInt(el.value);
+  const label = val < 33 ? 'Mild' : val < 66 ? 'Moderate' : 'Severe';
+  const labelEl = document.getElementById('impairment-label');
+  if (labelEl) labelEl.textContent = `${label} (${val}%)`;
+};
+
+// ---- Audio Recording ----
+window.toggleRecording = async function () {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/wav' });
+        audioUrl = URL.createObjectURL(blob);
+        const reader = new FileReader();
+        reader.onloadend = () => { audioBase64 = reader.result; window.updateAssessBtn(); };
+        reader.readAsDataURL(blob);
+        showAudioRecorded();
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      recordingTime = 0;
+      recordingTimer = setInterval(() => { recordingTime++; updateRecordingDisplay(); }, 1000);
+      showRecordingActive();
+    } catch (err) {
+      alert('Could not access microphone. Please allow microphone access.');
+    }
+  } else {
+    if (mediaRecorder) mediaRecorder.stop();
+    isRecording = false;
+    clearInterval(recordingTimer);
+    const btn = document.getElementById('record-btn');
+    if (btn) btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg> Re-record`;
+  }
+};
+
+function showRecordingActive() {
+  const display = document.getElementById('audio-display');
+  if (!display) return;
+  display.innerHTML = `<div style="background:rgba(217,70,239,0.1);position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+    <div class="recording-bars">${Array(12).fill('<div class="recording-bar"></div>').join('')}</div>
+    <div style="display:flex;align-items:center;gap:8px;"><div style="width:8px;height:8px;background:#ef4444;border-radius:50%;animation:pulse 1s ease-in-out infinite;"></div><span id="rec-time" style="font-family:monospace;font-size:13px;color:white;">0:00</span></div>
+  </div>`;
+  display.style.position = 'relative';
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Recording`;
+    btn.style.background = 'rgba(239,68,68,0.2)';
+    btn.style.boxShadow = '0 8px 24px rgba(239,68,68,0.3)';
+  }
+}
+
+function updateRecordingDisplay() {
+  const mins = Math.floor(recordingTime / 60);
+  const secs = recordingTime % 60;
+  const el = document.getElementById('rec-time');
+  if (el) el.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function showAudioRecorded() {
+  const display = document.getElementById('audio-display');
+  if (!display) return;
+  display.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(6,182,212,0.05);position:absolute;inset:0;padding:12px;">
+    <div style="display:flex;align-items:center;gap:8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:10px;color:#06b6d4;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Voice Recorded</span></div>
+    <audio src="${audioUrl}" controls style="height:28px;width:180px;opacity:0.8;"></audio>
+  </div>`;
+  display.style.position = 'relative';
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'block';
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.style.background = '#d946ef';
+    btn.style.boxShadow = '0 8px 24px rgba(217,70,239,0.3)';
+  }
+}
+
+window.removeAudio = function () {
+  audioBase64 = null; audioUrl = null; isRecording = false;
+  if (recordingTimer) clearInterval(recordingTimer);
+  const display = document.getElementById('audio-display');
+  if (display) display.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0.4;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;">Mic Ready</span></div>`;
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'none';
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4" />`;
+    btn.style.background = '#d946ef';
+    btn.style.boxShadow = '0 8px 24px rgba(217,70,239,0.3)';
+  }
+  window.updateAssessBtn();
+};
+
+window.handleAudioUpload = function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  audioUrl = URL.createObjectURL(file);
+  const reader = new FileReader();
+  reader.onloadend = () => { audioBase64 = reader.result; window.updateAssessBtn(); };
+  reader.readAsDataURL(file);
+  const display = document.getElementById('audio-display');
+  if (display) {
+    display.style.position = 'relative';
+    display.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(6,182,212,0.05);position:absolute;inset:0;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:10px;color:#06b6d4;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Audio Uploaded</span></div>
+      <span style="font-size:10px;color:#94a3b8;">${file.name}</span>
+      <audio src="${audioUrl}" controls style="height:28px;width:180px;opacity:0.8;"></audio>
+    </div>`;
+  }
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'block';
+};
+
+window.handleVideoUpload = function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onloadend = () => { videoBase64 = reader.result; window.updateAssessBtn(); };
+  reader.readAsDataURL(file);
+  const display = document.getElementById('video-display');
+  if (display) display.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:10px;color:#06b6d4;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Video Loaded</span></div>`;
+  const uploadBtn = document.getElementById('video-upload-btn');
+  if (uploadBtn) uploadBtn.textContent = 'Replace Video';
+};
+
+// ---- STEP 1: Run ML model first when user clicks "Complete Assessment" ----
+window.runInitialAnalysis = async function () {
+  userInfo.name = document.getElementById('input-name').value;
+  userInfo.age = document.getElementById('input-age').value;
+  userInfo.gender = document.getElementById('input-gender').value;
+  if (window.currentUser) {
+    window.currentUser.gender = userInfo.gender;
+    window.currentUser.age = userInfo.age;
+    if (window.saveUserProfile) {
+      await window.saveUserProfile({
+        name: userInfo.name,
+        age: userInfo.age,
+        gender: userInfo.gender,
+        email: window.currentUser.email,
+        photo: window.currentUser.photo || null,
+        updatedAt: new Date().toISOString()
+      });
+    }
+  }
+  textInputVal = document.getElementById('text-input').value;
+
+  // Empty questionnaire for first pass — backend detects this and uses pure model output
+  const emptyQuestionnaire = {
+    answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false },
+    duration: 0,
+    seasonalPattern: 'No seasonal pattern',
+    postpartum: 'Not applicable',
+    impairment: 30,   // default value — backend uses this to detect "empty" first pass
+  };
+
+  window.goTo('analysis');
+  try {
+    const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, emptyQuestionnaire);
+    aiResult = result;
+
+    // FIX: Only show questionnaire for HIGH risk.
+    // Moderate and Low both go straight to results — avoids false positives
+    // at borderline confidence (e.g. 47–54%) triggering unnecessary questionnaire.
+    if (result.riskLevel === 'High') {
+      // Show banner on questionnaire page explaining why
+      const banner = document.getElementById('questionnaire-banner');
+      if (banner) {
+        banner.style.display = 'flex';
+        banner.querySelector('#banner-risk').textContent = result.riskLevel;
+        banner.querySelector('#banner-confidence').textContent = result.confidenceScore + '%';
+      }
+      // Reset and render questionnaire from Q1
+      resetQuestionnaire();
+      qRender();
+      window.goTo('questioning');
+    } else {
+      // Low or Moderate risk → go straight to results
+      renderResults(result);
+      if (window.saveReport) {
+        await window.saveReport({
+          userInfo: { ...userInfo },
+          riskLevel: result.riskLevel,
+          confidenceScore: result.confidenceScore,
+          emotionalSignals: result.emotionalSignals,
+          contributions: result.contributions,
+          recommendations: result.recommendations,
+          questionnaire: emptyQuestionnaire,
+        });
+      }
+      window.goTo('results');
+    }
+  } catch (err) {
+    console.error('Analysis failed:', err);
+    window.goTo('error');
+    const errMsgEl = document.getElementById('error-message');
+    if (errMsgEl) errMsgEl.textContent = err.message || 'An unexpected error occurred. Please try again.';
+  }
+};
+
+// ---- STEP 2: After questionnaire is filled (only reached if High risk was flagged) ----
+window.completeQuestionnaire = async function () {
+  const getScore = (key) => {
+    const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
+    return idx >= 0 ? (qAnswers[idx] ?? 0) : 0;
+  };
+
+  const questionnaireData = {
+    answers: {
+      elevatedMood:   false,
+      reducedSleep:   getScore('insomnia') >= 2,
+      impulsivity:    false,
+      racingThoughts: false,
+    },
+    duration:        getScore('duration'),
+    seasonalPattern: getScore('seasonal') >= 2 ? 'Winter onset' : 'No seasonal pattern',
+    postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
+    impairment:      Math.round((getScore('sadness') + getScore('anhedonia') + getScore('fatigue')) / 9 * 100),
+    scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
+  };
+
+  const depressionType = classifyDepressionType(qAnswers);
+
+  window.goTo('analysis');
+  try {
+    const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, questionnaireData);
+    aiResult = result;
+    aiResult.depressionType = depressionType;
+    renderResults(result, depressionType);
+    if (window.saveReport) {
+      await window.saveReport({
+        userInfo:         { ...userInfo },
+        riskLevel:        result.riskLevel,
+        confidenceScore:  result.confidenceScore,
+        emotionalSignals: result.emotionalSignals,
+        contributions:    result.contributions,
+        recommendations:  result.recommendations,
+        questionnaire:    questionnaireData,
+        depressionType:   depressionType,
+      });
+    }
+    window.goTo('results');
+  } catch (err) {
+    console.error('Analysis failed:', err);
+    window.goTo('error');
+    const errMsgEl = document.getElementById('error-message');
+    if (errMsgEl) errMsgEl.textContent = err.message || 'An unexpected error occurred. Please try again.';
+  }
+};
+
+async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, questionnaireData) {
+  // Health-check first so we get a clear error if backend is down
+  try {
+    const ping = await fetch(`${FLASK_API_URL}/health`);
+    // Accept 200 and 206 — HuggingFace proxy may return 206 for streamed responses
+    if (!ping.ok && ping.status !== 206) throw new Error('Backend not reachable');
+  } catch (err) {
+    if (err.message === 'Backend not reachable') throw err;
+    throw new Error(
+      'Cannot reach the Flask backend at ' + FLASK_API_URL +
+      '. Make sure the backend is running.'
+    );
+  }
+
+  // Build multipart/form-data — Flask reads files and form fields separately
+  const formData = new FormData();
+
+  // Text
+  formData.append('text', textInput || '');
+
+  // Questionnaire + userInfo as JSON strings
+  formData.append('questionnaire', JSON.stringify(questionnaireData));
+  formData.append('userInfo', JSON.stringify(userInfo));
+
+  // Audio — convert base64 data URL → Blob → File
+  if (audioBase64) {
+    const audioBlob = dataURLtoBlob(audioBase64);
+    formData.append('audio', audioBlob, 'recording.wav');
+  }
+
+  // Video — convert base64 data URL → Blob → File
+  if (videoBase64) {
+    const videoBlob = dataURLtoBlob(videoBase64);
+    formData.append('video', videoBlob, 'video.mp4');
+  }
+
+  const response = await fetch(`${FLASK_API_URL}/analyze`, {
+    method: 'POST',
+    body: formData,
+    // Do NOT set Content-Type manually — browser sets it with boundary automatically
+  });
+
+  // FIX: HuggingFace Space proxy returns 206 (Partial/Streamed) for large ML responses.
+  // response.ok is true for 200-299, so 206 passes. But response.json() can silently
+  // fail on a streamed/chunked body. Use response.text() + JSON.parse() for safety.
+  if (!response.ok && response.status !== 206) {
+    let errMsg = `Server error ${response.status}`;
+    try {
+      const errBody = await response.text();
+      const parsed = JSON.parse(errBody);
+      errMsg = parsed.error || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  // Safely read the full body as text first, then parse as JSON
+  const rawText = await response.text();
+  if (!rawText || !rawText.trim()) {
+    throw new Error('Empty response received from server. Please try again.');
+  }
+
+  let result;
+  try {
+    result = JSON.parse(rawText);
+  } catch (parseErr) {
+    console.error('[PsychSense] JSON parse error. Raw response:', rawText.slice(0, 500));
+    throw new Error('Invalid response format from server. Please try again.');
+  }
+
+  return { ...result, timestamp: new Date().toISOString() };
+}
+
+// Helper: convert a base64 data URL to a Blob
+function dataURLtoBlob(dataURL) {
+  const [header, base64] = dataURL.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const binary = atob(base64);
+  const arr = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function renderResults(result, depressionType) {
+  const name = userInfo.name || 'Anonymous';
+  const patientEl = document.getElementById('results-patient');
+  if (patientEl) patientEl.textContent = `Patient: ${name} • ID: PS-${Math.floor(Math.random() * 9000) + 1000}`;
+
+  const confidenceEl = document.getElementById('results-confidence');
+  if (confidenceEl) confidenceEl.textContent = `${result.confidenceScore}%`;
+
+  const riskEl = document.getElementById('results-risk');
+  if (riskEl) riskEl.textContent = result.riskLevel;
+
+  // Show depression type badge if available
+  const typeBadge = document.getElementById('depression-type-badge');
+  const typeLabel = document.getElementById('depression-type-label');
+  if (typeBadge && typeLabel && depressionType) {
+    typeBadge.style.display = 'inline-flex';
+    typeLabel.textContent = depressionType;
+  }
+
+  const ringLabelEl = document.getElementById('ring-label');
+  if (ringLabelEl) ringLabelEl.textContent = result.riskLevel === 'Low' ? 'Stable' : result.riskLevel;
+
+  const ringDescEl = document.getElementById('ring-desc');
+  if (ringDescEl) {
+    ringDescEl.textContent = result.riskLevel === 'Low'
+      ? 'Subject exhibits stable linguistic and vocal biomarkers, indicating low probability of acute depressive episodes.'
+      : `Analysis indicates a ${result.riskLevel.toLowerCase()} probability of depressive symptoms across multi-modal biomarkers.`;
+  }
+
+  const ringProgress = document.getElementById('ring-progress');
+  if (ringProgress) {
+    const circumference = 2 * Math.PI * 80;
+    const offset = circumference * (1 - result.confidenceScore / 100);
+    setTimeout(() => { ringProgress.style.strokeDashoffset = offset; }, 100);
+  }
+
+  const c = result.contributions;
+  ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
+    const key = ['text', 'video', 'audio', 'questionnaire'][i];
+    const val = c[key] ?? 25;
+    const valEl = document.getElementById(`contrib-${k}-val`);
+    if (valEl) valEl.textContent = `${val}%`;
+    const progressEl = document.getElementById(`contrib-${k}`);
+    if (progressEl) setTimeout(() => { progressEl.style.width = `${val}%`; }, 200);
+  });
+
+  const sigContainer = document.getElementById('signals-container');
+  if (sigContainer) {
+    sigContainer.innerHTML = (result.emotionalSignals || ['Stability']).map(s =>
+      `<span class="tag" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:#06b6d4;">${s}</span>`
+    ).join('');
+  }
+
+  ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
+    const key = ['text', 'video', 'audio', 'questionnaire'][i];
+    const insights = result.insights?.[key];
+    const firstPoint = insights?.points?.[0] ?? 'Analysis complete.';
+    const pointEl = document.getElementById(`point-${k}`);
+    if (pointEl) pointEl.textContent = firstPoint;
+    const barEl = document.getElementById(`bar-${k}`);
+    if (barEl) setTimeout(() => { barEl.style.width = `${70 + Math.random() * 25}%`; }, 200);
+  });
+
+  ['text', 'video', 'audio'].forEach(k => {
+    const ul = document.getElementById(`insights-${k}`);
+    if (ul) {
+      const points = result.insights?.[k]?.points ?? [];
+      ul.innerHTML = points.map(p => `<li style="display:flex;gap:8px;font-size:11px;color:#cbd5e1;line-height:1.5;"><div style="width:4px;height:4px;border-radius:50%;background:currentColor;margin-top:5px;flex-shrink:0;"></div>${p}</li>`).join('');
+    }
+  });
+
+  const recContainer = document.getElementById('recommendations-container');
+  if (recContainer) {
+    recContainer.innerHTML = (result.recommendations || []).map(r =>
+      `<div class="rec-card"><svg class="check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p style="font-size:11px;color:#cbd5e1;line-height:1.5;">${r}</p></div>`
+    ).join('');
+  }
+}
+
+window.downloadReport = function () {
+  const lines = [
+    '=== PsychSense Mental Health Report ===',
+    '',
+    `Patient: ${userInfo.name || 'Anonymous'}`,
+    `Age: ${userInfo.age}`,
+    `Gender: ${userInfo.gender}`,
+    `Generated: ${new Date().toLocaleString()}`,
+    '',
+    `Risk Level: ${aiResult?.riskLevel ?? 'N/A'}`,
+    `Depression Type: ${aiResult?.depressionType ?? 'N/A'}`,
+    `Confidence: ${aiResult?.confidenceScore ?? '—'}%`,
+    '',
+    'Recommendations:',
+    ...(aiResult?.recommendations ?? []).map(r => `  - ${r}`),
+    '',
+    'Disclaimer: This system is for early mental health screening only — not a clinical diagnosis.',
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `PsychSense_Report_${userInfo.name || 'User'}.txt`;
+  a.click();
+};
+
+window.openProfileModal = async function () {
+  const modal = document.getElementById('profile-modal');
+  if (!modal || !window.currentUser) return;
+
+  const u = window.currentUser;
+  const displayName = u.name || u.email || 'User';
+  const avatarSeed = displayName.includes('@') ? displayName.split('@')[0] : displayName;
+  const avatarUrl = u.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarSeed)}&background=06b6d4&color=fff&size=128`;
+
+  const nameVal = document.getElementById('input-name')?.value || u.name || '—';
+  const ageVal = document.getElementById('input-age')?.value || u.age || '—';
+  const genderVal = document.getElementById('input-gender')?.value || u.gender || '—';
+
+  document.getElementById('profile-modal-avatar').src = avatarUrl;
+  document.getElementById('profile-modal-name').textContent = nameVal;
+  document.getElementById('profile-modal-email').textContent = u.email || '';
+  document.getElementById('profile-modal-email-full').textContent = u.email || '—';
+  document.getElementById('profile-modal-age').textContent = ageVal;
+  document.getElementById('profile-modal-gender').textContent = genderVal;
+
+  modal.style.display = 'flex';
+  modal.onclick = (e) => { if (e.target === modal) window.closeProfileModal(); };
+
+  // Load past reports
+  const reportsEl = document.getElementById('profile-modal-reports');
+  if (reportsEl) {
+    reportsEl.innerHTML = `<p style="color:#64748b;font-size:12px;text-align:center;padding:12px;">Loading reports…</p>`;
+    const reports = window.loadReports ? await window.loadReports() : [];
+    if (!reports.length) {
+      reportsEl.innerHTML = `<p style="color:#475569;font-size:11px;text-align:center;padding:12px;">No past assessments yet.</p>`;
+    } else {
+      reportsEl.innerHTML = reports.map(r => {
+        const date = new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+        const color = r.riskLevel === 'Low' ? '#06b6d4' : r.riskLevel === 'Moderate' ? '#f59e0b' : '#ef4444';
+        return `<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <p style="font-size:11px;color:#94a3b8;margin-bottom:3px;">${date}</p>
+            <p style="font-size:13px;font-weight:700;font-family:'Space Grotesk',sans-serif;">${r.userInfo?.name || '—'}</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;">${r.riskLevel}</p>
+            <p style="font-size:10px;color:#64748b;">${r.confidenceScore}% confidence</p>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+};
+
+window.closeProfileModal = function () {
+  const modal = document.getElementById('profile-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.handleReset = function () {
+  textInputVal = ''; videoBase64 = null; audioBase64 = null; audioUrl = null;
+  aiResult = null; isRecording = false;
+  if (recordingTimer) clearInterval(recordingTimer);
+  const input = document.getElementById('text-input');
+  if (input) input.value = '';
+  const count = document.getElementById('char-count');
+  if (count) count.textContent = '0 chars';
+  window.goTo('landing');
+};
