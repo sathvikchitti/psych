@@ -534,13 +534,13 @@ window.runInitialAnalysis = async function () {
   }
   textInputVal = document.getElementById('text-input').value;
 
-  // Empty questionnaire for first pass — backend detects this and uses pure model output
+  // Empty questionnaire — first pass uses pure model output only
   const emptyQuestionnaire = {
     answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false },
     duration: 0,
     seasonalPattern: 'No seasonal pattern',
     postpartum: 'Not applicable',
-    impairment: 30,   // default value — backend uses this to detect "empty" first pass
+    impairment: 30,
   };
 
   window.goTo('analysis');
@@ -548,28 +548,18 @@ window.runInitialAnalysis = async function () {
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, emptyQuestionnaire);
     aiResult = result;
 
-    // FIX: Only show questionnaire for HIGH risk.
-    // Moderate and Low both go straight to results — avoids false positives
-    // at borderline confidence (e.g. 47–54%) triggering unnecessary questionnaire.
-    if (result.riskLevel === 'High') {
-      // Show banner on questionnaire page explaining why
-      const banner = document.getElementById('questionnaire-banner');
-      if (banner) {
-        banner.style.display = 'flex';
-        banner.querySelector('#banner-risk').textContent = result.riskLevel;
-        banner.querySelector('#banner-confidence').textContent = result.confidenceScore + '%';
-      }
-      // Reset and render questionnaire from Q1
-      resetQuestionnaire();
-      qRender();
-      window.goTo('questioning');
-    } else {
-      // Low or Moderate risk → go straight to results
-      renderResults(result);
+    // NEW FLOW: model output is binary — depressed or not
+    // If riskLevel is Low → patient is NOT depressed → show Stable result, no questionnaire
+    // If riskLevel is Moderate or High → patient IS depressed → always show questionnaire
+    const isDepressed = result.riskLevel === 'Moderate' || result.riskLevel === 'High';
+
+    if (!isDepressed) {
+      // Not depressed — show stable result immediately
+      renderResults(result, null, false);
       if (window.saveReport) {
         await window.saveReport({
           userInfo: { ...userInfo },
-          riskLevel: result.riskLevel,
+          riskLevel: 'Stable',
           confidenceScore: result.confidenceScore,
           emotionalSignals: result.emotionalSignals,
           contributions: result.contributions,
@@ -578,6 +568,17 @@ window.runInitialAnalysis = async function () {
         });
       }
       window.goTo('results');
+    } else {
+      // Depressed — show questionnaire to determine type and severity
+      const banner = document.getElementById('questionnaire-banner');
+      if (banner) {
+        banner.style.display = 'flex';
+        banner.querySelector('#banner-risk').textContent = result.riskLevel;
+        banner.querySelector('#banner-confidence').textContent = result.confidenceScore + '%';
+      }
+      resetQuestionnaire();
+      qRender();
+      window.goTo('questioning');
     }
   } catch (err) {
     console.error('Analysis failed:', err);
@@ -587,12 +588,19 @@ window.runInitialAnalysis = async function () {
   }
 };
 
-// ---- STEP 2: After questionnaire is filled (only reached if High risk was flagged) ----
+// ---- STEP 2: After questionnaire is filled (only reached if model flagged depression) ----
 window.completeQuestionnaire = async function () {
   const getScore = (key) => {
     const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
     return idx >= 0 ? (qAnswers[idx] ?? 0) : 0;
   };
+
+  // Calculate depression severity % purely from questionnaire answers (0–36 scale → 0–100%)
+  // Core symptom keys weighted for clinical relevance
+  const coreKeys = ['sadness','anhedonia','fatigue','insomnia','hypersomnia','appetite','concentration','suicidality'];
+  const rawScore = coreKeys.reduce((sum, key) => sum + getScore(key), 0);
+  const maxScore = coreKeys.length * 3; // 24
+  const depressionPercent = Math.round((rawScore / maxScore) * 100);
 
   const questionnaireData = {
     answers: {
@@ -606,6 +614,7 @@ window.completeQuestionnaire = async function () {
     postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
     impairment:      Math.round((getScore('sadness') + getScore('anhedonia') + getScore('fatigue')) / 9 * 100),
     scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
+    depressionPercent: depressionPercent,  // questionnaire-derived severity %
   };
 
   const depressionType = classifyDepressionType(qAnswers);
@@ -615,12 +624,14 @@ window.completeQuestionnaire = async function () {
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, questionnaireData);
     aiResult = result;
     aiResult.depressionType = depressionType;
-    renderResults(result, depressionType);
+    // Override confidenceScore with the questionnaire-derived depression %
+    aiResult.displayPercent = depressionPercent;
+    renderResults(result, depressionType, true);
     if (window.saveReport) {
       await window.saveReport({
         userInfo:         { ...userInfo },
         riskLevel:        result.riskLevel,
-        confidenceScore:  result.confidenceScore,
+        confidenceScore:  depressionPercent,
         emotionalSignals: result.emotionalSignals,
         contributions:    result.contributions,
         recommendations:  result.recommendations,
@@ -719,42 +730,80 @@ function dataURLtoBlob(dataURL) {
   return new Blob([arr], { type: mime });
 }
 
-function renderResults(result, depressionType) {
+function renderResults(result, depressionType, isDepressed) {
   const name = userInfo.name || 'Anonymous';
   const patientEl = document.getElementById('results-patient');
   if (patientEl) patientEl.textContent = `Patient: ${name} • ID: PS-${Math.floor(Math.random() * 9000) + 1000}`;
 
+  // ── What % to show in the ring ──────────────────────────────────────────
+  // If depressed: show questionnaire-derived depression %
+  // If stable: show model's low probability % (informational)
+  const displayPercent = isDepressed
+    ? (result.displayPercent ?? result.confidenceScore)
+    : result.confidenceScore;
+
   const confidenceEl = document.getElementById('results-confidence');
-  if (confidenceEl) confidenceEl.textContent = `${result.confidenceScore}%`;
+  if (confidenceEl) confidenceEl.textContent = `${displayPercent}%`;
 
-  const riskEl = document.getElementById('results-risk');
-  if (riskEl) riskEl.textContent = result.riskLevel;
-
-  // Show depression type badge if available
-  const typeBadge = document.getElementById('depression-type-badge');
-  const typeLabel = document.getElementById('depression-type-label');
-  if (typeBadge && typeLabel && depressionType) {
-    typeBadge.style.display = 'inline-flex';
-    typeLabel.textContent = depressionType;
-  }
-
-  const ringLabelEl = document.getElementById('ring-label');
-  if (ringLabelEl) ringLabelEl.textContent = result.riskLevel === 'Low' ? 'Stable' : result.riskLevel;
-
-  const ringDescEl = document.getElementById('ring-desc');
-  if (ringDescEl) {
-    ringDescEl.textContent = result.riskLevel === 'Low'
-      ? 'Subject exhibits stable linguistic and vocal biomarkers, indicating low probability of acute depressive episodes.'
-      : `Analysis indicates a ${result.riskLevel.toLowerCase()} probability of depressive symptoms across multi-modal biomarkers.`;
-  }
-
+  // ── Ring label & colour ─────────────────────────────────────────────────
   const ringProgress = document.getElementById('ring-progress');
   if (ringProgress) {
-    const circumference = 2 * Math.PI * 80;
-    const offset = circumference * (1 - result.confidenceScore / 100);
+    const circumference = 2 * Math.PI * 60;
+    const offset = circumference * (1 - displayPercent / 100);
+    // Green for stable, red-spectrum for depressed
+    ringProgress.style.stroke = isDepressed
+      ? (displayPercent >= 70 ? '#ef4444' : displayPercent >= 45 ? '#f59e0b' : '#06b6d4')
+      : '#22c55e';
     setTimeout(() => { ringProgress.style.strokeDashoffset = offset; }, 100);
   }
 
+  // ── Risk / Status label ─────────────────────────────────────────────────
+  const riskEl = document.getElementById('results-risk');
+  if (riskEl) {
+    if (!isDepressed) {
+      riskEl.textContent = 'Stable';
+      riskEl.style.color = '#22c55e';
+    } else {
+      riskEl.textContent = result.riskLevel;
+      riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : '#f59e0b';
+    }
+  }
+
+  // ── Ring label (inside the donut) ───────────────────────────────────────
+  const ringLabelEl = document.getElementById('ring-label');
+  if (ringLabelEl) ringLabelEl.textContent = isDepressed ? result.riskLevel : 'Stable';
+
+  // ── Description text ────────────────────────────────────────────────────
+  const ringDescEl = document.getElementById('ring-desc');
+  if (ringDescEl) {
+    if (!isDepressed) {
+      ringDescEl.textContent = 'No significant indicators of depression were detected across your multi-modal inputs. Continue to monitor your wellbeing periodically.';
+    } else {
+      ringDescEl.textContent = depressionType
+        ? `Analysis indicates ${depressionType}. The score above reflects the severity of your symptoms based on your questionnaire responses.`
+        : `Analysis indicates a ${result.riskLevel.toLowerCase()} level of depressive symptoms across your multi-modal inputs.`;
+    }
+  }
+
+  // ── Depression label on the ring card ──────────────────────────────────
+  const ringCardLabel = document.getElementById('ring-card-label');
+  if (ringCardLabel) {
+    ringCardLabel.textContent = isDepressed ? 'Depression Severity' : 'Wellbeing Score';
+  }
+
+  // ── Depression type badge ───────────────────────────────────────────────
+  const typeBadge = document.getElementById('depression-type-badge');
+  const typeLabel = document.getElementById('depression-type-label');
+  if (typeBadge && typeLabel) {
+    if (isDepressed && depressionType) {
+      typeBadge.style.display = 'inline-flex';
+      typeLabel.textContent = depressionType;
+    } else {
+      typeBadge.style.display = 'none';
+    }
+  }
+
+  // ── Contributions ───────────────────────────────────────────────────────
   const c = result.contributions;
   ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
     const key = ['text', 'video', 'audio', 'questionnaire'][i];
@@ -765,13 +814,18 @@ function renderResults(result, depressionType) {
     if (progressEl) setTimeout(() => { progressEl.style.width = `${val}%`; }, 200);
   });
 
+  // ── Emotional signals ───────────────────────────────────────────────────
   const sigContainer = document.getElementById('signals-container');
   if (sigContainer) {
-    sigContainer.innerHTML = (result.emotionalSignals || ['Stability']).map(s =>
-      `<span class="tag" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:#06b6d4;">${s}</span>`
+    const signals = isDepressed
+      ? (result.emotionalSignals || ['Low Mood'])
+      : ['Emotional Stability', 'Resilience', 'Coherent Thought'];
+    sigContainer.innerHTML = signals.map(s =>
+      `<span class="tag" style="background:${isDepressed ? 'rgba(139,92,246,0.1)' : 'rgba(34,197,94,0.1)'};border:1px solid ${isDepressed ? 'rgba(139,92,246,0.2)' : 'rgba(34,197,94,0.2)'};color:${isDepressed ? '#c4b5fd' : '#86efac'};">${s}</span>`
     ).join('');
   }
 
+  // ── Modality insights ───────────────────────────────────────────────────
   ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
     const key = ['text', 'video', 'audio', 'questionnaire'][i];
     const insights = result.insights?.[key];
@@ -790,6 +844,7 @@ function renderResults(result, depressionType) {
     }
   });
 
+  // ── Recommendations ─────────────────────────────────────────────────────
   const recContainer = document.getElementById('recommendations-container');
   if (recContainer) {
     recContainer.innerHTML = (result.recommendations || []).map(r =>
@@ -799,6 +854,11 @@ function renderResults(result, depressionType) {
 }
 
 window.downloadReport = function () {
+  const isDepressed = aiResult?.riskLevel === 'Moderate' || aiResult?.riskLevel === 'High';
+  const displayPercent = isDepressed
+    ? (aiResult?.displayPercent ?? aiResult?.confidenceScore ?? '—')
+    : null;
+
   const lines = [
     '=== PsychSense Mental Health Report ===',
     '',
@@ -807,15 +867,16 @@ window.downloadReport = function () {
     `Gender: ${userInfo.gender}`,
     `Generated: ${new Date().toLocaleString()}`,
     '',
-    `Risk Level: ${aiResult?.riskLevel ?? 'N/A'}`,
-    `Depression Type: ${aiResult?.depressionType ?? 'N/A'}`,
-    `Confidence: ${aiResult?.confidenceScore ?? '—'}%`,
+    `Status: ${isDepressed ? aiResult?.riskLevel + ' Risk' : 'Stable — No Depression Detected'}`,
+    isDepressed ? `Depression Type: ${aiResult?.depressionType ?? 'N/A'}` : null,
+    isDepressed ? `Depression Severity: ${displayPercent}%` : null,
     '',
     'Recommendations:',
     ...(aiResult?.recommendations ?? []).map(r => `  - ${r}`),
     '',
     'Disclaimer: This system is for early mental health screening only — not a clinical diagnosis.',
-  ];
+  ].filter(l => l !== null);
+
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
