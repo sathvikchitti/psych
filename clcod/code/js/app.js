@@ -641,11 +641,13 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
   // Health-check first so we get a clear error if backend is down
   try {
     const ping = await fetch(`${FLASK_API_URL}/health`);
-    if (!ping.ok) throw new Error('Backend not reachable');
-  } catch {
+    // Accept 200 and 206 — HuggingFace proxy may return 206 for streamed responses
+    if (!ping.ok && ping.status !== 206) throw new Error('Backend not reachable');
+  } catch (err) {
+    if (err.message === 'Backend not reachable') throw err;
     throw new Error(
       'Cannot reach the Flask backend at ' + FLASK_API_URL +
-      '. Make sure you ran: python app.py'
+      '. Make sure the backend is running.'
     );
   }
 
@@ -677,12 +679,33 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
     // Do NOT set Content-Type manually — browser sets it with boundary automatically
   });
 
-  if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
-    throw new Error(errBody.error || `Server error ${response.status}`);
+  // FIX: HuggingFace Space proxy returns 206 (Partial/Streamed) for large ML responses.
+  // response.ok is true for 200-299, so 206 passes. But response.json() can silently
+  // fail on a streamed/chunked body. Use response.text() + JSON.parse() for safety.
+  if (!response.ok && response.status !== 206) {
+    let errMsg = `Server error ${response.status}`;
+    try {
+      const errBody = await response.text();
+      const parsed = JSON.parse(errBody);
+      errMsg = parsed.error || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
   }
 
-  const result = await response.json();
+  // Safely read the full body as text first, then parse as JSON
+  const rawText = await response.text();
+  if (!rawText || !rawText.trim()) {
+    throw new Error('Empty response received from server. Please try again.');
+  }
+
+  let result;
+  try {
+    result = JSON.parse(rawText);
+  } catch (parseErr) {
+    console.error('[PsychSense] JSON parse error. Raw response:', rawText.slice(0, 500));
+    throw new Error('Invalid response format from server. Please try again.');
+  }
+
   return { ...result, timestamp: new Date().toISOString() };
 }
 
@@ -698,104 +721,80 @@ function dataURLtoBlob(dataURL) {
 
 function renderResults(result, depressionType) {
   const name = userInfo.name || 'Anonymous';
-
-  // Patient info
   const patientEl = document.getElementById('results-patient');
   if (patientEl) patientEl.textContent = `Patient: ${name} • ID: PS-${Math.floor(Math.random() * 9000) + 1000}`;
 
-  // Depression probability score
   const confidenceEl = document.getElementById('results-confidence');
   if (confidenceEl) confidenceEl.textContent = `${result.confidenceScore}%`;
 
-  // Risk level with color
   const riskEl = document.getElementById('results-risk');
-  if (riskEl) {
-    riskEl.textContent = result.riskLevel;
-    riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : result.riskLevel === 'Moderate' ? '#f59e0b' : '#06b6d4';
-  }
+  if (riskEl) riskEl.textContent = result.riskLevel;
 
-  // Depression type badge
+  // Show depression type badge if available
   const typeBadge = document.getElementById('depression-type-badge');
   const typeLabel = document.getElementById('depression-type-label');
   if (typeBadge && typeLabel && depressionType) {
-    typeBadge.style.display = 'flex';
+    typeBadge.style.display = 'inline-flex';
     typeLabel.textContent = depressionType;
   }
 
-  // Ring description — plain English for the user
+  const ringLabelEl = document.getElementById('ring-label');
+  if (ringLabelEl) ringLabelEl.textContent = result.riskLevel === 'Low' ? 'Stable' : result.riskLevel;
+
   const ringDescEl = document.getElementById('ring-desc');
   if (ringDescEl) {
-    const descs = {
-      'High': 'Your inputs show strong indicators of depression. We strongly recommend speaking with a mental health professional soon.',
-      'Moderate': 'Your inputs show some signs of depression. It would be a good idea to speak with a counsellor or doctor.',
-      'Low': 'Your inputs suggest you are currently in a stable emotional state. Keep maintaining healthy habits.'
-    };
-    ringDescEl.textContent = descs[result.riskLevel] || '';
+    ringDescEl.textContent = result.riskLevel === 'Low'
+      ? 'Subject exhibits stable linguistic and vocal biomarkers, indicating low probability of acute depressive episodes.'
+      : `Analysis indicates a ${result.riskLevel.toLowerCase()} probability of depressive symptoms across multi-modal biomarkers.`;
   }
 
-  // Animated ring (circumference for r=60 is 377)
   const ringProgress = document.getElementById('ring-progress');
   if (ringProgress) {
-    const circumference = 2 * Math.PI * 60;
+    const circumference = 2 * Math.PI * 80;
     const offset = circumference * (1 - result.confidenceScore / 100);
-    const color = result.riskLevel === 'High' ? '#ef4444' : result.riskLevel === 'Moderate' ? '#f59e0b' : '#06b6d4';
-    ringProgress.style.stroke = color;
     setTimeout(() => { ringProgress.style.strokeDashoffset = offset; }, 100);
   }
 
-  // What the model detected — modality cards
-  const modalityContainer = document.getElementById('modality-cards-container');
-  if (modalityContainer) {
-    const modalities = [
-      { key: 'text',  label: 'Text',  color: '#06b6d4', icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
-      { key: 'audio', label: 'Audio', color: '#d946ef', icon: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>' },
-      { key: 'video', label: 'Video', color: '#8b5cf6', icon: '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>' },
-    ];
-    modalityContainer.innerHTML = modalities.map(m => {
-      const points = result.insights?.[m.key]?.points ?? [];
-      const contrib = result.contributions?.[m.key] ?? 0;
-      const used = contrib > 0;
-      return `
-        <div style="background:rgba(0,0,0,0.2);border-radius:16px;padding:18px;border:1px solid ${used ? `${m.color}33` : 'rgba(255,255,255,0.05)'};">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${used ? m.color : '#475569'}" stroke-width="2">${m.icon}</svg>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${used ? m.color : '#475569'};">${m.label}</span>
-            <span style="margin-left:auto;font-size:10px;font-weight:700;color:${used ? m.color : '#475569'};">${contrib}%</span>
-          </div>
-          <p style="font-size:11px;color:${used ? '#cbd5e1' : '#475569'};line-height:1.6;">${points[0] ?? (used ? 'Analysed.' : 'Not provided.')}</p>
-        </div>`;
-    }).join('');
-  }
-
-  // Emotional signals
-  const sigContainer = document.getElementById('signals-container');
-  if (sigContainer) {
-    const colorMap = { 'Depressive Episode': '#ef4444', 'Low Mood': '#f59e0b', 'Anhedonia': '#f87171', 'Fatigue': '#fb923c', 'Insomnia': '#a78bfa', 'Hypersomnia': '#818cf8', 'Cognitive Fog': '#60a5fa', 'Appetite Changes': '#34d399', 'Seasonal Pattern': '#38bdf8', 'Persistent Sadness': '#f472b6', 'Emotional Stability': '#06b6d4', 'Resilience': '#10b981', 'Coherent Thought': '#8b5cf6', 'Racing Thoughts': '#f59e0b' };
-    sigContainer.innerHTML = (result.emotionalSignals || ['Emotional Stability']).map(s => {
-      const c = colorMap[s] || '#06b6d4';
-      return `<span style="background:${c}18;border:1px solid ${c}44;color:${c};padding:6px 14px;border-radius:9999px;font-size:11px;font-weight:700;">${s}</span>`;
-    }).join('');
-  }
-
-  // Contributions
   const c = result.contributions;
   ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
     const key = ['text', 'video', 'audio', 'questionnaire'][i];
-    const val = c?.[key] ?? 0;
+    const val = c[key] ?? 25;
     const valEl = document.getElementById(`contrib-${k}-val`);
     if (valEl) valEl.textContent = `${val}%`;
     const progressEl = document.getElementById(`contrib-${k}`);
     if (progressEl) setTimeout(() => { progressEl.style.width = `${val}%`; }, 200);
   });
 
-  // Recommendations — each as a card
+  const sigContainer = document.getElementById('signals-container');
+  if (sigContainer) {
+    sigContainer.innerHTML = (result.emotionalSignals || ['Stability']).map(s =>
+      `<span class="tag" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:#06b6d4;">${s}</span>`
+    ).join('');
+  }
+
+  ['text', 'video', 'audio', 'quest'].forEach((k, i) => {
+    const key = ['text', 'video', 'audio', 'questionnaire'][i];
+    const insights = result.insights?.[key];
+    const firstPoint = insights?.points?.[0] ?? 'Analysis complete.';
+    const pointEl = document.getElementById(`point-${k}`);
+    if (pointEl) pointEl.textContent = firstPoint;
+    const barEl = document.getElementById(`bar-${k}`);
+    if (barEl) setTimeout(() => { barEl.style.width = `${70 + Math.random() * 25}%`; }, 200);
+  });
+
+  ['text', 'video', 'audio'].forEach(k => {
+    const ul = document.getElementById(`insights-${k}`);
+    if (ul) {
+      const points = result.insights?.[k]?.points ?? [];
+      ul.innerHTML = points.map(p => `<li style="display:flex;gap:8px;font-size:11px;color:#cbd5e1;line-height:1.5;"><div style="width:4px;height:4px;border-radius:50%;background:currentColor;margin-top:5px;flex-shrink:0;"></div>${p}</li>`).join('');
+    }
+  });
+
   const recContainer = document.getElementById('recommendations-container');
   if (recContainer) {
-    recContainer.innerHTML = (result.recommendations || []).map((r, i) => `
-      <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(0,0,0,0.15);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
-        <div style="width:24px;height:24px;border-radius:50%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:800;color:#f59e0b;">${i + 1}</div>
-        <p style="font-size:12px;color:#cbd5e1;line-height:1.6;margin:0;">${r}</p>
-      </div>`).join('');
+    recContainer.innerHTML = (result.recommendations || []).map(r =>
+      `<div class="rec-card"><svg class="check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p style="font-size:11px;color:#cbd5e1;line-height:1.5;">${r}</p></div>`
+    ).join('');
   }
 }
 
