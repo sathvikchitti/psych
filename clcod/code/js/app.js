@@ -138,7 +138,7 @@ let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivi
 // For local development, keep this as http://127.0.0.1:5000
 // Before deploying to production, change this to your hosted backend URL, e.g.:
 //   const FLASK_API_URL = 'https://your-backend.railway.app';
-const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+const FLASK_API_URL = 'http://127.0.0.1:7860';
 // ────────────────────────────────────────────────────────────────────────────
 
 window.goTo = function (page) {
@@ -147,6 +147,146 @@ window.goTo = function (page) {
   if (targetPage) targetPage.classList.add('active');
   currentPage = page;
   if (page === 'user-info') prefillUserInfo();
+};
+
+// ── Toast notification ────────────────────────────────────────────────────────
+let _toastTimer = null;
+window.showToast = function (msg, type = 'warn') {
+  const toast = document.getElementById('ps-toast');
+  const msgEl  = document.getElementById('ps-toast-msg');
+  const icon   = document.getElementById('ps-toast-icon');
+  if (!toast || !msgEl) return;
+
+  msgEl.textContent = msg;
+
+  // Icon colour
+  const colour = type === 'error' ? '#ef4444' : '#f59e0b';
+  if (icon) icon.setAttribute('stroke', colour);
+  toast.style.borderColor = type === 'error' ? 'rgba(239,68,68,0.4)' : 'rgba(6,182,212,0.4)';
+
+  // Show
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  toast.style.pointerEvents = 'auto';
+
+  // Auto-hide after 4s
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+    toast.style.pointerEvents = 'none';
+  }, 4000);
+};
+
+// ── Gated "Start Analysis" — requires login ───────────────────────────────────
+window.startAnalysisGated = function () {
+  if (window.currentUser) {
+    window.goTo('user-info');
+  } else {
+    window.showToast('Please sign in to start your assessment.', 'warn');
+  }
+};
+
+// ── Results History Modal ─────────────────────────────────────────────────────
+window.openResultsHistory = async function () {
+  if (!window.currentUser) {
+    window.showToast('Please sign in to view your history.', 'warn');
+    return;
+  }
+
+  const modal = document.getElementById('results-history-modal');
+  const list  = document.getElementById('results-history-list');
+  if (!modal || !list) return;
+
+  modal.style.display = 'flex';
+  modal.onclick = (e) => { if (e.target === modal) window.closeResultsHistory(); };
+
+  list.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;padding:40px;gap:12px;color:#64748b;">
+      <div class="spin" style="width:20px;height:20px;border-top:2px solid #06b6d4;border-radius:50%;"></div>
+      <span style="font-size:13px;">Loading your reports…</span>
+    </div>`;
+
+  const reports = window.loadReports ? await window.loadReports() : [];
+
+  if (!reports || !reports.length) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="width:64px;height:64px;background:rgba(100,116,139,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <p style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:#64748b;margin-bottom:8px;">No History Yet</p>
+        <p style="font-size:13px;color:#475569;line-height:1.6;">Complete your first assessment to see your report history here.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = reports.map((r, idx) => {
+    const date = r.createdAt
+      ? new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : 'Unknown date';
+
+    const risk = r.riskLevel || 'Stable';
+    const isStable = risk === 'Stable' || risk === 'Low';
+    const riskColour = isStable ? '#22c55e' : risk === 'High' ? '#ef4444' : '#f59e0b';
+    const riskLabel = isStable ? 'Stable' : risk;
+    const scoreLabel  = r.confidenceScore != null ? `${r.confidenceScore}%` : '—';
+    const typeLabel   = r.depressionType || '';
+    const name        = r.userInfo?.name || window.currentUser?.name || '—';
+
+    const signals = (r.emotionalSignals || []).slice(0, 4)
+      .map(s => `<span style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:10px;color:#c4b5fd;font-weight:600;">${s}</span>`)
+      .join('');
+
+    const recs = (r.recommendations || []).slice(0, 2)
+      .map(rec => `<li style="font-size:11px;color:#94a3b8;line-height:1.5;margin-left:12px;">${rec}</li>`)
+      .join('');
+
+    return `
+      <div style="background:rgba(0,0,0,0.25);border-radius:18px;border:1px solid rgba(255,255,255,0.06);overflow:hidden;">
+        <!-- Card Header -->
+        <div style="padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <div>
+            <p style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin-bottom:2px;">${name}</p>
+            <p style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:0.08em;">${date}</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="text-align:right;">
+              <p style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:800;color:${riskColour};">${riskLabel}</p>
+              ${typeLabel ? `<p style="font-size:10px;color:#64748b;">${typeLabel}</p>` : ''}
+            </div>
+            <div style="width:42px;height:42px;border-radius:50%;border:2px solid ${riskColour};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:800;color:${riskColour};">${scoreLabel}</span>
+            </div>
+          </div>
+        </div>
+
+        ${signals ? `
+        <!-- Signals -->
+        <div style="padding:10px 20px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid rgba(255,255,255,0.04);">
+          ${signals}
+        </div>` : ''}
+
+        ${recs ? `
+        <!-- Recommendations -->
+        <div style="padding:12px 20px;">
+          <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#06b6d4;font-weight:700;margin-bottom:6px;">Top Recommendations</p>
+          <ul style="list-style:disc;padding:0;margin:0;">
+            ${recs}
+          </ul>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+};
+
+window.closeResultsHistory = function () {
+  const modal = document.getElementById('results-history-modal');
+  if (modal) modal.style.display = 'none';
 };
 
 function prefillUserInfo() {
@@ -917,7 +1057,10 @@ window.openProfileModal = async function () {
     } else {
       reportsEl.innerHTML = reports.map(r => {
         const date = new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-        const color = r.riskLevel === 'Low' ? '#06b6d4' : r.riskLevel === 'Moderate' ? '#f59e0b' : '#ef4444';
+        const risk = r.riskLevel || 'Stable';
+        const isStable = risk === 'Stable' || risk === 'Low';
+        const color = isStable ? '#22c55e' : risk === 'Moderate' ? '#f59e0b' : '#ef4444';
+        const label = isStable ? 'Stable' : risk;
         return `<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
           <div>
             <p style="font-size:11px;color:#94a3b8;margin-bottom:3px;">${date}</p>
