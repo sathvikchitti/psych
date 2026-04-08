@@ -138,7 +138,7 @@ let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivi
 // For local development, keep this as http://127.0.0.1:5000
 // Before deploying to production, change this to your hosted backend URL, e.g.:
 //   const FLASK_API_URL = 'https://your-backend.railway.app';
-const FLASK_API_URL = 'http://127.0.0.1:7860';
+const FLASK_API_URL = 'https://sense123-psychsense.hf.space.';
 // ────────────────────────────────────────────────────────────────────────────
 
 window.goTo = function (page) {
