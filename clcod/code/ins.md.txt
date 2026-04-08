@@ -5,3 +5,7 @@ python app.py
 
 in code(for frontend):
 npx serve .
+
+
+backend when deployed
+https://sense123-psychsense.hf.space.
