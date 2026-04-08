@@ -284,6 +284,9 @@ def extract_audio_embedding(audio_path):
     """WavLM chunked mean-pool → (AUDIO_DIM,). Returns zeros on failure."""
     try:
         y, _ = librosa.load(audio_path, sr=SR, mono=True, duration=MAX_DUR)
+        # Fix: Remove leading/trailing silence so background noise isn't evaluated as "flat prosody"
+        y, _ = librosa.effects.trim(y, top_db=20)
+
         chunk_n = SR * CHUNK_SEC
         min_n   = SR // 4
         chunks  = [y[i:i + chunk_n]
@@ -534,9 +537,12 @@ def predict(text, audio_path, video_path, q):
          else np.zeros(VIS_DIM, dtype=np.float32)
 
     # ── Scale using train-fitted scalers ─────────────────────────────
-    ae = safe_clean(SC_AUDIO.transform(ae.reshape(1, -1))[0].astype(np.float32))
-    te = safe_clean(SC_TEXT.transform(te.reshape(1, -1))[0].astype(np.float32))
-    ve = safe_clean(SC_VIS.transform(ve.reshape(1, -1))[0].astype(np.float32))
+    if has_audio:
+        ae = safe_clean(SC_AUDIO.transform(ae.reshape(1, -1))[0].astype(np.float32))
+    if has_text:
+        te = safe_clean(SC_TEXT.transform(te.reshape(1, -1))[0].astype(np.float32))
+    if has_video:
+        ve = safe_clean(SC_VIS.transform(ve.reshape(1, -1))[0].astype(np.float32))
 
     # ── Model inference ──────────────────────────────────────────────
     at = torch.from_numpy(ae).unsqueeze(0).to(DEVICE)
