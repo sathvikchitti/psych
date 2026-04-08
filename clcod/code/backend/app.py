@@ -555,33 +555,31 @@ def predict(text, audio_path, video_path, q):
         probs  = torch.softmax(logits, dim=1).cpu().numpy()[0]
 
     p_dep = float(probs[1])
-
-    # ── Blend with questionnaire score ───────────────────────────────
-    answers    = q.get("answers", {})
-    pos_count  = sum(1 for v in answers.values() if v)
-    impairment = q.get("impairment", 30) / 100.0
-    q_score    = (pos_count / 4) * 0.5 + impairment * 0.5
-
-    has_real_questionnaire = pos_count > 0 or q.get("impairment", 30) != 30
-    blended_p_dep = 0.70 * p_dep + 0.30 * q_score if has_real_questionnaire else p_dep
+    # ── Questionnaire scoring decoupled from Risk Level ──────────────
+    # Per request: the questionnaire should not affect the depression 
+    # detected, its only function is to diagnose the TYPE downstream.
 
     # ── Risk classification ──────────────────────────────────────────
-    if blended_p_dep >= 0.70:
+    # Thresholds chosen conservatively to avoid false positives:
+    #   High  : p_dep >= 0.70  (clear depressive signal)
+    #   Moderate: 0.60–0.69    (noticeable signal, needs follow-up)
+    #   Low   : < 0.60         (no significant depressive marker)
+    if p_dep >= 0.70:
         risk_level       = "High"
-        confidence_score = round(blended_p_dep * 100, 1)
-    elif blended_p_dep >= 0.55:
+        confidence_score = round(p_dep * 100, 1)
+    elif p_dep >= 0.60:
         risk_level       = "Moderate"
-        confidence_score = round(blended_p_dep * 100, 1)
+        confidence_score = round(p_dep * 100, 1)
     else:
         risk_level       = "Low"
-        confidence_score = round(blended_p_dep * 100, 1)
+        confidence_score = round(p_dep * 100, 1)
 
     # ── Build result payload ─────────────────────────────────────────
     contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
     signals  = derive_signals(p_dep, risk_level, q)
     recs     = get_recommendations(risk_level, q)
     q_points = build_questionnaire_insights(q)
-
+    
     text_points = []
     if has_text:
         word_count = len(text.split())

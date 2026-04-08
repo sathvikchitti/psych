@@ -15,6 +15,18 @@ body { background: #020617; color: white; font-family: 'Inter', sans-serif; heig
 .page { display: none; height: 100vh; width: 100vw; }
 .page.active { display: flex; }
 
+/* Results page is the only page that needs to scroll freely */
+#page-results.active {
+  display: block;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,92,246,0.3) transparent;
+}
+#page-results.active::-webkit-scrollbar { width: 5px; }
+#page-results.active::-webkit-scrollbar-track { background: transparent; }
+#page-results.active::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
+
 .btn-glow-cyan {
   background: #06b6d4; color: white; padding: 14px 40px; border-radius: 9999px;
   font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px;
@@ -116,8 +128,6 @@ select option { background: #020617; }
   padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
 }
 .check-icon { color: #d946ef; flex-shrink: 0; margin-top: 1px; }
-
-#page-results { overflow-y: auto; }
 
 .recording-bars { display: flex; align-items: center; gap: 3px; height: 30px; }
 .recording-bar { width: 4px; background: #d946ef; border-radius: 2px; }
