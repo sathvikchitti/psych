@@ -876,6 +876,39 @@ function renderResults(result, depressionType, isDepressed) {
   const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const modes = ['audio', 'text', 'video'].filter(m => result?.contributions?.[m] > 0).map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' · ') || 'None';
 
+  // ── Depression type knowledge base ──────────────────────────────────────
+  const DEPRESSION_INFO = {
+    'Major Depressive Disorder (MDD)': {
+      short: 'Major Depressive Disorder (MDD)',
+      description: 'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks. It significantly impairs daily functioning and responds well to a combination of therapy and medication.',
+    },
+    'Postpartum Depression': {
+      short: 'Postpartum Depression',
+      description: 'PPD occurs after childbirth and is marked by intense sadness, anxiety, and exhaustion that interfere with the ability to care for oneself or the baby. It is more severe than the "baby blues" and requires professional treatment.',
+    },
+    'Seasonal Affective Disorder (SAD)': {
+      short: 'Seasonal Affective Disorder (SAD)',
+      description: 'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten. Symptoms include hypersomnia, increased appetite, and low energy. Light therapy is a first-line treatment.',
+    },
+    'Atypical Depression': {
+      short: 'Atypical Depression',
+      description: 'Unlike classical depression, atypical depression features mood reactivity — the ability to feel better in response to positive events. It is also associated with hypersomnia, increased appetite, and heightened sensitivity to rejection.',
+    },
+    'Persistent Depressive Disorder (Dysthymia)': {
+      short: 'Persistent Depressive Disorder',
+      description: 'Dysthymia is a chronic, lower-grade depression lasting two or more years. Symptoms are less severe than MDD but are long-lasting and can cause significant impairment. Many people describe it as feeling perpetually "down" or "not myself".',
+    },
+    'Depressive Episode': {
+      short: 'Depressive Episode',
+      description: 'A depressive episode involves a sustained period of depressed mood, reduced energy, and diminished interest in activities. It may be part of a broader mood disorder and warrants a full clinical assessment to determine the appropriate course of care.',
+    },
+  };
+
+  const depInfo = DEPRESSION_INFO[depressionType] || null;
+
+  // ── Store reportId for PDF generation ──────────────────────────────────
+  window._lastReportId = reportId;
+
   // ── Header ─────────────────────────────────────────────────────────────
   const patientEl = document.getElementById('results-patient');
   if (patientEl) patientEl.textContent = `Patient: ${name} • ID: ${reportId}`;
@@ -910,7 +943,7 @@ function renderResults(result, depressionType, isDepressed) {
       </div>`).join('');
   }
 
-  // ── Executive summary / ring desc ───────────────────────────────────────
+  // ── Executive summary ───────────────────────────────────────────────────
   const displayPercent = isDepressed ? (result.displayPercent ?? result.confidenceScore) : result.confidenceScore;
   const ringDescEl = document.getElementById('ring-desc');
   if (ringDescEl) {
@@ -923,7 +956,6 @@ function renderResults(result, depressionType, isDepressed) {
     }
   }
 
-  // Depression type badge (in summary)
   const typeBadge = document.getElementById('depression-type-badge');
   const typeLabel = document.getElementById('depression-type-label');
   if (typeBadge && typeLabel) {
@@ -945,12 +977,24 @@ function renderResults(result, depressionType, isDepressed) {
     confidenceEl.style.color = isDepressed ? (displayPercent >= 70 ? '#ef4444' : '#f59e0b') : '#22c55e';
   }
 
-  const confRawEl = document.getElementById('results-confidence-raw');
-  if (confRawEl) confRawEl.textContent = `${Math.round(result.confidenceScore)}%`;
-
   const severityFill = document.getElementById('severity-bar-fill');
   if (severityFill) setTimeout(() => { severityFill.style.width = `${displayPercent}%`; }, 200);
 
+  // Severity range label
+  const sevRangeEl = document.getElementById('severity-range-label');
+  if (sevRangeEl) {
+    if (!isDepressed) {
+      sevRangeEl.textContent = 'Normal range (< 30%)';
+    } else if (displayPercent >= 75) {
+      sevRangeEl.textContent = 'Severe range (≥ 75%)';
+    } else if (displayPercent >= 50) {
+      sevRangeEl.textContent = 'Moderate range (50–74%)';
+    } else {
+      sevRangeEl.textContent = 'Mild range (30–49%)';
+    }
+  }
+
+  // Risk tile
   const riskEl = document.getElementById('results-risk');
   const riskSubEl = document.getElementById('results-risk-sub');
   if (riskEl) {
@@ -959,13 +1003,30 @@ function renderResults(result, depressionType, isDepressed) {
       riskEl.style.color = '#22c55e';
       if (riskSubEl) riskSubEl.textContent = 'Stable levels';
     } else {
-      riskEl.textContent = result.riskLevel;
+      riskEl.textContent = result.riskLevel + ' Risk';
       riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : '#f59e0b';
-      if (riskSubEl) riskSubEl.textContent = 'Intervention advised';
+      if (riskSubEl) riskSubEl.textContent = result.riskLevel === 'High' ? 'Requires urgent review' : 'Intervention advised';
     }
   }
 
-  // Hidden ring (kept for JS compat in downloadReport)
+  // Depression type tile
+  const depTypeNameEl = document.getElementById('results-dep-type-name');
+  const depTypeDescEl = document.getElementById('results-dep-type-desc');
+  if (depTypeNameEl && depTypeDescEl) {
+    if (isDepressed && depressionType) {
+      depTypeNameEl.textContent = depInfo?.short || depressionType;
+      depTypeDescEl.textContent = depInfo?.description || 'A clinical assessment is advised to determine the specific depression subtype and appropriate treatment.';
+    } else if (!isDepressed) {
+      depTypeNameEl.textContent = 'No disorder detected';
+      depTypeNameEl.style.color = '#86efac';
+      depTypeDescEl.textContent = 'Your assessment shows no significant depressive markers at this time.';
+    } else {
+      depTypeNameEl.textContent = 'Depressive Episode';
+      depTypeDescEl.textContent = 'A depressive episode was identified. A clinical assessment is advised to determine the specific subtype.';
+    }
+  }
+
+  // Hidden ring (compat)
   const ringProgress = document.getElementById('ring-progress');
   if (ringProgress) {
     const circumference = 2 * Math.PI * 60;
@@ -984,7 +1045,7 @@ function renderResults(result, depressionType, isDepressed) {
     if (progressEl) setTimeout(() => { progressEl.style.width = `${val}%`; }, 200);
   });
 
-  // ── Insights grid (2-col, matching ps-insights-grid) ───────────────────
+  // ── Insights grid ───────────────────────────────────────────────────────
   const insightsGrid = document.getElementById('insights-grid');
   if (insightsGrid) {
     const insightDefs = [
@@ -995,8 +1056,10 @@ function renderResults(result, depressionType, isDepressed) {
     ];
     insightsGrid.innerHTML = insightDefs.map(def => {
       const ins = result.insights?.[def.key];
-      const title = ins?.title || def.defaultTitle;
-      const body = ins?.points?.join('. ') || 'Analysis complete.';
+      const rawTitle = ins?.title;
+      const title = (rawTitle && rawTitle !== 'undefined' && rawTitle.trim() !== '') ? rawTitle : def.defaultTitle;
+      const rawBody = ins?.points?.filter(p => p && p !== 'undefined').join('. ');
+      const body = (rawBody && rawBody.trim() !== '') ? rawBody : 'Analysis complete.';
       return `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;background:${def.bg};">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <div style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:14px;">${def.icon}</div>
@@ -1019,29 +1082,32 @@ function renderResults(result, depressionType, isDepressed) {
     ).join('');
   }
 
-  // ── Risk analysis card (only if depressed) ──────────────────────────────
+  // ── Risk analysis card ──────────────────────────────────────────────────
   const riskCard = document.getElementById('risk-analysis-card');
   const rfList = document.getElementById('risk-factors-list');
   if (riskCard && rfList) {
     if (isDepressed) {
       riskCard.style.display = 'block';
       const factors = result.riskFactors || [
-        `Severity score ≥ ${displayPercent}% — crosses the clinical high-risk threshold.`,
-        `Multimodal agreement — audio, text, and video signals independently flagging distress.`,
-        depressionType ? `Detected type — ${depressionType} carries specific risk considerations.` : null,
-        `Negative cognitive patterns — language analysis detected persistent distress framing.`,
+        { label: `Severity score ≥ ${displayPercent}%`, body: 'The model\'s output crosses the clinical high-risk threshold established from validated depression screening benchmarks.' },
+        { label: 'Multimodal agreement', body: 'Audio, text, and video signals are all independently flagging distress, strengthening the reliability of the prediction.' },
+        depressionType ? { label: `${depressionType}`, body: depInfo ? depInfo.description : `${depressionType} carries elevated risk if left unaddressed.` } : null,
+        { label: 'Negative cognitive patterns', body: 'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.' },
       ].filter(Boolean);
-      rfList.innerHTML = factors.map(f => `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:rgba(254,248,241,0.05);border:1px solid rgba(250,199,117,0.25);border-radius:10px;">
-          <div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;margin-top:5px;"></div>
-          <div style="font-size:13px;color:#fbbf24;line-height:1.5;">${f}</div>
-        </div>`).join('');
+      rfList.innerHTML = factors.map(f => {
+        const label = typeof f === 'string' ? f : f.label;
+        const body  = typeof f === 'string' ? '' : f.body;
+        return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:rgba(254,248,241,0.05);border:1px solid rgba(250,199,117,0.25);border-radius:10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;margin-top:6px;"></div>
+          <div style="font-size:13px;color:#cbd5e1;line-height:1.5;"><strong style="color:#fbbf24;">${label} —</strong> ${body}</div>
+        </div>`;
+      }).join('');
     } else {
       riskCard.style.display = 'none';
     }
   }
 
-  // ── Recommendations (3-col grid matching ps-rec-grid) ──────────────────
+  // ── Recommendations ─────────────────────────────────────────────────────
   const recContainer = document.getElementById('recommendations-container');
   if (recContainer) {
     const recsList = result.recommendations || [];
@@ -1086,26 +1152,41 @@ window.downloadReport = function () {
 
   const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = new Date().toLocaleString('en-GB');
-  const reportId = 'PSY-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+  const reportId = window._lastReportId || ('PSY-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000));
   
   const riskClass = aiResult?.riskLevel || 'Low';
   const depType = (aiResult?.depressionType && aiResult.depressionType !== '—') ? aiResult.depressionType : 'Depression';
   const confScore = Math.round(aiResult?.confidenceScore) || '—';
+
+  // Depression type knowledge base (same as renderResults)
+  const PDF_DEPRESSION_INFO = {
+    'Major Depressive Disorder (MDD)': { short: 'Major Depressive Disorder (MDD)', description: 'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks. It significantly impairs daily functioning and responds well to a combination of therapy and medication.' },
+    'Postpartum Depression': { short: 'Postpartum Depression', description: 'PPD occurs after childbirth and is marked by intense sadness, anxiety, and exhaustion that interfere with the ability to care for oneself or the baby. It is more severe than the "baby blues" and requires professional treatment.' },
+    'Seasonal Affective Disorder (SAD)': { short: 'Seasonal Affective Disorder (SAD)', description: 'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten. Symptoms include hypersomnia, increased appetite, and low energy. Light therapy is a first-line treatment.' },
+    'Atypical Depression': { short: 'Atypical Depression', description: 'Unlike classical depression, atypical depression features mood reactivity — the ability to feel better in response to positive events. It is also associated with hypersomnia, increased appetite, and heightened sensitivity to rejection.' },
+    'Persistent Depressive Disorder (Dysthymia)': { short: 'Persistent Depressive Disorder', description: 'Dysthymia is a chronic, lower-grade depression lasting two or more years. Symptoms are less severe than MDD but are long-lasting and can cause significant impairment. Many people describe it as feeling perpetually "down" or "not myself".' },
+    'Depressive Episode': { short: 'Depressive Episode', description: 'A depressive episode involves a sustained period of depressed mood, reduced energy, and diminished interest in activities. It may be part of a broader mood disorder and warrants a full clinical assessment.' },
+  };
+  const pdfDepInfo = PDF_DEPRESSION_INFO[depType] || null;
   
   const modes = ['Audio', 'Text', 'Video'].filter(m => aiResult?.contributions && aiResult.contributions[m.toLowerCase()] > 0).join(' · ') || 'None';
 
   let insightsHtml = '';
   if (aiResult?.insights) {
     const map = [
-     { key: 'audio', icon: '🎙', bg: '#E6F1FB' },
-     { key: 'text', icon: '📝', bg: '#EAF3DE' },
-     { key: 'video', icon: '🎥', bg: '#FBEAF0' },
-     { key: 'behavioral', icon: '⚡', bg: '#FAEEDA' },
+     { key: 'audio',         icon: '🎙', bg: '#E6F1FB', fallbackTitle: 'Voice & Audio Signals' },
+     { key: 'text',          icon: '📝', bg: '#EAF3DE', fallbackTitle: 'Language & Text Signals' },
+     { key: 'video',         icon: '🎥', bg: '#FBEAF0', fallbackTitle: 'Facial & Visual Cues' },
+     { key: 'behavioral',    icon: '⚡', bg: '#FAEEDA', fallbackTitle: 'Energy & Engagement' },
+     { key: 'questionnaire', icon: '📋', bg: '#FAEEDA', fallbackTitle: 'Questionnaire Insights' },
     ];
     for (let item of map) {
-      if (aiResult.insights[item.key]) {
-        let title = aiResult.insights[item.key].title;
-        let body = aiResult.insights[item.key].points.join('. ');
+      const ins = aiResult.insights[item.key];
+      if (ins) {
+        const rawTitle = ins.title;
+        const title = (rawTitle && rawTitle !== 'undefined' && rawTitle.trim() !== '') ? rawTitle : item.fallbackTitle;
+        const rawPoints = (ins.points || []).filter(p => p && p !== 'undefined');
+        const body = rawPoints.length > 0 ? rawPoints.join('. ') : 'Analysis complete.';
         insightsHtml += `
           <div class="ps-insight">
             <div class="ps-insight-icon-row">
@@ -1293,27 +1374,35 @@ window.downloadReport = function () {
     <div class="ps-metrics-grid">
       <div class="ps-metric">
         <div class="ps-metric-label">Depression Severity</div>
-        <div class="ps-metric-value">${displayPercent}%</div>
+        <div class="ps-metric-value" style="color:${isDepressed ? (displayPercent >= 70 ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${displayPercent}%</div>
         ${severityBar}
-      </div>
-      <div class="ps-metric">
-        <div class="ps-metric-label">Model Confidence</div>
-        <div class="ps-metric-value">${confScore}%</div>
-        <div class="ps-metric-sub">Prediction confidence</div>
+        <div class="ps-metric-sub">${isDepressed ? (displayPercent >= 75 ? 'Severe range (≥ 75%)' : displayPercent >= 50 ? 'Moderate range (50–74%)' : 'Mild range (30–49%)') : 'Normal range (< 30%)'}</div>
       </div>
       <div class="ps-metric">
         <div class="ps-metric-label">Risk Classification</div>
-        <div class="ps-metric-value" style="font-size:16px; color:${isDepressed ? '#A32D2D' : '#3B6D11'};">${riskClass} Risk</div>
-        <div class="ps-metric-sub">${isDepressed ? 'Intervention advised' : 'Stable levels'}</div>
+        <div class="ps-metric-value" style="font-size:18px; color:${isDepressed ? (riskClass === 'High' ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${isDepressed ? riskClass + ' Risk' : 'Stable'}</div>
+        <div class="ps-metric-sub">${isDepressed ? (riskClass === 'High' ? 'Requires urgent review' : 'Intervention advised') : 'Stable levels'}</div>
+      </div>
+      <div class="ps-metric">
+        <div class="ps-metric-label">Type Detected</div>
+        <div class="ps-metric-value" style="font-size:14px; font-weight:600; color:#185FA5; line-height:1.3;">${isDepressed ? (pdfDepInfo ? pdfDepInfo.short : depType) : 'No disorder detected'}</div>
+        ${isDepressed && pdfDepInfo ? `<div class="ps-metric-sub" style="margin-top:6px; line-height:1.5;">${pdfDepInfo.description}</div>` : ''}
       </div>
     </div>
-    ${isDepressed ? `
-    <div class="ps-divider"></div>
-    <div style="font-size:13px; color:#64748b; line-height:1.7; margin-bottom:10px;">
-      <strong style="color:#0f172a;">Depression type detected:</strong> ${depType}
-    </div>
-    ` : ''}
   </div>
+
+  ${isDepressed ? `
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar" style="background:#EF9F27;"></div> Risk Analysis</div>
+    <div style="font-size:13px; color:#475569; line-height:1.7; margin-bottom:12px;">The risk classification was assigned based on a convergence of strong signals across all modalities. No single factor alone determined this — it is the combination and intensity of the following contributing patterns:</div>
+    <div class="ps-risk-factors">
+      <div class="ps-risk-factor"><div class="ps-rf-icon"></div><div class="ps-rf-text"><span class="ps-rf-label">Severity score ≥ ${displayPercent}% —</span> The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks.</div></div>
+      <div class="ps-risk-factor"><div class="ps-rf-icon"></div><div class="ps-rf-text"><span class="ps-rf-label">Multimodal agreement —</span> Audio, text, and video signals are all independently flagging distress, strengthening the reliability of the prediction.</div></div>
+      ${pdfDepInfo ? `<div class="ps-risk-factor"><div class="ps-rf-icon"></div><div class="ps-rf-text"><span class="ps-rf-label">${pdfDepInfo.short} context —</span> ${pdfDepInfo.description}</div></div>` : ''}
+      <div class="ps-risk-factor"><div class="ps-rf-icon"></div><div class="ps-rf-text"><span class="ps-rf-label">Negative cognitive patterns —</span> Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.</div></div>
+    </div>
+  </div>
+  ` : ''}
 
   ${insightsHtml ? `
   <div class="ps-card">

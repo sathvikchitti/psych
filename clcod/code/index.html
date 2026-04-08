@@ -449,29 +449,32 @@
         <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Assessment Results</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;">
+      <!-- Row 1: Severity | Risk Classification | Depression Type -->
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px;">
+        <!-- Tile 1: Depression Severity -->
         <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
           <div id="ring-card-label" style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Depression Severity</div>
           <div id="results-confidence" style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:#06b6d4;">—</div>
           <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:10px;overflow:hidden;">
             <div id="severity-bar-fill" style="height:100%;border-radius:4px;background:linear-gradient(90deg,#FAC775,#E24B4A);width:0;transition:width 1.5s ease-out;"></div>
           </div>
+          <div id="severity-range-label" style="font-size:11px;color:#475569;margin-top:6px;"></div>
         </div>
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
-          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Model Confidence</div>
-          <div id="results-confidence-raw" style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:#8b5cf6;">—</div>
-          <div style="font-size:11px;color:#475569;margin-top:6px;">Prediction confidence</div>
-        </div>
+        <!-- Tile 2: Risk Classification -->
         <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
           <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Risk Classification</div>
           <div id="results-risk" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;">—</div>
           <div id="results-risk-sub" style="font-size:11px;color:#475569;margin-top:6px;"></div>
         </div>
+        <!-- Tile 3: Depression Type -->
+        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
+          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Type Detected</div>
+          <div id="results-dep-type-name" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#c4b5fd;line-height:1.3;">—</div>
+          <div id="results-dep-type-desc" style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5;"></div>
+        </div>
       </div>
-      <!-- SVG Ring (hidden, kept for JS compat) -->
-      <svg width="0" height="0" style="position:absolute;opacity:0;">
-        <circle id="ring-progress" cx="70" cy="70" r="60" fill="transparent" stroke="#06b6d4" stroke-width="10" stroke-dasharray="377" stroke-dashoffset="377" stroke-linecap="round"/>
-      </svg>
+      <!-- Hidden compat element -->
+      <div id="results-confidence-raw" style="display:none;"></div>
       <!-- Input contributions -->
       <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:16px;"></div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:14px;">Input Contributions</div>
@@ -512,10 +515,10 @@
     <!-- ── RISK ANALYSIS ── -->
     <div id="risk-analysis-card" class="glass-card" style="display:none;border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+        <div style="width:3px;height:14px;border-radius:2px;background:#f59e0b;"></div>
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Risk Analysis</span>
       </div>
-      <p style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px;">The risk classification was assigned based on a convergence of signals across all modalities.</p>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px;">The risk classification was assigned based on a convergence of strong signals across all modalities. No single factor alone determined this — it is the combination and intensity of the following contributing patterns:</p>
       <div id="risk-factors-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
 
