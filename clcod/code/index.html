@@ -165,34 +165,33 @@
   </div>
 </div>
 
+
 <!-- ================================ PAGE: LANDING ================================ -->
 <div id="page-landing" class="page active fade-in" style="position:relative;z-index:10;">
-  <div style="width:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px;position:relative;z-index:10;">
-    <div style="max-width:520px;">
-      <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(48px,7vw,88px);font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#06b6d4,#d946ef);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" class="glow-text">PsychSense</h1>
-      <p style="font-family:'Space Grotesk',sans-serif;font-size:18px;color:#06b6d4;margin-bottom:20px;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">AI Powered Multi-Modal Depression Detection System</p>
-      <p style="color:#94a3b8;font-size:15px;margin-bottom:48px;line-height:1.7;">Harnessing advanced neural architectures to analyze linguistic patterns, vocal biomarkers, and facial micro-expressions for early mental health intervention.</p>
+  <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 32px;text-align:center;position:relative;z-index:10;">
 
-<div style="display:flex;flex-direction:column;align-items:flex-start;gap:16px;">
-  <button class="btn-glow-cyan" id="start-analysis-btn" onclick="window.startAnalysisGated()" style="font-size:18px;padding:18px 48px;">
-    Start Analysis
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-  </button>
-</div>
-    </div>
+    <p style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:#06b6d4;text-transform:uppercase;letter-spacing:0.18em;font-weight:700;margin-bottom:20px;">
+      AI Powered Multi-Modal Depression Detection System
+    </p>
+
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(52px,9vw,96px);font-weight:800;margin-bottom:24px;background:linear-gradient(135deg,#06b6d4 20%,#d946ef 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.05;" class="glow-text">
+      PsychSense
+    </h1>
+
+    <p style="color:#94a3b8;font-size:15px;max-width:500px;margin:0 auto 48px;line-height:1.8;">
+      Harnessing advanced neural architectures to analyze linguistic patterns,<br>
+      vocal biomarkers, and facial micro-expressions for early mental health<br>
+      intervention.
+    </p>
+
+    <button class="btn-glow-cyan" id="start-analysis-btn" onclick="window.startAnalysisGated()" style="font-size:15px;padding:16px 44px;letter-spacing:0.1em;text-transform:uppercase;">
+      Start Analysis
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+
   </div>
-  <div style="width:50%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;">
-    <!-- Neural visualization placeholder or empty space -->
-    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-      <div class="glass-card glow-border-purple" style="width:280px;height:280px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at center, rgba(6,182,212,0.1) 0%, transparent 70%);">
-        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1" style="filter:drop-shadow(0 0 10px rgba(6,182,212,0.5));">
-          <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
-          <path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/>
-        </svg>
-      </div>
-    </div>
-  </div>
 </div>
+
 
 <!-- ================================ TOAST NOTIFICATION ================================ -->
 <div id="ps-toast" style="

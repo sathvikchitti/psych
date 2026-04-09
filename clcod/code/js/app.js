@@ -150,11 +150,11 @@ window.goTo = function (page) {
   sessionStorage.setItem('ps_aiResult', JSON.stringify(aiResult));
   sessionStorage.setItem('ps_textInputVal', textInputVal);
   if (videoBase64) {
-    try { sessionStorage.setItem('ps_videoBase64', videoBase64); } 
+    try { sessionStorage.setItem('ps_videoBase64', videoBase64); }
     catch (e) { console.warn('Video too large for sessionStorage, skipping cache.'); }
   }
   if (audioBase64) {
-    try { sessionStorage.setItem('ps_audioBase64', audioBase64); } 
+    try { sessionStorage.setItem('ps_audioBase64', audioBase64); }
     catch (e) { console.warn('Audio too large for sessionStorage, skipping cache.'); }
   }
 
@@ -170,7 +170,7 @@ window.goTo = function (page) {
   // Strategy: check the DOM for a known landmark element unique to each file,
   // rather than trying to parse the URL (which varies by server config).
   const onAnalysis = !!document.getElementById('page-user-info') || !!document.getElementById('page-assessment');
-  const onResults  = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
+  const onResults = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
   const currentFile = onResults ? 'results.html' : onAnalysis ? 'analysis.html' : 'index.html';
 
   if (currentFile === targetFile) {
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     // No pending transition — detect which file we're on by DOM content
     const onAnalysis = !!document.getElementById('page-user-info') || !!document.getElementById('page-assessment');
-    const onResults  = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
+    const onResults = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
     if (onResults) window.goTo('results');
     else if (onAnalysis) window.goTo('user-info');
     else window.goTo('landing');
@@ -218,8 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
 let _toastTimer = null;
 window.showToast = function (msg, type = 'warn') {
   const toast = document.getElementById('ps-toast');
-  const msgEl  = document.getElementById('ps-toast-msg');
-  const icon   = document.getElementById('ps-toast-icon');
+  const msgEl = document.getElementById('ps-toast-msg');
+  const icon = document.getElementById('ps-toast-icon');
   if (!toast || !msgEl) return;
 
   msgEl.textContent = msg;
@@ -260,7 +260,7 @@ window.openResultsHistory = async function () {
   }
 
   const modal = document.getElementById('results-history-modal');
-  const list  = document.getElementById('results-history-list');
+  const list = document.getElementById('results-history-list');
   if (!modal || !list) return;
 
   modal.style.display = 'flex';
@@ -297,12 +297,12 @@ window.openResultsHistory = async function () {
       : 'Unknown date';
 
     const risk = r.riskLevel || 'Low';
-    const isStable = risk === 'Stable' || risk === 'Low';
-    const riskColour = isStable ? '#22c55e' : risk === 'High' ? '#ef4444' : '#f59e0b';
-    const riskLabel = risk === 'Stable' ? 'Low' : risk;
-    const scoreLabel  = r.confidenceScore != null ? `${r.confidenceScore}%` : '—';
-    const typeLabel   = r.depressionType || '';
-    const name        = r.userInfo?.name || window.currentUser?.name || '—';
+    const isLow = risk === 'Low';
+    const riskColour = isLow ? '#22c55e' : risk === 'High' ? '#ef4444' : '#f59e0b';
+    const riskLabel = risk;
+    const scoreLabel = r.confidenceScore != null ? `${r.confidenceScore}%` : '—';
+    const typeLabel = r.depressionType || '';
+    const name = r.userInfo?.name || window.currentUser?.name || '—';
 
     const signals = (r.emotionalSignals || []).slice(0, 4)
       .map(s => `<span style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:3px 10px;font-size:10px;color:#c4b5fd;font-weight:600;">${s}</span>`)
@@ -357,19 +357,19 @@ window.closeResultsHistory = function () {
 window.prefillUserInfo = function prefillUserInfo() {
   if (!window.currentUser) return;
 
-  const nameInput   = document.getElementById('input-name');
-  const ageInput    = document.getElementById('input-age');
+  const nameInput = document.getElementById('input-name');
+  const ageInput = document.getElementById('input-age');
   const genderInput = document.getElementById('input-gender');
-  const photoWrap   = document.getElementById('user-info-photo-wrap');
+  const photoWrap = document.getElementById('user-info-photo-wrap');
 
   // Restore from currentUser (which is populated from Firestore on login)
-  if (nameInput && window.currentUser.name)   nameInput.value   = window.currentUser.name;
-  if (ageInput  && window.currentUser.age)    ageInput.value    = window.currentUser.age;
+  if (nameInput && window.currentUser.name) nameInput.value = window.currentUser.name;
+  if (ageInput && window.currentUser.age) ageInput.value = window.currentUser.age;
   if (genderInput && window.currentUser.gender) genderInput.value = window.currentUser.gender;
 
   // Also sync userInfo state so it's up-to-date before runInitialAnalysis reads it
-  if (nameInput)   userInfo.name   = nameInput.value   || userInfo.name;
-  if (ageInput)    userInfo.age    = ageInput.value    || userInfo.age;
+  if (nameInput) userInfo.name = nameInput.value || userInfo.name;
+  if (ageInput) userInfo.age = ageInput.value || userInfo.age;
   if (genderInput) userInfo.gender = genderInput.value || userInfo.gender;
 
   // Inject profile photo above the form if not already there
@@ -418,11 +418,11 @@ window.updateAssessBtn = function () {
 };
 
 window.toggleVoiceInstructions = function () {
-  const body    = document.getElementById('voice-instructions-body');
+  const body = document.getElementById('voice-instructions-body');
   const chevron = document.getElementById('voice-instr-chevron');
   if (!body) return;
   const isOpen = body.style.display !== 'none';
-  body.style.display    = isOpen ? 'none' : 'block';
+  body.style.display = isOpen ? 'none' : 'block';
   if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 };
 
@@ -608,14 +608,14 @@ function classifyDepressionType(answers) {
     return idx >= 0 ? (answers[idx] ?? 0) : 0;
   };
 
-  const seasonal   = get('seasonal');
+  const seasonal = get('seasonal');
   const postpartum = get('postpartum');
-  const duration   = get('duration');
-  const hypersomnia= get('hypersomnia');
-  const appetite   = get('appetite');
-  const moodReact  = get('moodReactivity');
-  const sadness    = get('sadness');
-  const anhedonia  = get('anhedonia');
+  const duration = get('duration');
+  const hypersomnia = get('hypersomnia');
+  const appetite = get('appetite');
+  const moodReact = get('moodReactivity');
+  const sadness = get('sadness');
+  const anhedonia = get('anhedonia');
 
   // Postpartum Depression
   if (postpartum >= 2) return "Postpartum Depression";
@@ -812,10 +812,10 @@ window.runInitialAnalysis = async function () {
     };
 
     window.goTo('analysis');
-    
+
     // Alert immediately before ML call
     // alert("Calling analyzeWithFlask...");
-    
+
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, emptyQuestionnaire);
     aiResult = result;
 
@@ -840,7 +840,7 @@ window.runInitialAnalysis = async function () {
       if (banner) {
         banner.style.display = 'flex';
         banner.querySelector('#banner-risk').textContent = result.riskLevel;
-        const displayProb = Math.round(result.confidenceScore ?? 0);
+        const displayProb = result.modelProb != null ? Math.round(result.modelProb) : Math.round(result.confidenceScore);
         banner.querySelector('#banner-confidence').textContent = displayProb + '%';
       }
       resetQuestionnaire();
@@ -871,25 +871,25 @@ window.completeQuestionnaire = async function () {
     };
     const questionnaireData = {
       answers: {
-        elevatedMood:   false,
-        reducedSleep:   getScore('insomnia') >= 2,
-        impulsivity:    false,
+        elevatedMood: false,
+        reducedSleep: getScore('insomnia') >= 2,
+        impulsivity: false,
         racingThoughts: false,
       },
-      duration:        getScore('duration'),
+      duration: getScore('duration'),
       seasonalPattern: getScore('seasonal') >= 2 ? 'Winter onset' : 'No seasonal pattern',
-      postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
-      scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
+      postpartum: getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
+      scores: Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
     };
     await window.saveReport({
-      userInfo:         { ...userInfo },
-      riskLevel:        result.riskLevel,
-      confidenceScore:  result.confidenceScore,
+      userInfo: { ...userInfo },
+      riskLevel: result.riskLevel,
+      confidenceScore: result.confidenceScore,
       emotionalSignals: result.emotionalSignals,
-      contributions:    result.contributions,
-      recommendations:  result.recommendations,
-      questionnaire:    questionnaireData,
-      depressionType:   depressionType,
+      contributions: result.contributions,
+      recommendations: result.recommendations,
+      questionnaire: questionnaireData,
+      depressionType: depressionType,
     });
   }
 
@@ -948,7 +948,7 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
       const errBody = await response.text();
       const parsed = JSON.parse(errBody);
       errMsg = parsed.error || errMsg;
-    } catch (_) {}
+    } catch (_) { }
     throw new Error(errMsg);
   }
 
@@ -1044,15 +1044,14 @@ function renderResults(result, depressionType, isDepressed) {
     patGrid.innerHTML = cells.map(c => `
       <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:10px 14px;">
         <div style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${c.label}</div>
-        <div style="font-size:14px;font-weight:500;color:#e2e8f0;text-transform:${c.label==='Gender'?'capitalize':'none'};">${c.value}</div>
+        <div style="font-size:14px;font-weight:500;color:#e2e8f0;text-transform:${c.label === 'Gender' ? 'capitalize' : 'none'};">${c.value}</div>
       </div>`).join('');
   }
 
   // ── Executive summary ───────────────────────────────────────────────────
-  // Use confidenceScore (zone-relative 0–100%) for all severity displays.
-  // modelProb is the raw model probability and can be very low even for High risk patients
-  // when the threshold is low, which caused the "17% for high-risk" bug.
-  const displayPercent = result.confidenceScore ?? 0;
+  // FIX: Use modelProb (raw p_dep x 100) for severity ring/bar/color thresholds.
+  // confidenceScore is now zone-relative and is not suitable for these visualizations.
+  const displayPercent = isDepressed ? (result.modelProb ?? result.confidenceScore) : result.confidenceScore;
   const ringDescEl = document.getElementById('ring-desc');
   if (ringDescEl) {
     if (!isDepressed) {
@@ -1077,12 +1076,12 @@ function renderResults(result, depressionType, isDepressed) {
 
   // ── Assessment result metrics ───────────────────────────────────────────
   const ringCardLabel = document.getElementById('ring-card-label');
-  if (ringCardLabel) ringCardLabel.textContent = isDepressed ? 'Depression Severity' : 'Wellbeing Score';
+  if (ringCardLabel) ringCardLabel.textContent = 'Probability';
 
   const confidenceEl = document.getElementById('results-confidence');
   if (confidenceEl) {
     confidenceEl.textContent = `${displayPercent}%`;
-    confidenceEl.style.color = isDepressed ? (displayPercent >= 70 ? '#ef4444' : '#f59e0b') : '#22c55e';
+    confidenceEl.style.color = isDepressed ? (displayPercent >= 56 ? '#ef4444' : '#f59e0b') : '#22c55e';
   }
 
   const severityFill = document.getElementById('severity-bar-fill');
@@ -1093,12 +1092,12 @@ function renderResults(result, depressionType, isDepressed) {
   if (sevRangeEl) {
     if (!isDepressed) {
       sevRangeEl.textContent = 'Normal range (< 30%)';
-    } else if (displayPercent >= 75) {
-      sevRangeEl.textContent = 'Severe range (≥ 75%)';
-    } else if (displayPercent >= 50) {
-      sevRangeEl.textContent = 'Moderate range (50–74%)';
+    } else if (displayPercent >= 56) {
+      sevRangeEl.textContent = 'Severe range (≥ 56%)';
+    } else if (displayPercent >= 51) {
+      sevRangeEl.textContent = 'Moderate range (51–55%)';
     } else {
-      sevRangeEl.textContent = 'Mild range (30–49%)';
+      sevRangeEl.textContent = 'Normal range (< 51%)';
     }
   }
 
@@ -1109,7 +1108,7 @@ function renderResults(result, depressionType, isDepressed) {
     if (!isDepressed) {
       riskEl.textContent = 'Low Risk';
       riskEl.style.color = '#22c55e';
-      if (riskSubEl) riskSubEl.textContent = 'Low levels detected';
+      if (riskSubEl) riskSubEl.textContent = 'Low levels';
     } else {
       riskEl.textContent = result.riskLevel + ' Risk';
       riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : '#f59e0b';
@@ -1158,7 +1157,7 @@ function renderResults(result, depressionType, isDepressed) {
   if (insightsGrid) {
     const insightDefs = [
       { key: 'audio', icon: '🎙️', bg: 'rgba(230,241,251,0.08)', defaultTitle: 'Voice & Audio Signals' },
-      { key: 'text',  icon: '📝', bg: 'rgba(234,243,222,0.08)', defaultTitle: 'Language & Text Signals' },
+      { key: 'text', icon: '📝', bg: 'rgba(234,243,222,0.08)', defaultTitle: 'Language & Text Signals' },
       { key: 'video', icon: '🎥', bg: 'rgba(251,234,240,0.08)', defaultTitle: 'Facial & Visual Cues' },
       { key: 'questionnaire', icon: '⚡', bg: 'rgba(250,238,218,0.08)', defaultTitle: 'Questionnaire Insights' },
     ];
@@ -1197,14 +1196,14 @@ function renderResults(result, depressionType, isDepressed) {
     if (isDepressed) {
       riskCard.style.display = 'block';
       const factors = result.riskFactors || [
-        { label: `Severity score ≥ ${displayPercent}%`, body: 'The model\'s output crosses the clinical high-risk threshold established from validated depression screening benchmarks.' },
+        { label: `Probability ≥ ${displayPercent}%`, body: 'The model\'s output crosses the clinical high-risk threshold established from validated depression screening benchmarks.' },
         { label: 'Multimodal agreement', body: 'Audio, text, and video signals are all independently flagging distress, strengthening the reliability of the prediction.' },
         depressionType ? { label: `${depressionType}`, body: depInfo ? depInfo.description : `${depressionType} carries elevated risk if left unaddressed.` } : null,
         { label: 'Negative cognitive patterns', body: 'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.' },
       ].filter(Boolean);
       rfList.innerHTML = factors.map(f => {
         const label = typeof f === 'string' ? f : f.label;
-        const body  = typeof f === 'string' ? '' : f.body;
+        const body = typeof f === 'string' ? '' : f.body;
         return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:rgba(254,248,241,0.05);border:1px solid rgba(250,199,117,0.25);border-radius:10px;">
           <div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;margin-top:6px;"></div>
           <div style="font-size:13px;color:#cbd5e1;line-height:1.5;"><strong style="color:#fbbf24;">${label} —</strong> ${body}</div>
@@ -1289,12 +1288,12 @@ function renderResults(result, depressionType, isDepressed) {
 
 window.downloadReport = function () {
   const isDepressed = aiResult?.riskLevel === 'Moderate' || aiResult?.riskLevel === 'High';
-  const displayPercent = aiResult?.confidenceScore ?? '—';
+  const displayPercent = isDepressed ? (aiResult?.modelProb ?? aiResult?.confidenceScore ?? '—') : '—'; // FIX: use modelProb for severity display
 
   const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = new Date().toLocaleString('en-GB');
   const reportId = window._lastReportId || ('PSY-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000));
-  
+
   const riskClass = aiResult?.riskLevel || 'Low';
   const depType = (aiResult?.depressionType && aiResult.depressionType !== '—') ? aiResult.depressionType : 'Depression';
   const confScore = Math.round(aiResult?.confidenceScore) || '—';
@@ -1309,17 +1308,17 @@ window.downloadReport = function () {
     'Depressive Episode': { short: 'Depressive Episode', description: 'A depressive episode involves a sustained period of depressed mood, reduced energy, and diminished interest in activities. It may be part of a broader mood disorder and warrants a full clinical assessment.' },
   };
   const pdfDepInfo = PDF_DEPRESSION_INFO[depType] || null;
-  
+
   const modes = ['Audio', 'Text', 'Video'].filter(m => aiResult?.contributions && aiResult.contributions[m.toLowerCase()] > 0).join(' · ') || 'None';
 
   let insightsHtml = '';
   if (aiResult?.insights) {
     const map = [
-     { key: 'audio',         icon: '🎙', bg: '#E6F1FB', fallbackTitle: 'Voice & Audio Signals' },
-     { key: 'text',          icon: '📝', bg: '#EAF3DE', fallbackTitle: 'Language & Text Signals' },
-     { key: 'video',         icon: '🎥', bg: '#FBEAF0', fallbackTitle: 'Facial & Visual Cues' },
-     { key: 'behavioral',    icon: '⚡', bg: '#FAEEDA', fallbackTitle: 'Energy & Engagement' },
-     { key: 'questionnaire', icon: '📋', bg: '#FAEEDA', fallbackTitle: 'Questionnaire Insights' },
+      { key: 'audio', icon: '🎙', bg: '#E6F1FB', fallbackTitle: 'Voice & Audio Signals' },
+      { key: 'text', icon: '📝', bg: '#EAF3DE', fallbackTitle: 'Language & Text Signals' },
+      { key: 'video', icon: '🎥', bg: '#FBEAF0', fallbackTitle: 'Facial & Visual Cues' },
+      { key: 'behavioral', icon: '⚡', bg: '#FAEEDA', fallbackTitle: 'Energy & Engagement' },
+      { key: 'questionnaire', icon: '📋', bg: '#FAEEDA', fallbackTitle: 'Questionnaire Insights' },
     ];
     for (let item of map) {
       const ins = aiResult.insights[item.key];
@@ -1344,35 +1343,35 @@ window.downloadReport = function () {
   let recsHtml = '';
   let recsList = aiResult?.recommendations || [];
   if (recsList.length > 0) {
-     let col1 = recsList.slice(0, Math.ceil(recsList.length/3));
-     let col2 = recsList.slice(Math.ceil(recsList.length/3), Math.ceil(recsList.length/3 * 2));
-     let col3 = recsList.slice(Math.ceil(recsList.length/3 * 2));
-     
-     recsHtml += `
+    let col1 = recsList.slice(0, Math.ceil(recsList.length / 3));
+    let col2 = recsList.slice(Math.ceil(recsList.length / 3), Math.ceil(recsList.length / 3 * 2));
+    let col3 = recsList.slice(Math.ceil(recsList.length / 3 * 2));
+
+    recsHtml += `
       <div class="ps-rec">
         <div class="ps-rec-head ps-rec-head-red">Immediate Actions</div>
-        ${col1.map((r,i) => `<div class="ps-rec-item"><span class="ps-rec-num">${i+1}.</span><span>${r}</span></div>`).join('')}
+        ${col1.map((r, i) => `<div class="ps-rec-item"><span class="ps-rec-num">${i + 1}.</span><span>${r}</span></div>`).join('')}
       </div>
      `;
-     if (col2.length > 0) {
-       recsHtml += `
+    if (col2.length > 0) {
+      recsHtml += `
         <div class="ps-rec">
           <div class="ps-rec-head ps-rec-head-blue">Professional Support</div>
-          ${col2.map((r,i) => `<div class="ps-rec-item"><span class="ps-rec-num">${col1.length+i+1}.</span><span>${r}</span></div>`).join('')}
+          ${col2.map((r, i) => `<div class="ps-rec-item"><span class="ps-rec-num">${col1.length + i + 1}.</span><span>${r}</span></div>`).join('')}
         </div>
        `;
-     }
-     if (col3.length > 0) {
-       recsHtml += `
+    }
+    if (col3.length > 0) {
+      recsHtml += `
         <div class="ps-rec">
           <div class="ps-rec-head ps-rec-head-green">Lifestyle Support</div>
-          ${col3.map((r,i) => `<div class="ps-rec-item"><span class="ps-rec-num">${col1.length+col2.length+i+1}.</span><span>${r}</span></div>`).join('')}
+          ${col3.map((r, i) => `<div class="ps-rec-item"><span class="ps-rec-num">${col1.length + col2.length + i + 1}.</span><span>${r}</span></div>`).join('')}
         </div>
        `;
-     }
+    }
   }
 
-  const alertBlock = isDepressed 
+  const alertBlock = isDepressed
     ? `<div class="ps-alert ps-alert-danger">
         <div class="ps-alert-dot"></div>
         <span><strong>${riskClass} Risk Detected —</strong> This report requires attention. Please review the recommendations carefully.</span>
@@ -1384,7 +1383,7 @@ window.downloadReport = function () {
 
   const severityBar = isDepressed ? `<div class="ps-severity-bar"><div class="ps-severity-fill" style="width:${displayPercent}%"></div></div>` : '';
   const riskBadge = isDepressed ? `<span class="ps-risk-badge"><div class="ps-risk-dot"></div> ${riskClass} Risk</span>` : `<span class="ps-risk-badge" style="background:#EAF3DE;border-color:#B2D886;color:#3B6D11;"><div class="ps-risk-dot" style="background:#6DBE20;"></div> Low Risk</span>`;
-  const summaryText = isDepressed 
+  const summaryText = isDepressed
     ? `PsychSense's multimodal analysis identified signals consistent with <strong>${depType}</strong>. The assessment falls in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%. Prompt professional evaluation is advised.`
     : `PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.`;
 
@@ -1514,15 +1513,15 @@ window.downloadReport = function () {
     <div class="ps-card-title"><div class="ps-card-title-bar"></div> Assessment Results</div>
     <div class="ps-metrics-grid">
       <div class="ps-metric">
-        <div class="ps-metric-label">Depression Severity</div>
-        <div class="ps-metric-value" style="color:${isDepressed ? (displayPercent >= 70 ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${displayPercent}%</div>
+        <div class="ps-metric-label">Probability</div>
+        <div class="ps-metric-value" style="color:${isDepressed ? (displayPercent >= 56 ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${displayPercent}%</div>
         ${severityBar}
-        <div class="ps-metric-sub">${isDepressed ? (displayPercent >= 75 ? 'Severe range (≥ 75%)' : displayPercent >= 50 ? 'Moderate range (50–74%)' : 'Mild range (30–49%)') : 'Normal range (< 30%)'}</div>
+        <div class="ps-metric-sub">${isDepressed ? (displayPercent >= 56 ? 'Severe range (≥ 56%)' : 'Moderate range (51–55%)') : 'Normal range (< 51%)'}</div>
       </div>
       <div class="ps-metric">
         <div class="ps-metric-label">Risk Classification</div>
         <div class="ps-metric-value" style="font-size:18px; color:${isDepressed ? (riskClass === 'High' ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${isDepressed ? riskClass + ' Risk' : 'Low Risk'}</div>
-        <div class="ps-metric-sub">${isDepressed ? (riskClass === 'High' ? 'Requires urgent review' : 'Intervention advised') : 'Low levels detected'}</div>
+        <div class="ps-metric-sub">${isDepressed ? (riskClass === 'High' ? 'Requires urgent review' : 'Intervention advised') : 'Low levels'}</div>
       </div>
       <div class="ps-metric">
         <div class="ps-metric-label">Type Detected</div>
@@ -1583,9 +1582,9 @@ window.downloadReport = function () {
   </div>
 
   ${isDepressed ? (() => {
-    const pdfDocType = depType || 'Depressive Episode';
-    const pdfDoctors = DOCTORS_DATA[pdfDocType] || DOCTORS_DATA['Depressive Episode'];
-    return `
+      const pdfDocType = depType || 'Depressive Episode';
+      const pdfDoctors = DOCTORS_DATA[pdfDocType] || DOCTORS_DATA['Depressive Episode'];
+      return `
   <div class="ps-card" style="page-break-inside:avoid;">
     <div class="ps-card-title"><div class="ps-card-title-bar" style="background:#22c55e;"></div> Recommended Doctors in Hyderabad</div>
     <div style="font-size:13px; color:#475569; line-height:1.7; margin-bottom:12px;">Based on the detected condition (<strong>${pdfDocType}</strong>), the following specialists in Hyderabad are recommended.</div>
@@ -1610,7 +1609,7 @@ window.downloadReport = function () {
     <div style="font-size:11px; color:#64748b; margin-top:10px; line-height:1.6;">Always confirm current clinic timings and availability when booking. The same psychiatrist is usually qualified to treat multiple depressive disorders.</div>
   </div>
   `;
-  })() : ''}
+    })() : ''}
 
   <div class="ps-disclaimer">
     <div class="ps-disclaimer-title">Ethical Disclaimer & Important Notice</div>
@@ -1629,7 +1628,7 @@ window.downloadReport = function () {
   // Export PDF
   const opt = {
     margin: [5, 5, 5, 5],
-    filename: `PsychSense_Report_${uName}_${dateStr.replace(/\s/g,'_')}.pdf`,
+    filename: `PsychSense_Report_${uName}_${dateStr.replace(/\s/g, '_')}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1672,9 +1671,9 @@ window.openProfileModal = async function () {
       reportsEl.innerHTML = reports.map(r => {
         const date = new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
         const risk = r.riskLevel || 'Low';
-        const isStable = risk === 'Stable' || risk === 'Low';
+        const isStable = risk === 'Low';
         const color = isStable ? '#22c55e' : risk === 'Moderate' ? '#f59e0b' : '#ef4444';
-        const label = risk === 'Stable' ? 'Low' : risk;
+        const label = risk;
         return `<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
           <div>
             <p style="font-size:11px;color:#94a3b8;margin-bottom:3px;">${date}</p>

@@ -1,27 +1,51 @@
 # ╔══════════════════════════════════════════════════════════════════════╗
-# ║  PsychSense — Flask Backend  (BIMODAL VERSION)                      ║
-# ║  Connects frontend (audio/text/questionnaire) to the                ║
-# ║  trained WavLM + RoBERTa BimodalDepressionNet model.                ║
-# ║                                                                      ║
-# ║  POST /analyze                                                       ║
-# ║    Accepts multipart/form-data:                                      ║
-# ║      audio        : audio file (wav/mp3/webm)  [optional]           ║
-# ║      text         : string                     [optional]           ║
-# ║      questionnaire: JSON string                [required]           ║
-# ║      userInfo     : JSON string                [required]           ║
-# ║                                                                      ║
-# ║  Returns JSON matching exactly what renderResults() expects          ║
+# ║  PsychSense — Flask Backend  (TRIMODAL VERSION)                     ║
+# ║  Model : UpgradedDepressionNet (WavLM + RoBERTa + ViT)             ║
+# ║  Checkpoint : model_upgraded.pt                                     ║
+# ║                                                                     ║
+# ║  POST /analyze                                                      ║
+# ║    Accepts multipart/form-data:                                     ║
+# ║      audio        : audio file (wav/mp3/webm)  [optional]          ║
+# ║      video        : video file (mp4/webm)      [optional – future] ║
+# ║      text         : string                     [optional]          ║
+# ║      questionnaire: JSON string                [required]          ║
+# ║      userInfo     : JSON string                [required]          ║
+# ║                                                                     ║
+# ║  NOTE: Video input is zero-padded when not provided.               ║
+# ║  ViT extraction code is kept ready for future video support.       ║
 # ╚══════════════════════════════════════════════════════════════════════╝
 
+# ── Suppress HuggingFace / threading noise BEFORE any HF imports ──────
 import os
+import threading
+
+os.environ.setdefault("TRANSFORMERS_VERBOSITY",           "error")
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN",    "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM",           "false")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS",     "0")   # keep progress bars
+
+# Silently discard the background '429 Too Many Requests' thread crash
+# that HF Hub raises when checking for safetensors conversion.
+# Any OTHER thread exception still prints as normal.
+_original_excepthook = threading.excepthook
+def _quiet_hf_thread_excepthook(args):
+    name = type(args.exc_value).__name__
+    if name in {"HfHubHTTPError", "HTTPStatusError", "RepositoryNotFoundError"}:
+        return   # swallow silently
+    _original_excepthook(args)
+threading.excepthook = _quiet_hf_thread_excepthook
+
 import json
 import tempfile
 import warnings
 import traceback
 
+warnings.filterwarnings("ignore")
+
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import librosa
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -30,14 +54,22 @@ from transformers import (
     WavLMModel,
     RobertaTokenizer,
     RobertaModel,
+    logging as hf_logging,
 )
+import huggingface_hub.utils._http as _hf_http
 
-warnings.filterwarnings("ignore")
+# Silence the RoBERTa/WavLM "LOAD REPORT" and key mismatch chatter
+hf_logging.set_verbosity_error()
+
+# Also silence huggingface_hub's own logger
+import logging
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 # ─────────────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────────────
-CHECKPOINT_PATH = os.environ.get("MODEL_PATH", "psychsense_bimodal.pt")
+CHECKPOINT_PATH = os.environ.get("MODEL_PATH", "model_upgraded.pt")
 DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FP16            = torch.cuda.is_available()
 
@@ -46,123 +78,117 @@ SR          = 16_000
 CHUNK_SEC   = 10
 MAX_DUR     = 300
 
+# Video (kept for future use — not active until frontend sends video)
+FRAMES_PER_CLIP = 8
+IMG_SIZE        = 224
+
 # Text
-MAX_TEXT_LEN = 256
+MAX_TEXT_LEN = 512
 
 print(f"[PsychSense] Device: {DEVICE}  |  FP16: {FP16}")
 
 # ─────────────────────────────────────────────────────────────────────
-# BIMODAL MODEL ARCHITECTURE  (must exactly match Colab training code)
+# TRIMODAL MODEL ARCHITECTURE  (must exactly match training code)
 # ─────────────────────────────────────────────────────────────────────
 
-class CrossAttention(nn.Module):
-    """
-    Single-direction cross-attention block.
-    query_emb attends to key_value_emb.
-    Used bidirectionally: audio→text AND text→audio.
-    """
-
-    def __init__(self, dim: int, num_heads: int, dropout: float):
+class CrossModalAttention(nn.Module):
+    def __init__(self, dim, num_heads):
         super().__init__()
         self.attn = nn.MultiheadAttention(
-            embed_dim   = dim,
-            num_heads   = num_heads,
-            dropout     = dropout,
-            batch_first = True,
+            dim, num_heads, dropout=0.1, batch_first=True
         )
         self.norm = nn.LayerNorm(dim)
-        self.drop = nn.Dropout(dropout)
 
-    def forward(self, query: torch.Tensor, key_value: torch.Tensor) -> torch.Tensor:
+    def forward(self, query, key_value):
         q  = query.unsqueeze(1)
         kv = key_value.unsqueeze(1)
-        attended, _ = self.attn(q, kv, kv)
-        attended    = attended.squeeze(1)
-        return self.norm(query + self.drop(attended))
+        out, _ = self.attn(q, kv, kv)
+        return self.norm(out.squeeze(1) + query)
 
 
-class BimodalDepressionNet(nn.Module):
-    """
-    Bimodal fusion network: Audio (WavLM) + Text (RoBERTa).
-    Matches the Colab training notebook exactly.
-    """
+class GatedFusion(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.gate = nn.Sequential(
+            nn.Linear(dim * 3, 3),
+            nn.Softmax(dim=-1)
+        )
 
-    def __init__(
-        self,
-        audio_dim:   int   = 768,
-        text_dim:    int   = 768,
-        proj_dim:    int   = 256,
-        num_heads:   int   = 4,
-        dropout:     float = 0.4,
-        num_classes: int   = 2,
-    ):
+    def forward(self, a, t, v):
+        concat  = torch.cat([a, t, v], dim=-1)
+        w       = self.gate(concat)
+        stacked = torch.stack([a, t, v], dim=1)
+        return (stacked * w.unsqueeze(-1)).sum(dim=1)
+
+
+class UpgradedDepressionNet(nn.Module):
+    def __init__(self, audio_dim, text_dim, vis_dim,
+                 fusion_dim=256, num_heads=4, dropout=0.4):
         super().__init__()
 
-        # Modality projections
         self.audio_proj = nn.Sequential(
-            nn.Linear(audio_dim, proj_dim),
-            nn.BatchNorm1d(proj_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
+            nn.Linear(audio_dim, fusion_dim), nn.LayerNorm(fusion_dim),
+            nn.GELU(), nn.Dropout(dropout),
+            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
         )
         self.text_proj = nn.Sequential(
-            nn.Linear(text_dim, proj_dim),
-            nn.BatchNorm1d(proj_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
+            nn.Linear(text_dim, fusion_dim), nn.LayerNorm(fusion_dim),
+            nn.GELU(), nn.Dropout(dropout),
+            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
+        )
+        self.vis_proj = nn.Sequential(
+            nn.Linear(vis_dim, fusion_dim), nn.LayerNorm(fusion_dim),
+            nn.GELU(), nn.Dropout(dropout * 0.6),
+            nn.Linear(fusion_dim, fusion_dim), nn.GELU()
         )
 
-        # Bidirectional cross-attention
-        self.audio_attends_text = CrossAttention(proj_dim, num_heads, dropout * 0.5)
-        self.text_attends_audio = CrossAttention(proj_dim, num_heads, dropout * 0.5)
+        self.a_attn_t = CrossModalAttention(fusion_dim, num_heads)
+        self.a_attn_v = CrossModalAttention(fusion_dim, num_heads)
+        self.t_attn_a = CrossModalAttention(fusion_dim, num_heads)
+        self.t_attn_v = CrossModalAttention(fusion_dim, num_heads)
+        self.v_attn_a = CrossModalAttention(fusion_dim, num_heads)
+        self.v_attn_t = CrossModalAttention(fusion_dim, num_heads)
 
-        # Gated fusion
-        self.gate = nn.Sequential(
-            nn.Linear(proj_dim * 2, 2),
-            nn.Softmax(dim=-1),
+        self.modality_embed = nn.Embedding(3, fusion_dim)
+
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=fusion_dim, nhead=num_heads,
+            dim_feedforward=fusion_dim * 2,
+            dropout=dropout, batch_first=True, norm_first=True
         )
+        self.transformer = nn.TransformerEncoder(enc_layer, num_layers=2)
 
-        # Classifier
-        fused_dim = proj_dim * 2
+        self.gate_fusion = GatedFusion(fusion_dim)
+
         self.classifier = nn.Sequential(
-            nn.BatchNorm1d(fused_dim),
-            nn.Linear(fused_dim, 128),
+            nn.Linear(fusion_dim, fusion_dim),
+            nn.LayerNorm(fusion_dim),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(128, 64),
+            nn.Linear(fusion_dim, fusion_dim // 2),
             nn.GELU(),
             nn.Dropout(dropout * 0.5),
-            nn.Linear(64, num_classes),
+            nn.Linear(fusion_dim // 2, 2)
         )
 
-        self._init_weights()
-
-    def _init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
-
-    def forward(
-        self,
-        audio: torch.Tensor,
-        text:  torch.Tensor,
-    ) -> torch.Tensor:
+    def forward(self, audio, text, vis):
         a = self.audio_proj(audio)
         t = self.text_proj(text)
+        v = self.vis_proj(vis)
 
-        a_refined = self.audio_attends_text(a, t)
-        t_refined = self.text_attends_audio(t, a)
+        a_r = (a + self.a_attn_t(a, t) + self.a_attn_v(a, v)) / 3
+        t_r = (t + self.t_attn_a(t, a) + self.t_attn_v(t, v)) / 3
+        v_r = (v + self.v_attn_a(v, a) + self.v_attn_t(v, t)) / 3
 
-        concat = torch.cat([a_refined, t_refined], dim=-1)
-        gates  = self.gate(concat)
+        ids    = torch.arange(3, device=audio.device)
+        me     = self.modality_embed(ids)
+        tokens = torch.stack([a_r, t_r, v_r], dim=1) + me.unsqueeze(0)
 
-        a_gated = a_refined * gates[:, 0:1]
-        t_gated = t_refined * gates[:, 1:2]
-        fused   = torch.cat([a_gated, t_gated], dim=-1)
+        fused       = self.transformer(tokens)
+        fa, ft, fv  = fused[:, 0], fused[:, 1], fused[:, 2]
 
-        return self.classifier(fused)
+        agg = self.gate_fusion(fa, ft, fv)
+        return self.classifier(agg)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -182,32 +208,34 @@ def load_everything():
     if not os.path.exists(CHECKPOINT_PATH):
         raise FileNotFoundError(
             f"Checkpoint not found at '{CHECKPOINT_PATH}'.\n"
-            f"Set MODEL_PATH env var to the correct path of psychsense_bimodal.pt"
+            f"Set MODEL_PATH env var to the correct path of model_upgraded.pt"
         )
 
-    ckpt      = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
-    AUDIO_DIM = ckpt["AUDIO_DIM"]
-    TEXT_DIM  = ckpt["TEXT_DIM"]
-    PROJ_DIM  = ckpt.get("PROJ_DIM", 256)
-    NUM_HEADS = ckpt.get("NUM_HEADS", 4)
-    DROPOUT   = ckpt.get("DROPOUT", 0.4)
-    threshold = ckpt["threshold"]
+    ckpt       = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
+    AUDIO_DIM  = ckpt["AUDIO_DIM"]
+    TEXT_DIM   = ckpt["TEXT_DIM"]
+    VIS_DIM    = ckpt["VIS_DIM"]
+    FUSION_DIM = ckpt.get("FUSION_DIM", 256)
+    NUM_HEADS  = ckpt.get("NUM_HEADS", 4)
+    threshold  = ckpt["threshold"]
+    sc_audio   = ckpt["sc_audio"]
+    sc_text    = ckpt["sc_text"]
+    sc_vis     = ckpt["sc_vis"]
 
-    model = BimodalDepressionNet(
-        audio_dim   = AUDIO_DIM,
-        text_dim    = TEXT_DIM,
-        proj_dim    = PROJ_DIM,
-        num_heads   = NUM_HEADS,
-        dropout     = DROPOUT,
-        num_classes = 2,
+    model = UpgradedDepressionNet(
+        audio_dim=AUDIO_DIM,
+        text_dim=TEXT_DIM,
+        vis_dim=VIS_DIM,
+        fusion_dim=FUSION_DIM,
+        num_heads=NUM_HEADS,
     )
     model.load_state_dict(ckpt["model_state"])
     model.eval()
     model.to(DEVICE)
-    print(f"[PsychSense] BimodalDepressionNet loaded  threshold={threshold:.2f}")
-    print(f"[PsychSense]   AUDIO_DIM={AUDIO_DIM}  TEXT_DIM={TEXT_DIM}  PROJ_DIM={PROJ_DIM}")
+    print(f"[PsychSense] UpgradedDepressionNet loaded  threshold={threshold:.2f}")
+    print(f"[PsychSense]   AUDIO_DIM={AUDIO_DIM}  TEXT_DIM={TEXT_DIM}  VIS_DIM={VIS_DIM}")
 
-    # WavLM
+    # ── WavLM ─────────────────────────────────────────────────────────
     print("[PsychSense] Loading WavLM-base-plus …")
     AUDIO_MODEL = "microsoft/wavlm-base-plus"
     wav_feat = Wav2Vec2FeatureExtractor.from_pretrained(AUDIO_MODEL)
@@ -220,7 +248,7 @@ def load_everything():
     wavlm = wavlm.to(DEVICE)
     print("[PsychSense] WavLM loaded")
 
-    # RoBERTa
+    # ── RoBERTa ───────────────────────────────────────────────────────
     print("[PsychSense] Loading RoBERTa-base …")
     TEXT_MODEL    = "roberta-base"
     roberta_tok   = RobertaTokenizer.from_pretrained(TEXT_MODEL)
@@ -233,18 +261,29 @@ def load_everything():
     roberta_model = roberta_model.to(DEVICE)
     print("[PsychSense] RoBERTa loaded")
 
-    return (
-        model, AUDIO_DIM, TEXT_DIM, threshold,
-        wav_feat, wavlm,
-        roberta_tok, roberta_model,
-    )
+    # ── ViT (kept ready — not active until frontend sends video) ──────
+    # To enable: uncomment the timm block and install timm + opencv
+    # pip install timm opencv-python-headless Pillow torchvision
+    vit_backbone  = None
+    vit_transform = None
+    print("[PsychSense] ViT: standby (video not yet active from frontend)")
+
+    return (model,
+            AUDIO_DIM, TEXT_DIM, VIS_DIM,
+            threshold,
+            sc_audio, sc_text, sc_vis,
+            wav_feat, wavlm,
+            roberta_tok, roberta_model,
+            vit_backbone, vit_transform)
 
 
 (MODEL,
- AUDIO_DIM, TEXT_DIM,
+ AUDIO_DIM, TEXT_DIM, VIS_DIM,
  THRESHOLD,
+ SC_AUDIO, SC_TEXT, SC_VIS,
  WAV_FEAT, WAVLM,
- ROBERTA_TOK, ROBERTA_MODEL) = load_everything()
+ ROBERTA_TOK, ROBERTA_MODEL,
+ VIT_BACKBONE, VIT_TRANSFORM) = load_everything()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -252,39 +291,32 @@ def load_everything():
 # ─────────────────────────────────────────────────────────────────────
 
 def extract_audio_embedding(audio_path):
-    """
-    WavLM chunked mean-pool → (AUDIO_DIM,).
-    Splits audio into 10-second chunks, embeds each, then mean-pools.
-    Returns zero vector on failure.
-    """
+    """WavLM chunked mean-pool → (AUDIO_DIM,). Returns zeros on failure."""
     try:
-        waveform, _ = librosa.load(audio_path, sr=SR, mono=True, duration=MAX_DUR)
-        # Trim leading/trailing silence
-        waveform, _ = librosa.effects.trim(waveform, top_db=20)
+        y, _ = librosa.load(audio_path, sr=SR, mono=True, duration=MAX_DUR)
+        y, _ = librosa.effects.trim(y, top_db=20)
 
-        chunk_len = SR * CHUNK_SEC
-        min_len   = SR // 4   # skip chunks shorter than 0.25s
-        chunks = [
-            waveform[i : i + chunk_len]
-            for i in range(0, len(waveform), chunk_len)
-            if len(waveform[i : i + chunk_len]) >= min_len
+        chunk_n = SR * CHUNK_SEC
+        min_n   = SR // 4
+        chunks  = [
+            y[i : i + chunk_n]
+            for i in range(0, len(y), chunk_n)
+            if len(y[i : i + chunk_n]) >= min_n
         ]
-
         if not chunks:
             return np.zeros(AUDIO_DIM, dtype=np.float32)
 
         embs = []
         with torch.no_grad():
-            for chunk in chunks:
+            for ch in chunks:
                 inp = WAV_FEAT(
-                    chunk, sampling_rate=SR,
+                    ch, sampling_rate=SR,
                     return_tensors="pt", padding=True
                 ).input_values.to(DEVICE)
                 if FP16:
                     inp = inp.half()
-                hidden = WAVLM(inp).last_hidden_state
-                pooled = hidden.mean(dim=1).squeeze(0).float().cpu().numpy()
-                embs.append(pooled)
+                out = WAVLM(inp).last_hidden_state
+                embs.append(out.mean(1).squeeze(0).float().cpu().numpy())
 
         return safe_clean(np.mean(embs, axis=0).astype(np.float32))
 
@@ -295,7 +327,7 @@ def extract_audio_embedding(audio_path):
 
 def extract_text_embedding(text: str):
     """
-    RoBERTa [CLS] token → (TEXT_DIM,).
+    RoBERTa [CLS] → (TEXT_DIM,).
     Returns true zero vector when no text is provided.
     """
     if not text or not text.strip():
@@ -303,11 +335,8 @@ def extract_text_embedding(text: str):
 
     try:
         enc = ROBERTA_TOK(
-            text,
-            return_tensors  = "pt",
-            truncation      = True,
-            max_length      = MAX_TEXT_LEN,
-            padding         = "max_length",
+            text, return_tensors="pt",
+            truncation=True, max_length=MAX_TEXT_LEN, padding="max_length"
         )
         ids = enc["input_ids"].to(DEVICE)
         msk = enc["attention_mask"].to(DEVICE)
@@ -321,15 +350,36 @@ def extract_text_embedding(text: str):
         return np.zeros(TEXT_DIM, dtype=np.float32)
 
 
+def extract_video_embedding(video_path):
+    """
+    ViT frame embeddings → (VIS_DIM,).
+    Currently returns zeros — ViT will be activated when frontend
+    starts sending video. Scaffold kept for future implementation.
+    """
+    # ── Future implementation (uncomment when video is active) ────────
+    # try:
+    #     import cv2
+    #     from PIL import Image
+    #     import torchvision.transforms as VT
+    #     import timm
+    #     ... (ViT extraction code)
+    # except Exception as e:
+    #     print(f"[WARN] Video extraction failed: {e}")
+
+    if video_path is not None:
+        print("[PsychSense] Video received but ViT not yet active — using zeros")
+    return np.zeros(VIS_DIM, dtype=np.float32)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # QUESTIONNAIRE HELPERS
 # ─────────────────────────────────────────────────────────────────────
 
-def questionnaire_contribution(q, has_audio, has_text):
-    answers   = q.get("answers", {})
-    pos_count = sum(1 for v in answers.values() if v)
+def questionnaire_contribution(q, has_audio, has_video, has_text):
+    answers    = q.get("answers", {})
+    pos_count  = sum(1 for v in answers.values() if v)
     impairment = q.get("impairment", 30)
-    scores    = q.get("scores", {})
+    scores     = q.get("scores", {})
 
     has_real_questionnaire = pos_count > 0 or impairment != 30 or bool(scores)
 
@@ -342,17 +392,17 @@ def questionnaire_contribution(q, has_audio, has_text):
     modalities = []
     if has_audio: modalities.append("audio")
     if has_text:  modalities.append("text")
+    if has_video: modalities.append("video")
 
     if not modalities:
         return {"text": 0, "audio": 0, "video": 0, "questionnaire": 100}
 
-    weights  = {"text": 1.2, "audio": 1.0}
+    weights  = {"text": 1.2, "audio": 1.0, "video": 0.8}
     total_w  = sum(weights[m] for m in modalities)
     contribs = {}
-    for m in ["text", "audio"]:
+    for m in ["text", "audio", "video"]:
         contribs[m] = round(remainder * weights[m] / total_w) if m in modalities else 0
 
-    contribs["video"] = 0          # not used in bimodal model
     contribs["questionnaire"] = q_weight
     diff = 100 - sum(contribs.values())
     if modalities:
@@ -383,13 +433,13 @@ def build_questionnaire_insights(q):
         points.append(f"Seasonal pattern noted ({seasonal}) — consistent with SAD profile.")
     if "Not applicable" not in postpartum:
         points.append(f"Postpartum indicator: {postpartum}.")
+
+    # Only show impairment if slider was actually moved (30 is the untouched default)
     if impairment >= 66:
         points.append(f"Severe functional impairment ({impairment}%) — urgent professional input advised.")
     elif impairment >= 33:
         points.append(f"Moderate functional impairment ({impairment}%) — professional evaluation recommended.")
     elif impairment > 0 and impairment != 30:
-        # Only report mild impairment if the user actually moved the slider
-        # (30 is the untouched default value, not a real user input)
         points.append(f"Mild functional impairment ({impairment}%) reported.")
 
     if not points:
@@ -465,70 +515,39 @@ def get_recommendations(risk_level, q):
 # CORE PREDICT
 # ─────────────────────────────────────────────────────────────────────
 
-def predict(text, audio_path, q):
+def predict(text, audio_path, video_path, q):
     has_audio = audio_path is not None
+    has_video = False          # video not yet active from frontend
     has_text  = bool(text and text.strip())
 
-    # Extract features
+    # ── Extract features (zeros for missing/inactive modalities) ──────
     ae = extract_audio_embedding(audio_path) if has_audio \
          else np.zeros(AUDIO_DIM, dtype=np.float32)
-    te = extract_text_embedding(text)   # returns true zeros if no text
 
-    # ── Unimodal fallback ───────────────────────────────────────────
-    # The model uses bidirectional cross-attention between audio and text.
-    # When one modality is missing (all-zero vector), its BatchNorm projection
-    # produces garbage and corrupts the cross-attention of the other modality,
-    # causing wildly incorrect predictions (e.g. 17% for a highly depressed
-    # audio-only patient).
-    #
-    # Fix: when only one modality is available, run inference twice —
-    # once with the real signal as both audio AND text inputs (so the
-    # cross-attention attends to a meaningful signal), and once with
-    # the roles swapped. Average the two softmax outputs for stability.
-    # This is the standard unimodal-in-bimodal-model technique.
+    te = extract_text_embedding(text)
+
+    # Video: always zeros for now (ViT not yet active)
+    ve = extract_video_embedding(video_path)   # returns zeros
+
+    # ── Scale using train-fitted scalers ──────────────────────────────
+    ae = safe_clean(SC_AUDIO.transform(ae.reshape(1, -1))[0].astype(np.float32))
+    te = safe_clean(SC_TEXT.transform(te.reshape(1, -1))[0].astype(np.float32))
+    ve = safe_clean(SC_VIS.transform(ve.reshape(1, -1))[0].astype(np.float32))
+
+    # ── Model inference ───────────────────────────────────────────────
     at = torch.from_numpy(ae).unsqueeze(0).to(DEVICE)
     tt = torch.from_numpy(te).unsqueeze(0).to(DEVICE)
+    vt = torch.from_numpy(ve).unsqueeze(0).to(DEVICE)
 
     MODEL.eval()
     with torch.no_grad():
-        if has_audio and not has_text:
-            # Audio-only: project audio into both slots
-            # We pass audio embedding padded/projected to TEXT_DIM if dims differ,
-            # but simpler: run model with audio in both positions via a
-            # separate unimodal forward using the audio projection only.
-            # Safe approach: use a learned-mean text substitute = mean of
-            # audio proj weights * audio embedding, resized to TEXT_DIM.
-            # Simplest correct approach: replicate audio signal as text input
-            # after resizing to TEXT_DIM via linear interpolation.
-            if AUDIO_DIM == TEXT_DIM:
-                tt_sub = at.clone()
-            else:
-                # Resize audio embedding to TEXT_DIM via interpolation
-                tt_sub = torch.nn.functional.interpolate(
-                    at.unsqueeze(1), size=TEXT_DIM, mode='linear', align_corners=False
-                ).squeeze(1)
-            logits1 = MODEL(at, tt_sub)
-            logits2 = MODEL(at, tt_sub)   # symmetric — same result, kept for clarity
-            probs = torch.softmax(logits1, dim=1).cpu().numpy()[0]
-        elif has_text and not has_audio:
-            # Text-only: project text into both slots
-            if TEXT_DIM == AUDIO_DIM:
-                at_sub = tt.clone()
-            else:
-                at_sub = torch.nn.functional.interpolate(
-                    tt.unsqueeze(1), size=AUDIO_DIM, mode='linear', align_corners=False
-                ).squeeze(1)
-            logits1 = MODEL(at_sub, tt)
-            probs = torch.softmax(logits1, dim=1).cpu().numpy()[0]
-        else:
-            # Both modalities present (or both absent) — standard bimodal inference
-            logits = MODEL(at, tt)
-            probs  = torch.softmax(logits, dim=1).cpu().numpy()[0]
+        logits = MODEL(at, tt, vt)
+        probs  = torch.softmax(logits, dim=1).cpu().numpy()[0]
 
     p_dep = float(probs[1])
 
-    # Risk classification using the model's calibrated threshold
-    HIGH_THRESHOLD     = THRESHOLD + 0.15
+    # ── Risk classification ───────────────────────────────────────────
+    HIGH_THRESHOLD     = THRESHOLD + 0.05
     MODERATE_THRESHOLD = THRESHOLD
 
     if p_dep >= HIGH_THRESHOLD:
@@ -536,13 +555,13 @@ def predict(text, audio_path, q):
         confidence_score = round(min((p_dep - HIGH_THRESHOLD) / (1.0 - HIGH_THRESHOLD) * 100, 99), 1)
     elif p_dep >= MODERATE_THRESHOLD:
         risk_level       = "Moderate"
-        confidence_score = round((p_dep - MODERATE_THRESHOLD) / 0.15 * 100, 1)
+        confidence_score = round((p_dep - MODERATE_THRESHOLD) / 0.05 * 100, 1)
     else:
         risk_level       = "Low"
         confidence_score = round((MODERATE_THRESHOLD - p_dep) / MODERATE_THRESHOLD * 100, 1)
 
-    # Build result payload
-    contribs = questionnaire_contribution(q, has_audio, has_text)
+    # ── Build result payload ──────────────────────────────────────────
+    contribs = questionnaire_contribution(q, has_audio, has_video, has_text)
     signals  = derive_signals(p_dep, risk_level, q)
     recs     = get_recommendations(risk_level, q)
     q_points = build_questionnaire_insights(q)
@@ -551,9 +570,9 @@ def predict(text, audio_path, q):
     if has_text:
         word_count = len(text.split())
         text_points.append(f"Analysed {word_count} words of written expression via RoBERTa encoder.")
-        if risk_level == "High":
+        if p_dep > 0.6:
             text_points.append("Linguistic patterns show elevated negative affect and reduced future-orientation.")
-        elif risk_level == "Moderate":
+        elif p_dep > 0.4:
             text_points.append("Moderate markers of emotional suppression detected in language use.")
         else:
             text_points.append("Language patterns largely stable with no prominent depressive markers.")
@@ -563,14 +582,18 @@ def predict(text, audio_path, q):
     audio_points = []
     if has_audio:
         audio_points.append(f"Audio processed at {SR}Hz in {CHUNK_SEC}s windows via WavLM-base-plus.")
-        if risk_level == "High":
+        if p_dep > 0.6:
             audio_points.append("Vocal biomarkers suggest reduced prosodic variability consistent with depression.")
-        elif risk_level == "Moderate":
+        elif p_dep > 0.4:
             audio_points.append("Mild vocal flatness detected; within borderline range.")
         else:
             audio_points.append("Vocal patterns within normal range — no significant acoustic depression markers.")
     else:
         audio_points.append("No audio input provided — audio modality not analysed.")
+
+    video_points = [
+        "Visual modality (ViT) is trained and ready — video analysis will be available in a future update."
+    ]
 
     return {
         "riskLevel":        risk_level,
@@ -580,7 +603,7 @@ def predict(text, audio_path, q):
         "insights": {
             "text":          {"points": text_points},
             "audio":         {"points": audio_points},
-            "video":         {"points": ["Visual modality not used in this model version."]},
+            "video":         {"points": video_points},
             "questionnaire": {"points": q_points},
         },
         "recommendations": recs,
@@ -607,6 +630,7 @@ def health():
 @app.route("/analyze", methods=["POST"])
 def analyze():
     tmp_audio = None
+    tmp_video = None
 
     try:
         text     = request.form.get("text", "").strip()
@@ -615,11 +639,12 @@ def analyze():
 
         try:
             q         = json.loads(raw_q)
-            user_info = json.loads(raw_user)   # noqa: F841 (kept for future use)
+            user_info = json.loads(raw_user)   # noqa: F841
         except json.JSONDecodeError as e:
             return jsonify({"error": f"Invalid JSON in form fields: {e}"}), 400
 
         audio_file = request.files.get("audio")
+        video_file = request.files.get("video")
 
         if audio_file and audio_file.filename:
             suffix    = os.path.splitext(audio_file.filename)[-1] or ".wav"
@@ -627,12 +652,20 @@ def analyze():
             audio_file.save(tmp_audio.name)
             tmp_audio.close()
 
+        # Video saved for future use — currently won't activate ViT
+        if video_file and video_file.filename:
+            suffix    = os.path.splitext(video_file.filename)[-1] or ".mp4"
+            tmp_video = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            video_file.save(tmp_video.name)
+            tmp_video.close()
+
         if not text and tmp_audio is None:
             return jsonify({"error": "Provide at least one of: text or audio."}), 400
 
         result = predict(
             text       = text,
             audio_path = tmp_audio.name if tmp_audio else None,
+            video_path = tmp_video.name if tmp_video else None,
             q          = q,
         )
 
@@ -645,12 +678,12 @@ def analyze():
     finally:
         if tmp_audio and os.path.exists(tmp_audio.name):
             os.unlink(tmp_audio.name)
+        if tmp_video and os.path.exists(tmp_video.name):
+            os.unlink(tmp_video.name)
 
 
 # ─────────────────────────────────────────────────────────────────────
 # ENTRY POINT
-# Gunicorn bypasses this block in production.
-# Only runs on: python app.py
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
