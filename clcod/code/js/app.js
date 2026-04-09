@@ -120,34 +120,99 @@ window.handleAuthSubmit = async function () {
 };
 
 // ---- State ----
+// ---- State ----
+// Retrieve persisted state across page reloads (multi-page architecture)
 let currentPage = 'landing';
-let userInfo = { name: '', age: '', gender: '' };
-let textInputVal = '';
-let videoBase64 = null;
-let audioBase64 = null;
+let userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
+let textInputVal = sessionStorage.getItem('ps_textInputVal') || '';
+let videoBase64 = sessionStorage.getItem('ps_videoBase64') || null;
+let audioBase64 = sessionStorage.getItem('ps_audioBase64') || null;
 let audioUrl = null;
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
 let recordingTime = 0;
-let aiResult = null;
+let aiResult = JSON.parse(sessionStorage.getItem('ps_aiResult') || 'null');
 let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false };
 
 // ── BACKEND URL CONFIG ──────────────────────────────────────────────────────
 // For local development, keep this as http://127.0.0.1:5000
+//https://sense123-psychsense.hf.space.
 // Before deploying to production, change this to your hosted backend URL, e.g.:
 //   const FLASK_API_URL = 'https://your-backend.railway.app';
-const FLASK_API_URL = 'https://sense123-psychsense.hf.space.';
+const FLASK_API_URL = 'http://127.0.0.1:7860';
 // ────────────────────────────────────────────────────────────────────────────
 
 window.goTo = function (page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const targetPage = document.getElementById('page-' + page);
-  if (targetPage) targetPage.classList.add('active');
-  currentPage = page;
-  if (page === 'user-info') prefillUserInfo();
+  // Save current state before potential page transition
+  sessionStorage.setItem('ps_userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('ps_aiResult', JSON.stringify(aiResult));
+  sessionStorage.setItem('ps_textInputVal', textInputVal);
+  if (videoBase64) {
+    try { sessionStorage.setItem('ps_videoBase64', videoBase64); } 
+    catch (e) { console.warn('Video too large for sessionStorage, skipping cache.'); }
+  }
+  if (audioBase64) {
+    try { sessionStorage.setItem('ps_audioBase64', audioBase64); } 
+    catch (e) { console.warn('Audio too large for sessionStorage, skipping cache.'); }
+  }
+
+  // Determine which HTML file houses this page
+  let targetFile = '';
+  if (['landing'].includes(page)) targetFile = 'index.html';
+  else if (['results'].includes(page)) targetFile = 'results.html';
+  else targetFile = 'analysis.html';
+
+  // FIX: Detect current file from pathname robustly.
+  // Works whether the server serves clean URLs (/analysis), .html extensions
+  // (/analysis.html), or a root URL (/).
+  // Strategy: check the DOM for a known landmark element unique to each file,
+  // rather than trying to parse the URL (which varies by server config).
+  const onAnalysis = !!document.getElementById('page-user-info') || !!document.getElementById('page-assessment');
+  const onResults  = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
+  const currentFile = onResults ? 'results.html' : onAnalysis ? 'analysis.html' : 'index.html';
+
+  if (currentFile === targetFile) {
+    // Already on the right file — just swap the visible page in-place
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById('page-' + page);
+    if (targetPage) targetPage.classList.add('active');
+    currentPage = page;
+    if (page === 'user-info') prefillUserInfo();
+    if (page === 'assessment') {
+      // Restore text input from sessionStorage and re-evaluate button state
+      const textEl = document.getElementById('text-input');
+      if (textEl && !textEl.value && textInputVal) textEl.value = textInputVal;
+      window.updateAssessBtn();
+    }
+    return;
+  }
+
+  // Different file — navigate, carrying the target page as a pending transition
+  sessionStorage.setItem('pendingPageTransition', page);
+  window.location.href = targetFile;
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  const pending = sessionStorage.getItem('pendingPageTransition');
+  if (pending) {
+    sessionStorage.removeItem('pendingPageTransition');
+    window.goTo(pending);
+  } else {
+    // No pending transition — detect which file we're on by DOM content
+    const onAnalysis = !!document.getElementById('page-user-info') || !!document.getElementById('page-assessment');
+    const onResults  = !!document.getElementById('page-results') && !document.getElementById('page-user-info');
+    if (onResults) window.goTo('results');
+    else if (onAnalysis) window.goTo('user-info');
+    else window.goTo('landing');
+  }
+
+  // If on results page, render the stored result
+  if (aiResult && document.getElementById('page-results')?.classList.contains('active')) {
+    renderResults(aiResult, aiResult.depressionType, aiResult.riskLevel === 'High' || aiResult.riskLevel === 'Moderate');
+  }
+});
 
 // ── Toast notification ────────────────────────────────────────────────────────
 let _toastTimer = null;
@@ -231,10 +296,10 @@ window.openResultsHistory = async function () {
       ? new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       : 'Unknown date';
 
-    const risk = r.riskLevel || 'Stable';
+    const risk = r.riskLevel || 'Low';
     const isStable = risk === 'Stable' || risk === 'Low';
     const riskColour = isStable ? '#22c55e' : risk === 'High' ? '#ef4444' : '#f59e0b';
-    const riskLabel = isStable ? 'Stable' : risk;
+    const riskLabel = risk === 'Stable' ? 'Low' : risk;
     const scoreLabel  = r.confidenceScore != null ? `${r.confidenceScore}%` : '—';
     const typeLabel   = r.depressionType || '';
     const name        = r.userInfo?.name || window.currentUser?.name || '—';
@@ -289,19 +354,23 @@ window.closeResultsHistory = function () {
   if (modal) modal.style.display = 'none';
 };
 
-function prefillUserInfo() {
+window.prefillUserInfo = function prefillUserInfo() {
   if (!window.currentUser) return;
 
-  const nameInput = document.getElementById('input-name');
+  const nameInput   = document.getElementById('input-name');
+  const ageInput    = document.getElementById('input-age');
   const genderInput = document.getElementById('input-gender');
-  const photoWrap = document.getElementById('user-info-photo-wrap');
+  const photoWrap   = document.getElementById('user-info-photo-wrap');
 
-  if (nameInput && window.currentUser.name) {
-    nameInput.value = window.currentUser.name;
-  }
-  if (genderInput && window.currentUser.gender) {
-    genderInput.value = window.currentUser.gender;
-  }
+  // Restore from currentUser (which is populated from Firestore on login)
+  if (nameInput && window.currentUser.name)   nameInput.value   = window.currentUser.name;
+  if (ageInput  && window.currentUser.age)    ageInput.value    = window.currentUser.age;
+  if (genderInput && window.currentUser.gender) genderInput.value = window.currentUser.gender;
+
+  // Also sync userInfo state so it's up-to-date before runInitialAnalysis reads it
+  if (nameInput)   userInfo.name   = nameInput.value   || userInfo.name;
+  if (ageInput)    userInfo.age    = ageInput.value    || userInfo.age;
+  if (genderInput) userInfo.gender = genderInput.value || userInfo.gender;
 
   // Inject profile photo above the form if not already there
   if (photoWrap) {
@@ -342,9 +411,19 @@ window.handleGoogleLogin = function () {
 };
 
 window.updateAssessBtn = function () {
-  textInputVal = document.getElementById('text-input').value;
+  const textEl = document.getElementById('text-input');
+  if (textEl) textInputVal = textEl.value;
   const btn = document.getElementById('assess-continue-btn');
   if (btn) btn.disabled = !textInputVal.trim() && !videoBase64 && !audioBase64;
+};
+
+window.toggleVoiceInstructions = function () {
+  const body    = document.getElementById('voice-instructions-body');
+  const chevron = document.getElementById('voice-instr-chevron');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display    = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 };
 
 // ---- 12-Question Depression Screening ----
@@ -410,6 +489,52 @@ const DEPRESSION_QUESTIONS = [
     key: "suicidality"
   }
 ];
+
+// ---- Recommended Doctors Data by Depression Type ----
+const DOCTORS_DATA = {
+  'Major Depressive Disorder (MDD)': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist \u2013 Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. P. Chytanya Deepak', specialization: 'Bipolar & OCD Clinic, Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist \u2013 Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
+  ],
+  'Persistent Depressive Disorder (Dysthymia)': [
+    { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry \u2013 Chronic Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. P. Raghurami Reddy', specialization: 'General Psychiatry \u2013 Inpatient & Outpatient', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'Psychiatry & Neuromodulation (rTMS)', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
+  ],
+  'Atypical Depression': [
+    { name: 'Dr. P. Chytanya Deepak', specialization: 'Mood Disorders & Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'rTMS, Neurofeedback & Psychiatric Care', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'American Center for Neuropsychiatry', specialization: 'Psychiatric Hospital & Mental Health', workplace: 'Banjara Hills, Hyderabad' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist \u2013 Adult Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (Hospital-based)', workplace: 'Aster Prime Hospital, Ameerpet' },
+  ],
+  'Seasonal Affective Disorder (SAD)': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Senior Consultant Psychiatrist', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry \u2013 Recurrent Depression', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'Neuromodulation, Biofeedback & Psychotherapy', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Outpatient Psychiatrist \u2013 Mood Monitoring', workplace: 'Likeminds Clinic, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist \u2013 Seasonal Patterns', workplace: 'DKR Mind Clinic, Barkatpura' },
+  ],
+  'Postpartum Depression': [
+    { name: 'Asha Hospital \u2013 Women\'s Wellness Team', specialization: 'Women\'s Mental Health & Psychiatry', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
+    { name: 'Rainbow Children\'s Hospital & BirthRight', specialization: 'Obstetrics, Gynaecology & Maternity', workplace: 'Banjara Hills, Hyderabad' },
+    { name: 'BirthRight Maternity Hospital (Rainbow)', specialization: 'Obstetrics & Maternity Services', workplace: 'Himayatnagar, Hyderabad' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist \u2013 Postpartum Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
+  ],
+  'Depressive Episode': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist \u2013 Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist \u2013 Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
+  ],
+};
 
 let qCurrentIndex = 0;
 let qAnswers = new Array(12).fill(null);
@@ -655,51 +780,53 @@ window.handleVideoUpload = function (event) {
 
 // ---- STEP 1: Run ML model first when user clicks "Complete Assessment" ----
 window.runInitialAnalysis = async function () {
-  userInfo.name = document.getElementById('input-name').value;
-  userInfo.age = document.getElementById('input-age').value;
-  userInfo.gender = document.getElementById('input-gender').value;
-  if (window.currentUser) {
-    window.currentUser.gender = userInfo.gender;
-    window.currentUser.age = userInfo.age;
-    if (window.saveUserProfile) {
-      await window.saveUserProfile({
-        name: userInfo.name,
-        age: userInfo.age,
-        gender: userInfo.gender,
-        email: window.currentUser.email,
-        photo: window.currentUser.photo || null,
-        updatedAt: new Date().toISOString()
-      });
-    }
-  }
-  textInputVal = document.getElementById('text-input').value;
-
-  // Empty questionnaire — first pass uses pure model output only
-  const emptyQuestionnaire = {
-    answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false },
-    duration: 0,
-    seasonalPattern: 'No seasonal pattern',
-    postpartum: 'Not applicable',
-    impairment: 30,
-  };
-
-  window.goTo('analysis');
   try {
+    // 1. Alert startup to prove the button even clicked
+    // alert("runInitialAnalysis triggered");
+
+    userInfo.name = document.getElementById('input-name').value;
+    userInfo.age = document.getElementById('input-age').value;
+    userInfo.gender = document.getElementById('input-gender').value;
+    if (window.currentUser) {
+      window.currentUser.gender = userInfo.gender;
+      window.currentUser.age = userInfo.age;
+      if (window.saveUserProfile) {
+        window.saveUserProfile({
+          name: userInfo.name,
+          age: userInfo.age,
+          gender: userInfo.gender,
+          email: window.currentUser.email,
+          photo: window.currentUser.photo || null,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+    textInputVal = document.getElementById('text-input').value;
+
+    const emptyQuestionnaire = {
+      answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false },
+      duration: 0,
+      seasonalPattern: 'No seasonal pattern',
+      postpartum: 'Not applicable',
+      impairment: 30,
+    };
+
+    window.goTo('analysis');
+    
+    // Alert immediately before ML call
+    // alert("Calling analyzeWithFlask...");
+    
     const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, emptyQuestionnaire);
     aiResult = result;
 
-    // NEW FLOW: model output is binary — depressed or not
-    // If riskLevel is Low → patient is NOT depressed → show Stable result, no questionnaire
-    // If riskLevel is Moderate or High → patient IS depressed → always show questionnaire
     const isDepressed = result.riskLevel === 'Moderate' || result.riskLevel === 'High';
 
     if (!isDepressed) {
-      // Not depressed — show stable result immediately
       renderResults(result, null, false);
       if (window.saveReport) {
         await window.saveReport({
           userInfo: { ...userInfo },
-          riskLevel: 'Stable',
+          riskLevel: result.riskLevel,
           confidenceScore: result.confidenceScore,
           emotionalSignals: result.emotionalSignals,
           contributions: result.contributions,
@@ -709,18 +836,19 @@ window.runInitialAnalysis = async function () {
       }
       window.goTo('results');
     } else {
-      // Depressed — show questionnaire to determine type and severity
       const banner = document.getElementById('questionnaire-banner');
       if (banner) {
         banner.style.display = 'flex';
         banner.querySelector('#banner-risk').textContent = result.riskLevel;
-        banner.querySelector('#banner-confidence').textContent = result.confidenceScore + '%';
+        const displayProb = Math.round(result.confidenceScore ?? 0);
+        banner.querySelector('#banner-confidence').textContent = displayProb + '%';
       }
       resetQuestionnaire();
       qRender();
       window.goTo('questioning');
     }
   } catch (err) {
+    alert("Error inside runInitialAnalysis: " + err.stack);
     console.error('Analysis failed:', err);
     window.goTo('error');
     const errMsgEl = document.getElementById('error-message');
@@ -728,63 +856,45 @@ window.runInitialAnalysis = async function () {
   }
 };
 
-// ---- STEP 2: After questionnaire is filled (only reached if model flagged depression) ----
 window.completeQuestionnaire = async function () {
-  const getScore = (key) => {
-    const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
-    return idx >= 0 ? (qAnswers[idx] ?? 0) : 0;
-  };
-
-  // Calculate depression severity % purely from questionnaire answers (0–36 scale → 0–100%)
-  // Core symptom keys weighted for clinical relevance
-  const coreKeys = ['sadness','anhedonia','fatigue','insomnia','hypersomnia','appetite','concentration','suicidality'];
-  const rawScore = coreKeys.reduce((sum, key) => sum + getScore(key), 0);
-  const maxScore = coreKeys.length * 3; // 24
-  const depressionPercent = Math.round((rawScore / maxScore) * 100);
-
-  const questionnaireData = {
-    answers: {
-      elevatedMood:   false,
-      reducedSleep:   getScore('insomnia') >= 2,
-      impulsivity:    false,
-      racingThoughts: false,
-    },
-    duration:        getScore('duration'),
-    seasonalPattern: getScore('seasonal') >= 2 ? 'Winter onset' : 'No seasonal pattern',
-    postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
-    impairment:      Math.round((getScore('sadness') + getScore('anhedonia') + getScore('fatigue')) / 9 * 100),
-    scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
-    depressionPercent: depressionPercent,  // questionnaire-derived severity %
-  };
-
   const depressionType = classifyDepressionType(qAnswers);
 
-  window.goTo('analysis');
-  try {
-    const result = await analyzeWithFlask(userInfo, textInputVal, videoBase64, audioBase64, questionnaireData);
-    aiResult = result;
-    aiResult.depressionType = depressionType;
-    
-    renderResults(result, depressionType, true);
-    if (window.saveReport) {
-      await window.saveReport({
-        userInfo:         { ...userInfo },
-        riskLevel:        result.riskLevel,
-        confidenceScore:  result.confidenceScore,
-        emotionalSignals: result.emotionalSignals,
-        contributions:    result.contributions,
-        recommendations:  result.recommendations,
-        questionnaire:    questionnaireData,
-        depressionType:   depressionType,
-      });
-    }
-    window.goTo('results');
-  } catch (err) {
-    console.error('Analysis failed:', err);
-    window.goTo('error');
-    const errMsgEl = document.getElementById('error-message');
-    if (errMsgEl) errMsgEl.textContent = err.message || 'An unexpected error occurred. Please try again.';
+  // Reuse the model result from Step 1 — questionnaire cannot change the ML output
+  const result = aiResult;
+
+  renderResults(result, depressionType, true);
+
+  if (window.saveReport) {
+    const getScore = (key) => {
+      const idx = DEPRESSION_QUESTIONS.findIndex(q => q.key === key);
+      return idx >= 0 ? (qAnswers[idx] ?? 0) : 0;
+    };
+    const questionnaireData = {
+      answers: {
+        elevatedMood:   false,
+        reducedSleep:   getScore('insomnia') >= 2,
+        impulsivity:    false,
+        racingThoughts: false,
+      },
+      duration:        getScore('duration'),
+      seasonalPattern: getScore('seasonal') >= 2 ? 'Winter onset' : 'No seasonal pattern',
+      postpartum:      getScore('postpartum') >= 2 ? 'Within 4 weeks postpartum' : 'Not applicable',
+      scores:          Object.fromEntries(DEPRESSION_QUESTIONS.map((q, i) => [q.key, qAnswers[i] ?? 0])),
+    };
+    await window.saveReport({
+      userInfo:         { ...userInfo },
+      riskLevel:        result.riskLevel,
+      confidenceScore:  result.confidenceScore,
+      emotionalSignals: result.emotionalSignals,
+      contributions:    result.contributions,
+      recommendations:  result.recommendations,
+      questionnaire:    questionnaireData,
+      depressionType:   depressionType,
+    });
   }
+
+  aiResult.depressionType = depressionType;
+  window.goTo('results');
 };
 
 async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, questionnaireData) {
@@ -813,13 +923,13 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
 
   // Audio — convert base64 data URL → Blob → File
   if (audioBase64) {
-    const audioBlob = dataURLtoBlob(audioBase64);
+    const audioBlob = await dataURLtoBlob(audioBase64);
     formData.append('audio', audioBlob, 'recording.wav');
   }
 
   // Video — convert base64 data URL → Blob → File
   if (videoBase64) {
-    const videoBlob = dataURLtoBlob(videoBase64);
+    const videoBlob = await dataURLtoBlob(videoBase64);
     formData.append('video', videoBlob, 'video.mp4');
   }
 
@@ -859,14 +969,9 @@ async function analyzeWithFlask(userInfo, textInput, videoBase64, audioBase64, q
   return { ...result, timestamp: new Date().toISOString() };
 }
 
-// Helper: convert a base64 data URL to a Blob
-function dataURLtoBlob(dataURL) {
-  const [header, base64] = dataURL.split(',');
-  const mime = header.match(/:(.*?);/)[1];
-  const binary = atob(base64);
-  const arr = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
-  return new Blob([arr], { type: mime });
+async function dataURLtoBlob(dataURL) {
+  const res = await fetch(dataURL);
+  return await res.blob();
 }
 
 function renderResults(result, depressionType, isDepressed) {
@@ -923,7 +1028,7 @@ function renderResults(result, depressionType, isDepressed) {
       alertBanner.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div><span><strong>${result.riskLevel} Risk Detected —</strong> This report requires attention. Please review the recommendations carefully.</span>`;
     } else {
       alertBanner.style.cssText += 'background:rgba(234,243,222,0.07);border-color:rgba(178,216,134,0.35);color:#86efac;';
-      alertBanner.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div><span><strong>Stable / Low Risk —</strong> No severe depressive signals detected. Continue to monitor your wellbeing periodically.</span>`;
+      alertBanner.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div><span><strong>Low Risk —</strong> No severe depressive signals detected. Continue to monitor your wellbeing periodically.</span>`;
     }
   }
 
@@ -944,7 +1049,10 @@ function renderResults(result, depressionType, isDepressed) {
   }
 
   // ── Executive summary ───────────────────────────────────────────────────
-  const displayPercent = isDepressed ? (result.displayPercent ?? result.confidenceScore) : result.confidenceScore;
+  // Use confidenceScore (zone-relative 0–100%) for all severity displays.
+  // modelProb is the raw model probability and can be very low even for High risk patients
+  // when the threshold is low, which caused the "17% for high-risk" bug.
+  const displayPercent = result.confidenceScore ?? 0;
   const ringDescEl = document.getElementById('ring-desc');
   if (ringDescEl) {
     if (!isDepressed) {
@@ -999,9 +1107,9 @@ function renderResults(result, depressionType, isDepressed) {
   const riskSubEl = document.getElementById('results-risk-sub');
   if (riskEl) {
     if (!isDepressed) {
-      riskEl.textContent = 'Stable';
+      riskEl.textContent = 'Low Risk';
       riskEl.style.color = '#22c55e';
-      if (riskSubEl) riskSubEl.textContent = 'Stable levels';
+      if (riskSubEl) riskSubEl.textContent = 'Low levels detected';
     } else {
       riskEl.textContent = result.riskLevel + ' Risk';
       riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : '#f59e0b';
@@ -1135,7 +1243,7 @@ function renderResults(result, depressionType, isDepressed) {
       { label: 'Seek urgent help immediately if', text: 'You experience thoughts of self-harm, or feel a sudden worsening of symptoms. Call 112 or your nearest emergency department.' },
       { label: 'Follow-up session', text: 'Schedule a re-assessment with PsychSense in 2–4 weeks to track progress after professional intervention begins.' },
     ] : [
-      { label: 'Keep monitoring', text: 'Your assessment is stable. Schedule a follow-up in 4–6 weeks to track your wellbeing over time.' },
+      { label: 'Keep monitoring', text: 'Your assessment shows low risk. Schedule a follow-up in 4–6 weeks to track your wellbeing over time.' },
       { label: 'Share this report', text: 'You can share this result with a trusted friend or family member as a baseline record.' },
     ];
     nextStepsList.innerHTML = steps.map((s, i) => `
@@ -1144,11 +1252,44 @@ function renderResults(result, depressionType, isDepressed) {
         <div style="font-size:13px;color:#cbd5e1;line-height:1.6;padding-top:2px;"><strong style="color:#e2e8f0;">${s.label}:</strong> ${s.text}</div>
       </div>`).join('');
   }
+
+  // ── Recommended Doctors ─────────────────────────────────────────────────
+  const doctorsCard = document.getElementById('doctors-card');
+  const doctorsList = document.getElementById('doctors-list');
+  if (doctorsCard && doctorsList) {
+    if (isDepressed) {
+      const docType = depressionType || 'Depressive Episode';
+      const doctors = DOCTORS_DATA[docType] || DOCTORS_DATA['Depressive Episode'];
+      doctorsCard.style.display = 'block';
+      doctorsList.innerHTML = `
+        <table class="doctors-table">
+          <thead>
+            <tr>
+              <th>Doctor Name</th>
+              <th>Area of Specialization</th>
+              <th>Place of Work</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${doctors.map(d => `
+              <tr>
+                <td>${d.name}</td>
+                <td>${d.specialization}</td>
+                <td>${d.workplace}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    } else {
+      doctorsCard.style.display = 'none';
+      doctorsList.innerHTML = '';
+    }
+  }
 }
 
 window.downloadReport = function () {
   const isDepressed = aiResult?.riskLevel === 'Moderate' || aiResult?.riskLevel === 'High';
-  const displayPercent = isDepressed ? (aiResult?.displayPercent ?? aiResult?.confidenceScore ?? '—') : '—';
+  const displayPercent = aiResult?.confidenceScore ?? '—';
 
   const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = new Date().toLocaleString('en-GB');
@@ -1238,11 +1379,11 @@ window.downloadReport = function () {
        </div>`
     : `<div class="ps-alert" style="background: #EAF3DE; border-color: #B2D886; color: #3B6D11;">
         <div class="ps-alert-dot" style="background: #6DBE20;"></div>
-        <span><strong>Stable / Low Risk —</strong> No severe depressive signals detected. Continue to monitor your wellbeing periodically.</span>
+        <span><strong>Low Risk —</strong> No severe depressive signals detected. Continue to monitor your wellbeing periodically.</span>
        </div>`;
 
   const severityBar = isDepressed ? `<div class="ps-severity-bar"><div class="ps-severity-fill" style="width:${displayPercent}%"></div></div>` : '';
-  const riskBadge = isDepressed ? `<span class="ps-risk-badge"><div class="ps-risk-dot"></div> ${riskClass} Risk</span>` : `<span class="ps-risk-badge" style="background:#EAF3DE;border-color:#B2D886;color:#3B6D11;"><div class="ps-risk-dot" style="background:#6DBE20;"></div> Stable</span>`;
+  const riskBadge = isDepressed ? `<span class="ps-risk-badge"><div class="ps-risk-dot"></div> ${riskClass} Risk</span>` : `<span class="ps-risk-badge" style="background:#EAF3DE;border-color:#B2D886;color:#3B6D11;"><div class="ps-risk-dot" style="background:#6DBE20;"></div> Low Risk</span>`;
   const summaryText = isDepressed 
     ? `PsychSense's multimodal analysis identified signals consistent with <strong>${depType}</strong>. The assessment falls in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%. Prompt professional evaluation is advised.`
     : `PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.`;
@@ -1380,8 +1521,8 @@ window.downloadReport = function () {
       </div>
       <div class="ps-metric">
         <div class="ps-metric-label">Risk Classification</div>
-        <div class="ps-metric-value" style="font-size:18px; color:${isDepressed ? (riskClass === 'High' ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${isDepressed ? riskClass + ' Risk' : 'Stable'}</div>
-        <div class="ps-metric-sub">${isDepressed ? (riskClass === 'High' ? 'Requires urgent review' : 'Intervention advised') : 'Stable levels'}</div>
+        <div class="ps-metric-value" style="font-size:18px; color:${isDepressed ? (riskClass === 'High' ? '#A32D2D' : '#7C4A00') : '#3B6D11'};">${isDepressed ? riskClass + ' Risk' : 'Low Risk'}</div>
+        <div class="ps-metric-sub">${isDepressed ? (riskClass === 'High' ? 'Requires urgent review' : 'Intervention advised') : 'Low levels detected'}</div>
       </div>
       <div class="ps-metric">
         <div class="ps-metric-label">Type Detected</div>
@@ -1440,6 +1581,36 @@ window.downloadReport = function () {
       </div>` : ''}
     </div>
   </div>
+
+  ${isDepressed ? (() => {
+    const pdfDocType = depType || 'Depressive Episode';
+    const pdfDoctors = DOCTORS_DATA[pdfDocType] || DOCTORS_DATA['Depressive Episode'];
+    return `
+  <div class="ps-card" style="page-break-inside:avoid;">
+    <div class="ps-card-title"><div class="ps-card-title-bar" style="background:#22c55e;"></div> Recommended Doctors in Hyderabad</div>
+    <div style="font-size:13px; color:#475569; line-height:1.7; margin-bottom:12px;">Based on the detected condition (<strong>${pdfDocType}</strong>), the following specialists in Hyderabad are recommended.</div>
+    <table style="width:100%; border-collapse:collapse; border:0.5px solid #cbd5e1; border-radius:8px; overflow:hidden; font-size:13px;">
+      <thead>
+        <tr style="background:#f0f9ff;">
+          <th style="padding:10px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:#0c4a6e; border-bottom:0.5px solid #cbd5e1;">Doctor Name</th>
+          <th style="padding:10px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:#0c4a6e; border-bottom:0.5px solid #cbd5e1;">Area of Specialization</th>
+          <th style="padding:10px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:#0c4a6e; border-bottom:0.5px solid #cbd5e1;">Place of Work</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pdfDoctors.map((d, i) => `
+          <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+            <td style="padding:10px 14px; font-weight:500; color:#0f172a; border-bottom:0.5px solid #e2e8f0;">${d.name}</td>
+            <td style="padding:10px 14px; color:#334155; border-bottom:0.5px solid #e2e8f0;">${d.specialization}</td>
+            <td style="padding:10px 14px; color:#334155; border-bottom:0.5px solid #e2e8f0;">${d.workplace}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px; color:#64748b; margin-top:10px; line-height:1.6;">Always confirm current clinic timings and availability when booking. The same psychiatrist is usually qualified to treat multiple depressive disorders.</div>
+  </div>
+  `;
+  })() : ''}
 
   <div class="ps-disclaimer">
     <div class="ps-disclaimer-title">Ethical Disclaimer & Important Notice</div>
@@ -1500,10 +1671,10 @@ window.openProfileModal = async function () {
     } else {
       reportsEl.innerHTML = reports.map(r => {
         const date = new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-        const risk = r.riskLevel || 'Stable';
+        const risk = r.riskLevel || 'Low';
         const isStable = risk === 'Stable' || risk === 'Low';
         const color = isStable ? '#22c55e' : risk === 'Moderate' ? '#f59e0b' : '#ef4444';
-        const label = isStable ? 'Stable' : risk;
+        const label = risk === 'Stable' ? 'Low' : risk;
         return `<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
           <div>
             <p style="font-size:11px;color:#94a3b8;margin-bottom:3px;">${date}</p>
@@ -1527,6 +1698,10 @@ window.closeProfileModal = function () {
 window.handleReset = function () {
   textInputVal = ''; videoBase64 = null; audioBase64 = null; audioUrl = null;
   aiResult = null; isRecording = false;
+  sessionStorage.removeItem('ps_textInputVal');
+  sessionStorage.removeItem('ps_videoBase64');
+  sessionStorage.removeItem('ps_audioBase64');
+  sessionStorage.removeItem('ps_aiResult');
   if (recordingTimer) clearInterval(recordingTimer);
   const input = document.getElementById('text-input');
   if (input) input.value = '';

@@ -103,6 +103,12 @@ onAuthStateChanged(auth, async (user) => {
 
     updateUserBadge(window.currentUser);
     hideLoginBtn();
+
+    // Re-prefill the user-info form if it's currently active
+    // (handles page reload where DOMContentLoaded fires before onAuthStateChanged)
+    if (typeof window.prefillUserInfo === 'function') {
+      window.prefillUserInfo();
+    }
   } else {
     showLoginBtn();
   }

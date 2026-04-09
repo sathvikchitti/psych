@@ -97,15 +97,16 @@
   flex-shrink: 0;
 }
 
-/* Push body content below navbar */
+/* Push body content below navbar and above footer */
 body {
   padding-top: 64px;
+  padding-bottom: 80px;
 }
 
 /* Landing page is full-viewport — compensate */
 #page-landing {
-  height: calc(100vh - 64px) !important;
-  min-height: calc(100vh - 64px) !important;
+  min-height: calc(100vh - 64px - 80px);
+  display: flex !important;
 }
 
 #ps-footer {
@@ -139,12 +140,7 @@ body.page-analysis-active #ps-footer {
   display: none;
 }
 
-/* Account for footer on scrollable pages */
-#page-results,
-#page-assessment,
-#page-questioning {
-  padding-bottom: 60px !important;
-}
+/* Account for footer on scrollable pages — handled by body { padding-bottom } now */
 
 /* ── Responsive ── */
 @media (max-width: 700px) {

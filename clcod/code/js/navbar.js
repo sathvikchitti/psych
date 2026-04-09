@@ -171,12 +171,14 @@
     buildNavbar();
     buildFooter();
 
-    // Wait a tick for app.js to define goTo before patching
+    // Wait for app.js to define goTo before patching.
+    // Use 100ms (up from 50ms) to ensure DOMContentLoaded in app.js fires first,
+    // so the initial goTo call doesn't bypass the patch.
     setTimeout(() => {
       patchGoTo();
       mirrorAuthControls();
 
-      // Detect current page from active class
+      // Detect current page from active class or pending transition
       const activePage = document.querySelector('.page.active');
       if (activePage) {
         const id = activePage.id.replace('page-', '');
@@ -184,7 +186,7 @@
       } else {
         syncNav('landing');
       }
-    }, 50);
+    }, 100);
   }
 
   if (document.readyState === 'loading') {
