@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PsychSense – AI Powered Multi-Modal Depression Detection</title>
-  
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <!-- CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -33,335 +36,519 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/navbar.css">
 </head>
+
 <body>
 
-<!-- Background Effects -->
-<div style="position:fixed;inset:0;z-index:0;pointer-events:none;">
-  <div class="pillar"></div>
+  <!-- Background Effects -->
+  <div style="position:fixed;inset:0;z-index:0;pointer-events:none;">
+    <div class="pillar"></div>
 
-</div>
-
-<!-- Top-right Controls -->
-<div id="top-controls" style="position:fixed;top:24px;right:24px;z-index:100;display:flex;align-items:center;gap:12px;">
-  <div id="user-badge-container"></div>
-  <button id="login-signup-btn" onclick="openAuthModal()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#94a3b8;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:color 0.3s;" onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#94a3b8'">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-    Sign In
-  </button>
-</div>
-
-<!-- Profile Modal -->
-<div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
-  <div class="glass-card glow-border fade-in" style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
-    <!-- Close -->
-    <button onclick="closeProfileModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-
-    <!-- Avatar -->
-    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;">
-      <img id="profile-modal-avatar" src="" referrerpolicy="no-referrer"
-        style="width:88px;height:88px;border-radius:50%;border:2px solid rgba(6,182,212,0.4);object-fit:cover;margin-bottom:12px;" />
-      <h2 id="profile-modal-name" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;"></h2>
-      <p id="profile-modal-email" style="color:#64748b;font-size:12px;"></p>
-    </div>
-
-    <!-- Credentials -->
-    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
-          <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#06b6d4;font-weight:700;margin-bottom:6px;">Age</p>
-          <p id="profile-modal-age" style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">—</p>
-        </div>
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
-          <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:6px;">Gender</p>
-          <p id="profile-modal-gender" style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;text-transform:capitalize;">—</p>
-        </div>
-      </div>
-      <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
-        <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#d946ef;font-weight:700;margin-bottom:6px;">Email</p>
-        <p id="profile-modal-email-full" style="font-size:13px;color:#cbd5e1;word-break:break-all;">—</p>
-      </div>
-    </div>
-
-    <!-- Past Reports -->
-    <div style="margin-bottom:20px;">
-      <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:10px;">Past Assessments</p>
-      <div id="profile-modal-reports" style="display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,0.3) transparent;">
-        <p style="color:#475569;font-size:11px;text-align:center;padding:12px;">No past assessments yet.</p>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div style="display:flex;gap:12px;">
-      <button onclick="closeProfileModal();goTo('landing');" class="btn-glow-cyan" style="flex:1;justify-content:center;padding:12px;font-size:13px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back to Home
-      </button>
-      <button onclick="window.firebaseSignOut();closeProfileModal();" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.3);border-radius:9999px;padding:12px;color:#d946ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='rgba(217,70,239,0.2)'" onmouseout="this.style.background='rgba(217,70,239,0.1)'">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Logout
-      </button>
-    </div>
   </div>
-</div>
 
-<!-- Auth Modal -->
-<div id="auth-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
-  <div class="glass-card glow-border-purple fade-in" style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
-    <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="width:52px;height:52px;background:linear-gradient(135deg,rgba(6,182,212,0.2),rgba(139,92,246,0.2));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;border:1px solid rgba(139,92,246,0.3);">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
-      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px;">Welcome to PsychSense</h2>
-      <p style="color:#94a3b8;font-size:13px;">Sign in or create an account to continue</p>
-    </div>
-    <div style="display:flex;background:rgba(0,0,0,0.3);border-radius:12px;padding:4px;margin-bottom:28px;border:1px solid rgba(255,255,255,0.05);">
-      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);">Login</button>
-      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:transparent;color:#64748b;">Sign Up</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px;">
-      <div id="auth-name-field" style="display:none;">
-        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#8b5cf6;font-weight:700;display:block;margin-bottom:8px;">Full Name</label>
-        <input type="text" id="auth-name" placeholder="Enter your full name" />
-      </div>
-      <div>
-        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Email Address</label>
-        <input type="email" id="auth-email" placeholder="Enter your email" />
-      </div>
-      <div>
-        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Password</label>
-        <div style="position:relative;">
-          <input type="password" id="auth-password" placeholder="Enter your password" style="padding-right:48px;" />
-          <button onclick="togglePasswordVis()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;padding:0;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
-            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="auth-confirm-field" style="display:none;">
-        <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Confirm Password</label>
-        <input type="password" id="auth-confirm" placeholder="Confirm your password" />
-      </div>
-    </div>
-    <div id="auth-error" style="display:none;margin-top:14px;padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:12px;color:#f87171;"></div>
-    <button id="auth-submit-btn" onclick="handleAuthSubmit()" class="btn-glow-purple" style="width:100%;justify-content:center;margin-top:24px;font-size:14px;">Login</button>
-    <div style="display:flex;align-items:center;gap:12px;margin:20px 0;">
-      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
-      <span style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">or continue with</span>
-      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
-    </div>
-    <button class="google-btn" onclick="handleGoogleLogin()" style="width:100%;justify-content:center;">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+  <!-- Top-right Controls -->
+  <div id="top-controls"
+    style="position:fixed;top:24px;right:24px;z-index:100;display:flex;align-items:center;gap:12px;">
+    <div id="user-badge-container"></div>
+    <button id="login-signup-btn" onclick="openAuthModal()"
+      style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#94a3b8;font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:color 0.3s;"
+      onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#94a3b8'">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+        <polyline points="10 17 15 12 10 7" />
+        <line x1="15" y1="12" x2="3" y2="12" />
       </svg>
-      Login / Sign Up with Google
+      Sign In
     </button>
   </div>
-</div>
 
-<!-- ================================ PAGE: RESULTS ================================ -->
-<div id="page-results" class="page scrollable" style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 24px;">
-  <div class="fade-in" id="results-card" style="width:100%;max-width:900px;margin:20px 0;display:flex;flex-direction:column;gap:12px;">
+  <!-- Profile Modal -->
+  <div id="profile-modal"
+    style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
+    <div class="glass-card glow-border fade-in"
+      style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
+      <!-- Close -->
+      <button onclick="closeProfileModal()"
+        style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'"
+        onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
 
-    <!-- ── REPORT HEADER ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.08);">
-      <!-- Left: Logo + meta -->
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:10px;background:#185FA5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-            <path d="M10 3C7.5 3 5.5 4.8 5.5 7c0 1.4.8 2.7 2 3.4v1.1l-1.2 1.2a.5.5 0 000 .7l1.2 1.2v1.4c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-1.4l1.2-1.2a.5.5 0 000-.7L12.5 11.4V10.4c1.2-.7 2-2 2-3.4C14.5 4.8 12.5 3 10 3z" fill="white" opacity="0.9"/>
+      <!-- Avatar -->
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;">
+        <img id="profile-modal-avatar" src="" referrerpolicy="no-referrer"
+          style="width:88px;height:88px;border-radius:50%;border:2px solid rgba(6,182,212,0.4);object-fit:cover;margin-bottom:12px;" />
+        <h2 id="profile-modal-name"
+          style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;"></h2>
+        <p id="profile-modal-email" style="color:#64748b;font-size:12px;"></p>
+      </div>
+
+      <!-- Credentials -->
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div
+            style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+            <p
+              style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#06b6d4;font-weight:700;margin-bottom:6px;">
+              Age</p>
+            <p id="profile-modal-age" style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">—
+            </p>
+          </div>
+          <div
+            style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+            <p
+              style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:6px;">
+              Gender</p>
+            <p id="profile-modal-gender"
+              style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;text-transform:capitalize;">—
+            </p>
+          </div>
+        </div>
+        <div
+          style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.05);">
+          <p
+            style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#d946ef;font-weight:700;margin-bottom:6px;">
+            Email</p>
+          <p id="profile-modal-email-full" style="font-size:13px;color:#cbd5e1;word-break:break-all;">—</p>
+        </div>
+      </div>
+
+      <!-- Past Reports -->
+      <div style="margin-bottom:20px;">
+        <p
+          style="font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6;font-weight:700;margin-bottom:10px;">
+          Past Assessments</p>
+        <div id="profile-modal-reports"
+          style="display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,0.3) transparent;">
+          <p style="color:#475569;font-size:11px;text-align:center;padding:12px;">No past assessments yet.</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeProfileModal();goTo('landing');" class="btn-glow-cyan"
+          style="flex:1;justify-content:center;padding:12px;font-size:13px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to Home
+        </button>
+        <button onclick="window.firebaseSignOut();closeProfileModal();"
+          style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(217,70,239,0.1);border:1px solid rgba(217,70,239,0.3);border-radius:9999px;padding:12px;color:#d946ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.3s;"
+          onmouseover="this.style.background='rgba(217,70,239,0.2)'"
+          onmouseout="this.style.background='rgba(217,70,239,0.1)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal"
+    style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);">
+    <div class="glass-card glow-border-purple fade-in"
+      style="width:100%;max-width:420px;border-radius:28px;padding:40px;position:relative;margin:24px;">
+      <button onclick="closeAuthModal()"
+        style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;transition:all 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'"
+        onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <div style="text-align:center;margin-bottom:32px;">
+        <div
+          style="width:52px;height:52px;background:linear-gradient(135deg,rgba(6,182,212,0.2),rgba(139,92,246,0.2));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;border:1px solid rgba(139,92,246,0.3);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
         </div>
-        <div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:white;">PsychSense</div>
-          <div style="font-size:10px;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;">AI Mental Health Report</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px;">Welcome to
+          PsychSense</h2>
+        <p style="color:#94a3b8;font-size:13px;">Sign in or create an account to continue</p>
+      </div>
+      <div
+        style="display:flex;background:rgba(0,0,0,0.3);border-radius:12px;padding:4px;margin-bottom:28px;border:1px solid rgba(255,255,255,0.05);">
+        <button id="tab-login" onclick="switchAuthTab('login')"
+          style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:rgba(139,92,246,0.2);color:#8b5cf6;box-shadow:0 2px 8px rgba(0,0,0,0.2);">Login</button>
+        <button id="tab-signup" onclick="switchAuthTab('signup')"
+          style="flex:1;padding:9px;border-radius:9px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;background:transparent;color:#64748b;">Sign
+          Up</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div id="auth-name-field" style="display:none;">
+          <label
+            style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#8b5cf6;font-weight:700;display:block;margin-bottom:8px;">Full
+            Name</label>
+          <input type="text" id="auth-name" placeholder="Enter your full name" />
         </div>
-      </div>
-      <!-- Center: Patient + meta -->
-      <div style="text-align:center;font-size:11px;color:#64748b;line-height:1.9;">
-        <div id="results-patient" style="color:#94a3b8;"></div>
-        <div id="results-report-meta" style="color:#475569;"></div>
-      </div>
-      <!-- Right: Action buttons -->
-      <div style="display:flex;align-items:center;gap:10px;">
-        <button onclick="window.downloadReport()" style="display:flex;align-items:center;gap:8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);color:#06b6d4;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;padding:9px 18px;border-radius:9999px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(6,182,212,0.2)'" onmouseout="this.style.background='rgba(6,182,212,0.1)'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download PDF
-        </button>
-        <button class="btn-glow-magenta" onclick="handleReset()" style="padding:9px 22px;font-size:11px;">New Assessment</button>
-      </div>
-    </div>
-
-    <!-- ── ALERT BANNER ── -->
-    <div id="results-alert-banner" style="border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid;"></div>
-
-    <!-- ── PATIENT INFO CARD ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Patient Information</span>
-      </div>
-      <div id="patient-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;"></div>
-    </div>
-
-    <!-- ── EXECUTIVE SUMMARY ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Executive Summary</span>
-      </div>
-      <p id="ring-desc" style="font-size:14px;color:#cbd5e1;line-height:1.8;margin-bottom:16px;"></p>
-      <div id="depression-type-badge" style="display:none;">
-        <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);padding:5px 14px;border-radius:8px;font-size:13px;font-weight:500;color:#fca5a5;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#ef4444;"></div>
-          <span id="depression-type-label">—</span> Risk
-        </span>
-      </div>
-    </div>
-
-    <!-- ── ASSESSMENT RESULTS ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Assessment Results</span>
-      </div>
-      <!-- Row 1: Severity | Risk Classification | Depression Type -->
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px;">
-        <!-- Tile 1: Depression Severity -->
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
-          <div id="ring-card-label" style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Probability</div>
-          <div id="results-confidence" style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:#06b6d4;">—</div>
-          <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:10px;overflow:hidden;">
-            <div id="severity-bar-fill" style="height:100%;border-radius:4px;background:linear-gradient(90deg,#FAC775,#E24B4A);width:0;transition:width 1.5s ease-out;"></div>
+        <div>
+          <label
+            style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Email
+            Address</label>
+          <input type="email" id="auth-email" placeholder="Enter your email" />
+        </div>
+        <div>
+          <label
+            style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Password</label>
+          <div style="position:relative;">
+            <input type="password" id="auth-password" placeholder="Enter your password" style="padding-right:48px;" />
+            <button onclick="togglePasswordVis()"
+              style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;padding:0;transition:color 0.2s;"
+              onmouseover="this.style.color='white'" onmouseout="this.style.color='#64748b'">
+              <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
           </div>
-          <div id="severity-range-label" style="font-size:11px;color:#475569;margin-top:6px;"></div>
         </div>
-        <!-- Tile 2: Risk Classification -->
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
-          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Risk Classification</div>
-          <div id="results-risk" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;">—</div>
-          <div id="results-risk-sub" style="font-size:11px;color:#475569;margin-top:6px;"></div>
-        </div>
-        <!-- Tile 3: Depression Type -->
-        <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
-          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Type Detected</div>
-          <div id="results-dep-type-name" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#c4b5fd;line-height:1.3;">—</div>
-          <div id="results-dep-type-desc" style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5;"></div>
+        <div id="auth-confirm-field" style="display:none;">
+          <label
+            style="font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:#06b6d4;font-weight:700;display:block;margin-bottom:8px;">Confirm
+            Password</label>
+          <input type="password" id="auth-confirm" placeholder="Confirm your password" />
         </div>
       </div>
-      <!-- Hidden compat element -->
-      <div id="results-confidence-raw" style="display:none;"></div>
-      <!-- Input contributions -->
-      <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:16px;"></div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:14px;">Input Contributions</div>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;"><span>Text Analysis</span><span id="contrib-text-val" style="color:#06b6d4;font-weight:700;">—</span></div>
-          <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-text" class="bar-fill" style="width:0;height:100%;background:linear-gradient(90deg,#06b6d4,#0891b2);border-radius:3px;"></div></div>
-        </div>
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;"><span>Audio Analysis</span><span id="contrib-audio-val" style="color:#d946ef;font-weight:700;">—</span></div>
-          <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-audio" class="bar-fill" style="width:0;height:100%;background:linear-gradient(90deg,#d946ef,#a21caf);border-radius:3px;"></div></div>
-        </div>
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;"><span>Video Analysis</span><span id="contrib-video-val" style="color:#8b5cf6;font-weight:700;">—</span></div>
-          <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-video" class="bar-fill" style="width:0;height:100%;background:linear-gradient(90deg,#8b5cf6,#6d28d9);border-radius:3px;"></div></div>
-        </div>
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;"><span>Questionnaire</span><span id="contrib-quest-val" style="color:#06b6d4;font-weight:700;">—</span></div>
-          <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;"><div id="contrib-quest" class="bar-fill" style="width:0;height:100%;background:linear-gradient(90deg,#06b6d4,#8b5cf6);border-radius:3px;"></div></div>
-        </div>
+      <div id="auth-error"
+        style="display:none;margin-top:14px;padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:12px;color:#f87171;">
       </div>
-    </div>
-
-    <!-- ── BEHAVIOURAL INSIGHTS (2-col grid) ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Behavioural &amp; Emotional Insights</span>
+      <button id="auth-submit-btn" onclick="handleAuthSubmit()" class="btn-glow-purple"
+        style="width:100%;justify-content:center;margin-top:24px;font-size:14px;">Login</button>
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+        <span style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">or
+          continue with</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
       </div>
-      <div id="insights-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;"></div>
-      <!-- Detected signals -->
-      <div style="margin-top:14px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:10px;">Detected Emotional Signals</div>
-        <div id="signals-container" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-      </div>
-    </div>
-
-    <!-- ── RISK ANALYSIS ── -->
-    <div id="risk-analysis-card" class="glass-card" style="display:none;border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#f59e0b;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Risk Analysis</span>
-      </div>
-      <p style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px;">The risk classification was assigned based on a convergence of strong signals across all modalities. No single factor alone determined this — it is the combination and intensity of the following contributing patterns:</p>
-      <div id="risk-factors-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
-
-    <!-- ── RECOMMENDATIONS (3-col) ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Personalised Recommendations</span>
-      </div>
-      <div id="recommendations-container" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;"></div>
-    </div>
-
-    <!-- ── NEXT STEPS ── -->
-    <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Next Steps</span>
-      </div>
-      <div id="next-steps-list" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
-
-    <!-- ── RECOMMENDED DOCTORS ── -->
-    <div id="doctors-card" class="glass-card" style="display:none;border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="width:3px;height:14px;border-radius:2px;background:#22c55e;"></div>
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Recommended Doctors in Hyderabad</span>
-      </div>
-      <p style="font-size:12px;color:#475569;line-height:1.6;margin-bottom:16px;">Based on your detected condition, the following specialists in Hyderabad are recommended. The same psychiatrist is usually qualified to treat multiple depressive disorders — proximity, availability, and personal comfort should also guide your choice.</p>
-      <div id="doctors-list" class="doctors-table-wrap"></div>
-    </div>
-
-    <!-- ── DISCLAIMER ── -->
-    <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 20px;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#475569;margin-bottom:6px;">Ethical Disclaimer &amp; Important Notice</div>
-      <p style="font-size:12px;color:#475569;line-height:1.7;">This report is generated by PsychSense, an AI-powered mental health screening tool. It is intended for <strong style="color:#64748b;">informational and supportive purposes only</strong> and does <strong style="color:#64748b;">not</strong> constitute a clinical diagnosis, medical advice, or a substitute for professional psychiatric evaluation. Always consult a licensed mental health professional. If you or someone you know is in immediate danger, contact emergency services without delay.</p>
-    </div>
-
-
-  </div>
-</div>
-
-<!-- ================================ PAGE: ERROR ================================ -->
-<div id="page-error" class="page" style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
-  <div class="glass-card fade-in" style="width:100%;max-width:480px;border-radius:28px;padding:48px;text-align:center;border:1px solid rgba(239,68,68,0.3);">
-    <div style="width:64px;height:64px;background:rgba(239,68,68,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    </div>
-    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-bottom:12px;color:#f87171;">Analysis Failed</h2>
-    <p id="error-message" style="color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:12px;">An unexpected error occurred.</p>
-    <p style="color:#475569;font-size:12px;line-height:1.6;margin-bottom:32px;">Make sure the Flask backend is running:<br/><code style="background:rgba(255,255,255,0.07);padding:4px 10px;border-radius:6px;font-size:11px;color:#06b6d4;">python app.py</code></p>
-    <div style="display:flex;gap:16px;justify-content:center;">
-      <button onclick="goTo('questioning')" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9999px;padding:12px 28px;color:#94a3b8;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-        Try Again
-      </button>
+      <button class="google-btn" onclick="handleGoogleLogin()" style="width:100%;justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path
+            d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+            fill="#4285F4" />
+          <path
+            d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+            fill="#34A853" />
+          <path
+            d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+            fill="#FBBC05" />
+          <path
+            d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+            fill="#EA4335" />
+        </svg>
+        Login / Sign Up with Google
       </button>
     </div>
   </div>
-</div>
 
-<!-- ================================ TOAST NOTIFICATION ================================ -->
-<div id="ps-toast" style="
+  <!-- ================================ PAGE: RESULTS ================================ -->
+  <div id="page-results" class="page scrollable"
+    style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 24px;">
+    <div class="fade-in" id="results-card"
+      style="width:100%;max-width:900px;margin:20px 0;display:flex;flex-direction:column;gap:12px;">
+
+      <!-- ── REPORT HEADER ── -->
+      <div class="glass-card"
+        style="border-radius:20px;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.08);">
+        <!-- Left: Logo + meta -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div
+            style="width:40px;height:40px;border-radius:10px;background:#185FA5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+              <path
+                d="M10 3C7.5 3 5.5 4.8 5.5 7c0 1.4.8 2.7 2 3.4v1.1l-1.2 1.2a.5.5 0 000 .7l1.2 1.2v1.4c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-1.4l1.2-1.2a.5.5 0 000-.7L12.5 11.4V10.4c1.2-.7 2-2 2-3.4C14.5 4.8 12.5 3 10 3z"
+                fill="white" opacity="0.9" />
+            </svg>
+          </div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:white;">PsychSense
+            </div>
+            <div style="font-size:10px;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;">AI Mental Health
+              Report</div>
+          </div>
+        </div>
+        <!-- Center: Patient + meta -->
+        <div style="text-align:center;font-size:11px;color:#64748b;line-height:1.9;">
+          <div id="results-patient" style="color:#94a3b8;"></div>
+          <div id="results-report-meta" style="color:#475569;"></div>
+        </div>
+        <!-- Right: Action buttons -->
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onclick="window.downloadReport()"
+            style="display:flex;align-items:center;gap:8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);color:#06b6d4;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;padding:9px 18px;border-radius:9999px;cursor:pointer;transition:all 0.2s;"
+            onmouseover="this.style.background='rgba(6,182,212,0.2)'"
+            onmouseout="this.style.background='rgba(6,182,212,0.1)'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download PDF
+          </button>
+          <button class="btn-glow-magenta" onclick="handleReset()" style="padding:9px 22px;font-size:11px;">New
+            Assessment</button>
+        </div>
+      </div>
+
+      <!-- ── ALERT BANNER ── -->
+      <div id="results-alert-banner"
+        style="border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid;">
+      </div>
+
+      <!-- ── PATIENT INFO CARD ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Patient
+            Information</span>
+        </div>
+        <div id="patient-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;"></div>
+      </div>
+
+      <!-- ── EXECUTIVE SUMMARY ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Executive
+            Summary</span>
+        </div>
+        <p id="ring-desc" style="font-size:14px;color:#cbd5e1;line-height:1.8;margin-bottom:16px;"></p>
+        <div id="depression-type-badge" style="display:none;">
+          <span
+            style="display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);padding:5px 14px;border-radius:8px;font-size:13px;font-weight:500;color:#fca5a5;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#ef4444;"></div>
+            <span id="depression-type-label">—</span> Risk
+          </span>
+        </div>
+      </div>
+
+      <!-- ── ASSESSMENT RESULTS ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Assessment
+            Results</span>
+        </div>
+        <!-- Row 1: Severity | Risk Classification | Depression Type -->
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px;">
+          <!-- Tile 1: Depression Severity -->
+          <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
+            <div id="ring-card-label"
+              style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">
+              Probability</div>
+            <div id="results-confidence"
+              style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:#06b6d4;">—</div>
+            <div
+              style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-top:10px;overflow:hidden;">
+              <div id="severity-bar-fill"
+                style="height:100%;border-radius:4px;background:linear-gradient(90deg,#FAC775,#E24B4A);width:0;transition:width 1.5s ease-out;">
+              </div>
+            </div>
+            <div id="severity-range-label" style="font-size:11px;color:#475569;margin-top:6px;"></div>
+          </div>
+          <!-- Tile 2: Risk Classification -->
+          <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">
+              Risk Classification</div>
+            <div id="results-risk" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;">—
+            </div>
+            <div id="results-risk-sub" style="font-size:11px;color:#475569;margin-top:6px;"></div>
+          </div>
+          <!-- Tile 3: Depression Type -->
+          <div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:16px 18px;">
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">
+              Type Detected</div>
+            <div id="results-dep-type-name"
+              style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#c4b5fd;line-height:1.3;">
+              —</div>
+            <div id="results-dep-type-desc" style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5;"></div>
+          </div>
+        </div>
+        <!-- Hidden compat element -->
+        <div id="results-confidence-raw" style="display:none;"></div>
+        <!-- Input contributions -->
+        <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:16px;"></div>
+        <div
+          style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:14px;">
+          Input Contributions</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;">
+              <span>Text Analysis</span><span id="contrib-text-val" style="color:#06b6d4;font-weight:700;">—</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;">
+              <div id="contrib-text" class="bar-fill"
+                style="width:0;height:100%;background:linear-gradient(90deg,#06b6d4,#0891b2);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;">
+              <span>Audio Analysis</span><span id="contrib-audio-val" style="color:#d946ef;font-weight:700;">—</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;">
+              <div id="contrib-audio" class="bar-fill"
+                style="width:0;height:100%;background:linear-gradient(90deg,#d946ef,#a21caf);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;">
+              <span>Video Analysis</span><span id="contrib-video-val" style="color:#8b5cf6;font-weight:700;">—</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;">
+              <div id="contrib-video" class="bar-fill"
+                style="width:0;height:100%;background:linear-gradient(90deg,#8b5cf6,#6d28d9);border-radius:3px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:5px;">
+              <span>Questionnaire</span><span id="contrib-quest-val" style="color:#06b6d4;font-weight:700;">—</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;">
+              <div id="contrib-quest" class="bar-fill"
+                style="width:0;height:100%;background:linear-gradient(90deg,#06b6d4,#8b5cf6);border-radius:3px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BEHAVIOURAL INSIGHTS (2-col grid) ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Behavioural
+            &amp; Emotional Insights</span>
+        </div>
+        <div id="insights-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;"></div>
+        <!-- Detected signals -->
+        <div style="margin-top:14px;">
+          <div
+            style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:10px;">
+            Detected Emotional Signals</div>
+          <div id="signals-container" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- ── RISK ANALYSIS ── -->
+      <div id="risk-analysis-card" class="glass-card"
+        style="display:none;border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#f59e0b;"></div>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Risk
+            Analysis</span>
+        </div>
+        <p style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px;">The risk classification was assigned
+          based on a convergence of strong signals across all modalities. No single factor alone determined this — it is
+          the combination and intensity of the following contributing patterns:</p>
+        <div id="risk-factors-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <!-- ── RECOMMENDATIONS (3-col) ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Personalised
+            Recommendations</span>
+        </div>
+        <div id="recommendations-container"
+          style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;"></div>
+      </div>
+
+      <!-- ── NEXT STEPS ── -->
+      <div class="glass-card" style="border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#06b6d4;"></div>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Next
+            Steps</span>
+        </div>
+        <div id="next-steps-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
+      <!-- ── RECOMMENDED DOCTORS ── -->
+      <div id="doctors-card" class="glass-card"
+        style="display:none;border-radius:20px;padding:20px 24px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="width:3px;height:14px;border-radius:2px;background:#22c55e;"></div>
+          <span id="doctors-city-label"
+            style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">Recommended
+            Doctors in Hyderabad</span>
+        </div>
+        <p id="doctors-city-subtitle" style="font-size:12px;color:#475569;line-height:1.6;margin-bottom:16px;">Based on
+          your detected condition, the following specialists in Hyderabad are recommended. The same psychiatrist is
+          usually qualified to treat multiple depressive disorders — proximity, availability, and personal comfort
+          should also guide your choice.</p>
+        <div id="doctors-list" class="doctors-table-wrap"></div>
+      </div>
+
+      <!-- ── DISCLAIMER ── -->
+      <div
+        style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 20px;">
+        <div
+          style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#475569;margin-bottom:6px;">
+          Ethical Disclaimer &amp; Important Notice</div>
+        <p style="font-size:12px;color:#475569;line-height:1.7;">This report is generated by PsychSense, an AI-powered
+          mental health screening tool. It is intended for <strong style="color:#64748b;">informational and supportive
+            purposes only</strong> and does <strong style="color:#64748b;">not</strong> constitute a clinical diagnosis,
+          medical advice, or a substitute for professional psychiatric evaluation. Always consult a licensed mental
+          health professional. If you or someone you know is in immediate danger, contact emergency services without
+          delay.</p>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- ================================ PAGE: ERROR ================================ -->
+  <div id="page-error" class="page"
+    style="position:relative;z-index:10;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+    <div class="glass-card fade-in"
+      style="width:100%;max-width:480px;border-radius:28px;padding:48px;text-align:center;border:1px solid rgba(239,68,68,0.3);">
+      <div
+        style="width:64px;height:64px;background:rgba(239,68,68,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <h2
+        style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-bottom:12px;color:#f87171;">
+        Analysis Failed</h2>
+      <p id="error-message" style="color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:12px;">An unexpected error
+        occurred.</p>
+      <p style="color:#475569;font-size:12px;line-height:1.6;margin-bottom:32px;">Make sure the Flask backend is
+        running:<br /><code
+          style="background:rgba(255,255,255,0.07);padding:4px 10px;border-radius:6px;font-size:11px;color:#06b6d4;">python app.py</code>
+      </p>
+      <div style="display:flex;gap:16px;justify-content:center;">
+        <button onclick="goTo('questioning')"
+          style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9999px;padding:12px 28px;color:#94a3b8;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;"
+          onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+          Try Again
+        </button>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================ TOAST NOTIFICATION ================================ -->
+  <div id="ps-toast" style="
   position:fixed; bottom:120px; left:50%; transform:translateX(-50%) translateY(20px);
   z-index:9999; opacity:0; pointer-events:none;
   display:flex; align-items:center; gap:12px;
@@ -372,83 +559,91 @@
   transition: opacity 0.3s ease, transform 0.3s ease;
   white-space:nowrap;
 ">
-  <svg id="ps-toast-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-  <span id="ps-toast-msg">Please sign in first.</span>
-  <button onclick="window.openAuthModal()" style="
+    <svg id="ps-toast-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+    <span id="ps-toast-msg">Please sign in first.</span>
+    <button onclick="window.openAuthModal()" style="
     margin-left:8px; background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.4);
     border-radius:8px; padding:5px 14px; color:#06b6d4; font-family:'Space Grotesk',sans-serif;
     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; cursor:pointer;
     transition:background 0.2s;
-  " onmouseover="this.style.background='rgba(6,182,212,0.3)'" onmouseout="this.style.background='rgba(6,182,212,0.15)'">
-    Sign In
-  </button>
-</div>
+  " onmouseover="this.style.background='rgba(6,182,212,0.3)'"
+      onmouseout="this.style.background='rgba(6,182,212,0.15)'">
+      Sign In
+    </button>
+  </div>
 
-<!-- ================================ RESULTS HISTORY MODAL ================================ -->
-<div id="results-history-modal" style="
+  <!-- ================================ RESULTS HISTORY MODAL ================================ -->
+  <div id="results-history-modal" style="
   display:none; position:fixed; inset:0; z-index:300;
   align-items:center; justify-content:center;
   background:rgba(2,6,23,0.85); backdrop-filter:blur(12px);
 ">
-  <div class="glass-card glow-border fade-in" style="
+    <div class="glass-card glow-border fade-in" style="
     width:100%; max-width:680px; border-radius:28px; padding:0;
     position:relative; margin:24px; overflow:hidden;
     max-height:88vh; display:flex; flex-direction:column;
   ">
-    <!-- Header -->
-    <div style="padding:28px 32px 20px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h2 style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; margin-bottom:4px;">
-            Assessment History
-          </h2>
-          <p style="color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; font-weight:600;">
-            Your past mental health reports
-          </p>
-        </div>
-        <button onclick="window.closeResultsHistory()" style="
+      <!-- Header -->
+      <div style="padding:28px 32px 20px; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2 style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; margin-bottom:4px;">
+              Assessment History
+            </h2>
+            <p style="color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; font-weight:600;">
+              Your past mental health reports
+            </p>
+          </div>
+          <button onclick="window.closeResultsHistory()" style="
           background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
           border-radius:50%; width:36px; height:36px; display:flex; align-items:center;
           justify-content:center; cursor:pointer; color:#94a3b8; transition:all 0.2s; flex-shrink:0;
         " onmouseover="this.style.background='rgba(255,255,255,0.12)';this.style.color='white'"
-           onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div id="results-history-body" style="
+      padding:24px 32px 28px; overflow-y:auto; flex:1;
+      scrollbar-width:thin; scrollbar-color:rgba(6,182,212,0.3) transparent;
+    ">
+        <div id="results-history-list" style="display:flex; flex-direction:column; gap:14px;">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div
+        style="padding:16px 32px; border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:#475569; font-weight:600;">
+          ⚠️ For early screening only — not a clinical diagnosis
+        </span>
+        <button onclick="window.startAnalysisGated(); window.closeResultsHistory();" class="btn-glow-cyan"
+          style="padding:10px 22px; font-size:12px;">
+          New Assessment
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>
       </div>
     </div>
-
-    <!-- Content -->
-    <div id="results-history-body" style="
-      padding:24px 32px 28px; overflow-y:auto; flex:1;
-      scrollbar-width:thin; scrollbar-color:rgba(6,182,212,0.3) transparent;
-    ">
-      <div id="results-history-list" style="display:flex; flex-direction:column; gap:14px;">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:16px 32px; border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; display:flex; justify-content:space-between; align-items:center;">
-      <span style="font-size:11px; color:#475569; font-weight:600;">
-        ⚠️ For early screening only — not a clinical diagnosis
-      </span>
-      <button onclick="window.startAnalysisGated(); window.closeResultsHistory();" class="btn-glow-cyan" style="padding:10px 22px; font-size:12px;">
-        New Assessment
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </button>
-    </div>
   </div>
-</div>
 
-<script type="module" src="js/firebase-config.js"></script>
-<script src="js/app.js"></script>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script src="js/app.js"></script>
 
-<script src="js/navbar.js"></script>
+  <script src="js/navbar.js"></script>
 
 </body>
+
 </html>
