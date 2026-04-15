@@ -141,7 +141,7 @@ let questionnaireAnswers = { elevatedMood: false, reducedSleep: false, impulsivi
 //https://sense123-psychsense.hf.space.
 // Before deploying to production, change this to your hosted backend URL, e.g.:
 //   const FLASK_API_URL = 'https://your-backend.railway.app';
-const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+const FLASK_API_URL = 'http://127.0.0.1:7860';
 // ────────────────────────────────────────────────────────────────────────────
 
 window.goTo = function (page) {
@@ -490,340 +490,52 @@ const DEPRESSION_QUESTIONS = [
   }
 ];
 
-// ---- Location-Aware Doctors Data (keyed by city → depression type) ----
-const ALL_CITIES_DOCTORS = {
-  'Hyderabad': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. P. Chytanya Deepak', specialization: 'Bipolar & OCD Clinic, Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
-      { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
-      { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry – Chronic Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. P. Raghurami Reddy', specialization: 'General Psychiatry – Inpatient & Outpatient', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
-      { name: 'Dr. K. Srinivas & team', specialization: 'Psychiatry & Neuromodulation (rTMS)', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
-      { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. P. Chytanya Deepak', specialization: 'Mood Disorders & Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. K. Srinivas & team', specialization: 'rTMS, Neurofeedback & Psychiatric Care', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
-      { name: 'American Center for Neuropsychiatry', specialization: 'Psychiatric Hospital & Mental Health', workplace: 'Banjara Hills, Hyderabad' },
-      { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
-      { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (Hospital-based)', workplace: 'Aster Prime Hospital, Ameerpet' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'Dr. K. Chandrasekhar', specialization: 'Senior Consultant Psychiatrist', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry – Recurrent Depression', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. K. Srinivas & team', specialization: 'Neuromodulation, Biofeedback & Psychotherapy', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
-      { name: 'Dr. Boppana Sridhar', specialization: 'Outpatient Psychiatrist – Mood Monitoring', workplace: 'Likeminds Clinic, Banjara Hills' },
-      { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist – Seasonal Patterns', workplace: 'DKR Mind Clinic, Barkatpura' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Asha Hospital – Women\'s Wellness Team', specialization: 'Women\'s Mental Health & Psychiatry', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
-      { name: 'Rainbow Children\'s Hospital & BirthRight', specialization: 'Obstetrics, Gynaecology & Maternity', workplace: 'Banjara Hills, Hyderabad' },
-      { name: 'BirthRight Maternity Hospital (Rainbow)', specialization: 'Obstetrics & Maternity Services', workplace: 'Himayatnagar, Hyderabad' },
-      { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Postpartum Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
-      { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
-      { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
-      { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
-      { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
-    ],
-  },
-  'Bengaluru': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. Shyam Bhat', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'Dr. Suresh Bada Math', specialization: 'Professor of Psychiatry (NIMHANS)', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Preeti Jacob', specialization: 'Child & Adult Psychiatrist', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Nitin Anand', specialization: 'Consultant Psychiatrist', workplace: 'Manipal Hospital, HAL Airport Road' },
-      { name: 'Dr. Prashant Bhimani', specialization: 'Psychiatrist & Psychotherapist', workplace: 'Fortis Hospital, Bannerghatta Road' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'Dr. Suresh Bada Math', specialization: 'Chronic Mood & Addiction Psychiatry', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Vivek Benegal', specialization: 'Centre for Addiction Medicine, NIMHANS', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Shyam Bhat', specialization: 'Integrative Psychiatry & Psychotherapy', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'Dr. Naveen Kumar C.', specialization: 'Consultant Psychiatrist – Outpatient', workplace: 'Apollo Hospital, Jayanagar' },
-      { name: 'Vandrevala Foundation Clinic', specialization: 'Mental Health & Counselling', workplace: 'Indiranagar, Bengaluru' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. Shyam Bhat', specialization: 'Integrative & Mood Disorder Psychiatry', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'NIMHANS OPD Team', specialization: 'Outpatient Psychiatry & Neuromodulation', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Naveen Kumar C.', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Hospital, Jayanagar' },
-      { name: 'Dr. Nitin Anand', specialization: 'Adult Psychiatry – Atypical Presentations', workplace: 'Manipal Hospital, HAL Airport Road' },
-      { name: 'Dr. Prashant Bhimani', specialization: 'Psychiatrist & Psychotherapist', workplace: 'Fortis Hospital, Bannerghatta Road' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'NIMHANS OPD Team', specialization: 'Mood Disorders & Seasonal Psychiatry', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Shyam Bhat', specialization: 'Integrative Psychiatry', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'Dr. Nitin Anand', specialization: 'Consultant Psychiatrist', workplace: 'Manipal Hospital, HAL Airport Road' },
-      { name: 'Dr. Naveen Kumar C.', specialization: 'Psychiatrist – Recurrent Mood Disorders', workplace: 'Apollo Hospital, Jayanagar' },
-      { name: 'Vandrevala Foundation Clinic', specialization: 'Mental Health & Counselling', workplace: 'Indiranagar, Bengaluru' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Dr. Preeti Jacob', specialization: 'Women\'s & Child Psychiatry', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Fortis La Femme', specialization: 'Women\'s Mental Health & Maternity', workplace: 'Richmond Road, Bengaluru' },
-      { name: 'Cloudnine Hospital', specialization: 'Obstetrics & Perinatal Psychiatry', workplace: 'Jayanagar & Whitefield' },
-      { name: 'Dr. Shyam Bhat', specialization: 'Perinatal Mental Health', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'Sakra World Hospital', specialization: 'Mental Health & Maternal Wellness', workplace: 'Devarabeesanahalli, Bengaluru' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. Shyam Bhat', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Integrated Centre for Wellbeing, Koramangala' },
-      { name: 'NIMHANS OPD', specialization: 'Psychiatry – Inpatient & Outpatient', workplace: 'NIMHANS, Hosur Road' },
-      { name: 'Dr. Nitin Anand', specialization: 'Consultant Psychiatrist', workplace: 'Manipal Hospital, HAL Airport Road' },
-      { name: 'Dr. Naveen Kumar C.', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Hospital, Jayanagar' },
-      { name: 'Dr. Prashant Bhimani', specialization: 'Psychiatrist & Psychotherapist', workplace: 'Fortis Hospital, Bannerghatta Road' },
-    ],
-  },
-  'Chennai': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. V. Ravishankar', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Apollo Hospital, Greams Road' },
-      { name: 'Dr. Arun Sekar', specialization: 'Psychiatrist – Adult & Geriatric Depression', workplace: 'SIMS Hospital, Vadapalani' },
-      { name: 'Dr. Balaji', specialization: 'Consultant Psychiatrist', workplace: 'Fortis Malar Hospital, Adyar' },
-      { name: 'SCARF India', specialization: 'Schizophrenia Research Foundation – OPD', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Dr. Suja S. Kurian', specialization: 'Psychiatrist & CBT Therapist', workplace: 'MGM Healthcare, Nelson Manickam Road' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'SCARF India', specialization: 'Outpatient Chronic Mood Disorders', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Dr. V. Ravishankar', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Hospital, Greams Road' },
-      { name: 'Dr. Arun Sekar', specialization: 'Psychiatrist – Long-Term Mood Management', workplace: 'SIMS Hospital, Vadapalani' },
-      { name: 'Dr. Suja S. Kurian', specialization: 'CBT & Long-Term Therapy', workplace: 'MGM Healthcare, Nelson Manickam Road' },
-      { name: 'SNEHI Wellness Centre', specialization: 'Counselling & Psychiatric Support', workplace: 'Anna Nagar, Chennai' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. V. Ravishankar', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Hospital, Greams Road' },
-      { name: 'SCARF India', specialization: 'Psychiatric OPD – Atypical Presentations', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Dr. Balaji', specialization: 'Consultant Psychiatrist', workplace: 'Fortis Malar Hospital, Adyar' },
-      { name: 'Dr. Arun Sekar', specialization: 'Psychiatrist – Mood & Anxiety', workplace: 'SIMS Hospital, Vadapalani' },
-      { name: 'Dr. Suja S. Kurian', specialization: 'Psychiatrist & Psychotherapist', workplace: 'MGM Healthcare, Nelson Manickam Road' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'Dr. V. Ravishankar', specialization: 'Senior Consultant Psychiatrist', workplace: 'Apollo Hospital, Greams Road' },
-      { name: 'SCARF India', specialization: 'Mood Disorder OPD', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Dr. Balaji', specialization: 'Consultant Psychiatrist', workplace: 'Fortis Malar Hospital, Adyar' },
-      { name: 'Dr. Arun Sekar', specialization: 'Psychiatrist – Seasonal & Recurrent Mood', workplace: 'SIMS Hospital, Vadapalani' },
-      { name: 'SNEHI Wellness Centre', specialization: 'Mental Health & Counselling', workplace: 'Anna Nagar, Chennai' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Dr. Suja S. Kurian', specialization: 'Women\'s Psychiatry & Perinatal Mental Health', workplace: 'MGM Healthcare, Nelson Manickam Road' },
-      { name: 'Vijaya Hospital', specialization: 'Women\'s Wellness & Maternity Psychiatry', workplace: 'N.S.K. Salai, Vadapalani' },
-      { name: 'Apollo Women\'s Hospital', specialization: 'Women\'s Health & Postpartum Support', workplace: 'Greams Road, Chennai' },
-      { name: 'SCARF India', specialization: 'Perinatal Psychiatry OPD', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Fortis Malar Hospital', specialization: 'Obstetrics & Mental Health', workplace: 'Adyar, Chennai' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. V. Ravishankar', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Hospital, Greams Road' },
-      { name: 'SCARF India', specialization: 'Schizophrenia Research Foundation – OPD', workplace: 'R.K. Nagar, Chennai' },
-      { name: 'Dr. Arun Sekar', specialization: 'Psychiatrist – Adult Depression & Anxiety', workplace: 'SIMS Hospital, Vadapalani' },
-      { name: 'Dr. Balaji', specialization: 'Consultant Psychiatrist', workplace: 'Fortis Malar Hospital, Adyar' },
-      { name: 'Dr. Suja S. Kurian', specialization: 'Psychiatrist & CBT Therapist', workplace: 'MGM Healthcare, Nelson Manickam Road' },
-    ],
-  },
-  'Mumbai': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. Harish Shetty', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Dr. Sagar Mundada', specialization: 'Psychiatrist & Mental Health Advocate', workplace: 'Zynova Shalby Hospital, Malad' },
-      { name: 'Dr. Kersi Chavda', specialization: 'Senior Consultant Psychiatrist', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'iCall – TISS', specialization: 'Psychosocial Helpline & Therapy', workplace: 'Tata Institute of Social Sciences, Deonar' },
-      { name: 'Dr. Milan Balakrishnan', specialization: 'Consultant Psychiatrist', workplace: 'Lilavati Hospital, Bandra' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'Dr. Harish Shetty', specialization: 'Chronic Mood Disorders & Rehabilitation', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Dr. Kersi Chavda', specialization: 'Senior Consultant Psychiatrist', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'iCall – TISS', specialization: 'Long-Term Counselling & Psychotherapy', workplace: 'Tata Institute of Social Sciences, Deonar' },
-      { name: 'Dr. Sagar Mundada', specialization: 'Psychiatrist & Wellbeing Consultant', workplace: 'Zynova Shalby Hospital, Malad' },
-      { name: 'Vandrevala Foundation', specialization: '24/7 Mental Health Helpline & OPD', workplace: 'Andheri West, Mumbai' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. Kersi Chavda', specialization: 'Consultant Psychiatrist – Atypical Presentations', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'Dr. Harish Shetty', specialization: 'Psychiatrist & Psychotherapist', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Dr. Milan Balakrishnan', specialization: 'Consultant Psychiatrist', workplace: 'Lilavati Hospital, Bandra' },
-      { name: 'Dr. Sagar Mundada', specialization: 'Psychiatrist – Mood & Behaviour', workplace: 'Zynova Shalby Hospital, Malad' },
-      { name: 'iCall – TISS', specialization: 'Psychotherapy & CBT', workplace: 'Tata Institute of Social Sciences, Deonar' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'Dr. Harish Shetty', specialization: 'Senior Consultant Psychiatrist', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Dr. Kersi Chavda', specialization: 'Consultant Psychiatrist', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'Dr. Milan Balakrishnan', specialization: 'Psychiatrist – Recurrent Mood Disorders', workplace: 'Lilavati Hospital, Bandra' },
-      { name: 'Dr. Sagar Mundada', specialization: 'Psychiatrist & Mental Health Advocate', workplace: 'Zynova Shalby Hospital, Malad' },
-      { name: 'iCall – TISS', specialization: 'Psychosocial Support & Counselling', workplace: 'Tata Institute of Social Sciences, Deonar' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Lilavati Hospital – Women\'s Wellness', specialization: 'Women\'s Health & Perinatal Psychiatry', workplace: 'Lilavati Hospital, Bandra' },
-      { name: 'Dr. Harish Shetty', specialization: 'Perinatal Mental Health', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Hinduja Hospital – Psychiatry', specialization: 'Women\'s Mental Health', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'Cloudnine Hospital', specialization: 'Maternity & Postpartum Wellness', workplace: 'Malad West, Mumbai' },
-      { name: 'iCall – TISS', specialization: 'Women\'s Counselling & Psychotherapy', workplace: 'Tata Institute of Social Sciences, Deonar' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. Harish Shetty', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Dr. L.H. Hiranandani Hospital, Powai' },
-      { name: 'Dr. Kersi Chavda', specialization: 'Senior Consultant Psychiatrist', workplace: 'P.D. Hinduja Hospital, Mahim' },
-      { name: 'Dr. Milan Balakrishnan', specialization: 'Consultant Psychiatrist', workplace: 'Lilavati Hospital, Bandra' },
-      { name: 'Dr. Sagar Mundada', specialization: 'Psychiatrist & Mental Health Advocate', workplace: 'Zynova Shalby Hospital, Malad' },
-      { name: 'iCall – TISS', specialization: 'Psychosocial Helpline & Therapy', workplace: 'Tata Institute of Social Sciences, Deonar' },
-    ],
-  },
-  'Delhi': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. Samir Parikh', specialization: 'Director – Mental Health & Behavioural Sciences', workplace: 'Fortis Healthcare, Vasant Kunj' },
-      { name: 'Dr. Achal Bhagat', specialization: 'Senior Consultant Psychiatrist', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'Dr. Nimesh Desai', specialization: 'Director, IHBAS – Professor of Psychiatry', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Rajiv Mehta', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Max Super Speciality Hospital, Saket' },
-      { name: 'Dr. Praveen Tripathi', specialization: 'Psychiatrist & TMS Specialist', workplace: 'Brainstation, Safdarjung Enclave' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'Dr. Achal Bhagat', specialization: 'Psychiatrist & Psychoanalyst', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'IHBAS Team', specialization: 'Institute of Human Behaviour & Allied Sciences', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Samir Parikh', specialization: 'Mental Health & Behavioural Sciences', workplace: 'Fortis Healthcare, Vasant Kunj' },
-      { name: 'Dr. Praveen Tripathi', specialization: 'Psychiatrist & Neuromodulation', workplace: 'Brainstation, Safdarjung Enclave' },
-      { name: 'Dr. Rajiv Mehta', specialization: 'Consultant Psychiatrist – Outpatient', workplace: 'Max Super Speciality Hospital, Saket' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. Praveen Tripathi', specialization: 'TMS & Atypical Mood Disorder Specialist', workplace: 'Brainstation, Safdarjung Enclave' },
-      { name: 'Dr. Samir Parikh', specialization: 'Behavioural Sciences & Psychiatry', workplace: 'Fortis Healthcare, Vasant Kunj' },
-      { name: 'Dr. Achal Bhagat', specialization: 'Psychiatrist & Psychoanalyst', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'IHBAS Team', specialization: 'Outpatient Psychiatric Services', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Rajiv Mehta', specialization: 'Consultant Psychiatrist', workplace: 'Max Super Speciality Hospital, Saket' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'Dr. Samir Parikh', specialization: 'Director – Mental Health', workplace: 'Fortis Healthcare, Vasant Kunj' },
-      { name: 'Dr. Praveen Tripathi', specialization: 'Neuromodulation & Mood Disorders', workplace: 'Brainstation, Safdarjung Enclave' },
-      { name: 'Dr. Achal Bhagat', specialization: 'Psychiatrist – Seasonal Patterns', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'Dr. Nimesh Desai', specialization: 'Professor of Psychiatry – IHBAS', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Rajiv Mehta', specialization: 'Consultant Psychiatrist', workplace: 'Max Super Speciality Hospital, Saket' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Dr. Achal Bhagat', specialization: 'Women\'s Mental Health & Psychiatry', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'Fortis La Femme', specialization: 'Women\'s Health & Perinatal Psychiatry', workplace: 'Greater Kailash, New Delhi' },
-      { name: 'Max Hospital – Women\'s Wellness', specialization: 'Maternity & Mental Health', workplace: 'Max Super Speciality, Saket' },
-      { name: 'IHBAS Women\'s OPD', specialization: 'Women\'s Psychiatry Services', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Samir Parikh', specialization: 'Perinatal Mental Health', workplace: 'Fortis Healthcare, Vasant Kunj' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. Samir Parikh', specialization: 'Director – Mental Health & Behavioural Sciences', workplace: 'Fortis Healthcare, Vasant Kunj' },
-      { name: 'Dr. Achal Bhagat', specialization: 'Senior Consultant Psychiatrist', workplace: 'Indraprastha Apollo Hospital, Sarita Vihar' },
-      { name: 'Dr. Nimesh Desai', specialization: 'Director, IHBAS – Professor of Psychiatry', workplace: 'IHBAS, Shahdara' },
-      { name: 'Dr. Praveen Tripathi', specialization: 'Psychiatrist & TMS Specialist', workplace: 'Brainstation, Safdarjung Enclave' },
-      { name: 'Dr. Rajiv Mehta', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Max Super Speciality Hospital, Saket' },
-    ],
-  },
-  'Kolkata': {
-    'Major Depressive Disorder (MDD)': [
-      { name: 'Dr. Jay Prakash', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Apollo Gleneagles Hospital, Canal Circular Road' },
-      { name: 'Dr. Debashish Basu', specialization: 'Senior Consultant Psychiatrist', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Dr. Rajarshi Guha Thakurta', specialization: 'Consultant Psychiatrist & Researcher', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sujit Sarkhel', specialization: 'Associate Professor of Psychiatry', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Consultant Psychiatrist', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-    'Persistent Depressive Disorder (Dysthymia)': [
-      { name: 'Institute of Psychiatry', specialization: 'Outpatient Psychiatry & Long-term Care', workplace: 'Bhawanipore, Kolkata' },
-      { name: 'Dr. Debashish Basu', specialization: 'Consultant Psychiatrist – Chronic Mood', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Dr. Jay Prakash', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Gleneagles Hospital, Canal Circular Road' },
-      { name: 'Dr. Sujit Sarkhel', specialization: 'Psychiatry OPD', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Consultant Psychiatrist', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-    'Atypical Depression': [
-      { name: 'Dr. Rajarshi Guha Thakurta', specialization: 'Consultant Psychiatrist & Researcher', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Jay Prakash', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Gleneagles Hospital, Canal Circular Road' },
-      { name: 'Dr. Debashish Basu', specialization: 'Senior Consultant Psychiatrist', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Dr. Sujit Sarkhel', specialization: 'Psychiatry – Atypical Presentations', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Consultant Psychiatrist', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-    'Seasonal Affective Disorder (SAD)': [
-      { name: 'Dr. Jay Prakash', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Gleneagles Hospital, Canal Circular Road' },
-      { name: 'Institute of Psychiatry', specialization: 'Mood Disorders OPD', workplace: 'Bhawanipore, Kolkata' },
-      { name: 'Dr. Debashish Basu', specialization: 'Consultant Psychiatrist', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Dr. Rajarshi Guha Thakurta', specialization: 'Psychiatry & Neuromodulation', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Psychiatrist – Recurrent Mood Disorders', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-    'Postpartum Depression': [
-      { name: 'Dr. Debashish Basu', specialization: 'Women\'s Mental Health & Psychiatry', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Institute of Psychiatry – Women\'s OPD', specialization: 'Perinatal Psychiatry', workplace: 'Bhawanipore, Kolkata' },
-      { name: 'Belle Vue Clinic', specialization: 'Women\'s Wellness & Mental Health', workplace: 'Loudon Street, Kolkata' },
-      { name: 'Apollo Gleneagles Women\'s Wing', specialization: 'Obstetrics & Perinatal Mental Health', workplace: 'Canal Circular Road, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Consultant Psychiatrist', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-    'Depressive Episode': [
-      { name: 'Dr. Jay Prakash', specialization: 'Consultant Psychiatrist', workplace: 'Apollo Gleneagles Hospital, Canal Circular Road' },
-      { name: 'Dr. Debashish Basu', specialization: 'Senior Consultant Psychiatrist', workplace: 'AMRI Hospital, Dhakuria' },
-      { name: 'Dr. Rajarshi Guha Thakurta', specialization: 'Consultant Psychiatrist & Researcher', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sujit Sarkhel', specialization: 'Associate Professor of Psychiatry', workplace: 'Institute of Psychiatry, Kolkata' },
-      { name: 'Dr. Sayantanava Mitra', specialization: 'Consultant Psychiatrist', workplace: 'Peerless Hospital, Kolkata' },
-    ],
-  },
-};
-
-// City name aliases — maps Nominatim variants → our city keys
-const CITY_ALIASES = {
-  'hyderabad': 'Hyderabad', 'secunderabad': 'Hyderabad', 'cyberabad': 'Hyderabad',
-  'bengaluru': 'Bengaluru', 'bangalore': 'Bengaluru',
-  'chennai': 'Chennai', 'madras': 'Chennai',
-  'mumbai': 'Mumbai', 'bombay': 'Mumbai', 'navi mumbai': 'Mumbai', 'thane': 'Mumbai',
-  'delhi': 'Delhi', 'new delhi': 'Delhi', 'gurugram': 'Delhi', 'gurgaon': 'Delhi', 'noida': 'Delhi', 'faridabad': 'Delhi',
-  'kolkata': 'Kolkata', 'calcutta': 'Kolkata', 'howrah': 'Kolkata',
-};
-
-// Resolve a raw city name → matched city key or null
-function resolveCity(rawCity) {
-  if (!rawCity) return null;
-  const lower = rawCity.toLowerCase().trim();
-  return CITY_ALIASES[lower] || null;
-}
-
-// Detected city (populated by geolocation, default Hyderabad)
-let _detectedCity = 'Hyderabad';
-
-// Returns doctors list for current city + depression type
-function getDoctorsForCityAndType(depressionType) {
-  const cityData = ALL_CITIES_DOCTORS[_detectedCity] || ALL_CITIES_DOCTORS['Hyderabad'];
-  return cityData[depressionType] || cityData['Depressive Episode'];
-}
-
-// Backwards-compatible alias used by PDF export path
+// ---- Doctors Data (Hyderabad) ----
 const DOCTORS_DATA = {
-  get 'Major Depressive Disorder (MDD)'() { return getDoctorsForCityAndType('Major Depressive Disorder (MDD)'); },
-  get 'Persistent Depressive Disorder (Dysthymia)'() { return getDoctorsForCityAndType('Persistent Depressive Disorder (Dysthymia)'); },
-  get 'Atypical Depression'() { return getDoctorsForCityAndType('Atypical Depression'); },
-  get 'Seasonal Affective Disorder (SAD)'() { return getDoctorsForCityAndType('Seasonal Affective Disorder (SAD)'); },
-  get 'Postpartum Depression'() { return getDoctorsForCityAndType('Postpartum Depression'); },
-  get 'Depressive Episode'() { return getDoctorsForCityAndType('Depressive Episode'); },
+  'Major Depressive Disorder (MDD)': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. P. Chytanya Deepak', specialization: 'Bipolar & OCD Clinic, Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
+  ],
+  'Persistent Depressive Disorder (Dysthymia)': [
+    { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry – Chronic Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. P. Raghurami Reddy', specialization: 'General Psychiatry – Inpatient & Outpatient', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'Psychiatry & Neuromodulation (rTMS)', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
+  ],
+  'Atypical Depression': [
+    { name: 'Dr. P. Chytanya Deepak', specialization: 'Mood Disorders & Neuromodulation', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'rTMS, Neurofeedback & Psychiatric Care', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'American Center for Neuropsychiatry', specialization: 'Psychiatric Hospital & Mental Health', workplace: 'Banjara Hills, Hyderabad' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (Hospital-based)', workplace: 'Aster Prime Hospital, Ameerpet' },
+  ],
+  'Seasonal Affective Disorder (SAD)': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Senior Consultant Psychiatrist', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Ajay Kumar Saxena', specialization: 'General Psychiatry – Recurrent Depression', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. K. Srinivas & team', specialization: 'Neuromodulation, Biofeedback & Psychotherapy', workplace: 'KARLA Mind 36 Jubilee, Jubilee Hills' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Outpatient Psychiatrist – Mood Monitoring', workplace: 'Likeminds Clinic, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist – Seasonal Patterns', workplace: 'DKR Mind Clinic, Barkatpura' },
+  ],
+  'Postpartum Depression': [
+    { name: 'Asha Hospital – Women\'s Wellness Team', specialization: 'Women\'s Mental Health & Psychiatry', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Chetana Hospital Team', specialization: 'Multidisciplinary Psychiatry & Psychology', workplace: 'Chetana Hospital, Secunderabad' },
+    { name: 'Rainbow Children\'s Hospital & BirthRight', specialization: 'Obstetrics, Gynaecology & Maternity', workplace: 'Banjara Hills, Hyderabad' },
+    { name: 'BirthRight Maternity Hospital (Rainbow)', specialization: 'Obstetrics & Maternity Services', workplace: 'Himayatnagar, Hyderabad' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Postpartum Mood Disorders', workplace: 'MV Clinics, Bagh Lingampally' },
+  ],
+  'Depressive Episode': [
+    { name: 'Dr. K. Chandrasekhar', specialization: 'Consultant Psychiatrist – Mood Disorders', workplace: 'Asha Hospital, Banjara Hills' },
+    { name: 'Dr. Madhu Vamsi', specialization: 'Psychiatrist – Adult Depression & Anxiety', workplace: 'MV Clinics, Bagh Lingampally' },
+    { name: 'Dr. Nithin Kondapuram', specialization: 'Consultant Psychiatrist (NIMHANS-trained)', workplace: 'Aster Prime Hospital, Ameerpet' },
+    { name: 'Dr. Boppana Sridhar', specialization: 'Consultant Psychiatrist & Psychotherapist', workplace: 'Likeminds Clinic, Banjara Hills' },
+    { name: 'Dr. Praveen S. Gopan', specialization: 'Consultant Psychiatrist', workplace: 'DKR Mind Clinic, Barkatpura' },
+  ],
 };
 
-// ---- Geolocation: detect city via browser GPS + Nominatim ----
-(function initGeolocation() {
-  if (!navigator.geolocation) return; // browser doesn't support it — stay with default
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      try {
-        const { latitude, longitude } = pos.coords;
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
-        const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const addr = data.address || {};
-        // Nominatim may return city, town, village, county, or state_district
-        const rawCity = addr.city || addr.town || addr.county || addr.state_district || '';
-        const resolved = resolveCity(rawCity);
-        if (resolved) {
-          _detectedCity = resolved;
-          // Update card header if it's already visible
-          const cityLabel = document.getElementById('doctors-city-label');
-          if (cityLabel) cityLabel.textContent = resolved;
-          const citySubtitle = document.getElementById('doctors-city-subtitle');
-          if (citySubtitle) citySubtitle.textContent =
-            `Based on your detected condition, the following specialists in ${resolved} are recommended. The same psychiatrist is usually qualified to treat multiple depressive disorders — proximity, availability, and personal comfort should also guide your choice.`;
-        }
-      } catch (_) { /* silent fail — stay with default */ }
-    },
-    () => { /* permission denied — stay with default */ },
-    { timeout: 8000 }
-  );
-})();
 
 let qCurrentIndex = 0;
 let qAnswers = new Array(12).fill(null);
@@ -1547,13 +1259,13 @@ function renderResults(result, depressionType, isDepressed) {
   if (doctorsCard && doctorsList) {
     if (isDepressed) {
       const docType = depressionType || 'Depressive Episode';
-      const doctors = getDoctorsForCityAndType(docType);
+      const doctors = DOCTORS_DATA[docType] || DOCTORS_DATA['Depressive Episode'];
       doctorsCard.style.display = 'block';
       // Update the city label in the card header
       const cityLabel = document.getElementById('doctors-city-label');
-      if (cityLabel) cityLabel.textContent = _detectedCity;
+      if (cityLabel) cityLabel.textContent = 'Recommended Doctors in Hyderabad';
       const citySubtitle = document.getElementById('doctors-city-subtitle');
-      if (citySubtitle) citySubtitle.textContent = `Based on your detected condition, the following specialists in ${_detectedCity} are recommended. The same psychiatrist is usually qualified to treat multiple depressive disorders — proximity, availability, and personal comfort should also guide your choice.`;
+      if (citySubtitle) citySubtitle.textContent = `Based on your detected condition, the following specialists in Hyderabad are recommended. The same psychiatrist is usually qualified to treat multiple depressive disorders — proximity, availability, and personal comfort should also guide your choice.`;
       doctorsList.innerHTML = `
         <table class="doctors-table">
           <thead>
@@ -1877,11 +1589,11 @@ window.downloadReport = function () {
 
   ${isDepressed ? (() => {
       const pdfDocType = depType || 'Depressive Episode';
-      const pdfDoctors = getDoctorsForCityAndType(pdfDocType);
+      const pdfDoctors = DOCTORS_DATA[pdfDocType] || DOCTORS_DATA['Depressive Episode'];
       return `
   <div class="ps-card" style="page-break-inside:avoid;">
-    <div class="ps-card-title"><div class="ps-card-title-bar" style="background:#22c55e;"></div> Recommended Doctors in ${_detectedCity}</div>
-    <div style="font-size:13px; color:#475569; line-height:1.7; margin-bottom:12px;">Based on the detected condition (<strong>${pdfDocType}</strong>), the following specialists in ${_detectedCity} are recommended.</div>
+    <div class="ps-card-title"><div class="ps-card-title-bar" style="background:#22c55e;"></div> Recommended Doctors in Hyderabad</div>
+    <div style="font-size:13px; color:#475569; line-height:1.7; margin-bottom:12px;">Based on the detected condition (<strong>${pdfDocType}</strong>), the following specialists in Hyderabad are recommended.</div>
     <table style="width:100%; border-collapse:collapse; border:0.5px solid #cbd5e1; border-radius:8px; overflow:hidden; font-size:13px;">
       <thead>
         <tr style="background:#f0f9ff;">
