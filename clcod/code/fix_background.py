@@ -2,7 +2,7 @@ import os
 import re
 import glob
 
-workspace = r"d:\tmp\import\psychsense_integrated\code"
+workspace = 'd:/tmp/import/psychsense_3d_v9/psychsense_code'
 files = glob.glob(os.path.join(workspace, "*.html"))
 
 for file in files:

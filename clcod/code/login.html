@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>PsychSense - Sign In</title>
+<title>ManoDhwani - Sign In</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amarante&family=Yatra+One&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/star-border.css">
 <script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-lowest":"#ffffff","surface-container-highest":"#e5e2e1","surface-container":"#f0eded",error:"#ba1a1a","on-primary":"#ffffff","on-error":"#ffffff","on-surface-variant":"#5d3f3c",primary:"#8e0008","outline-variant":"#e6bdb8",background:"#fcf9f8","on-primary-container":"#ffc7c0",surface:"#fcf9f8","error-container":"#ffdad6","primary-fixed":"#ffdad5","primary-container":"#bb000e","surface-container-high":"#eae7e7","on-primary-fixed":"#410001","surface-variant":"#e5e2e1","on-surface":"#1c1b1b","surface-container-low":"#f6f3f2","on-background":"#1c1b1b",outline:"#916f6b"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},fontFamily:{headline:["Epilogue"],body:["Plus Jakarta Sans"],label:["Space Grotesk"],display:"Epilogue"}}}};</script>
@@ -17,9 +18,11 @@
   .auth-input:focus{border-color:#8e0008;box-shadow:0 0 0 3px rgba(142,0,8,0.08);}
   @keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
   .fade-in{animation:fadeIn 0.5s ease forwards}
-  .nav-pill{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 20px;border-radius:999px;border:1.5px solid rgba(28,27,27,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.07);transition:all 0.25s ease;color:#3a3a3a;background:rgba(255,255,255,0.7);text-decoration:none;}
+  .nav-pill{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:8px 20px;border-radius:999px;border:1.5px solid rgba(28,27,27,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.07);transition:all 0.25s ease;color:#3a3a3a;background:rgba(255,255,255,0.7);text-decoration:none;display:inline-block;}
   .nav-pill:hover{background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.13);transform:translateY(-2px);color:#8e0008;border-color:rgba(142,0,8,0.25);}
   .nav-pill.active{background:#8e0008;color:#fff;border-color:#8e0008;box-shadow:0 4px 16px rgba(142,0,8,0.25);}
+  .amarante-regular { font-family: "Amarante", serif; font-weight: 400; font-style: normal; }
+  .yatra-one-regular { font-family: "Yatra One", system-ui; font-weight: 400; font-style: normal; text-transform: none !important; }
 </style>
 <style>
   body, .bg-fixed-image {
@@ -35,16 +38,18 @@
   <!-- TopNavBar -->
     <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
     <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
-      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <a class="text-2xl tracking-tighter text-stone-950 flex-shrink-0 flex items-center gap-1 transition-all duration-300 hover:-translate-y-1 hover:drop-shadow-[0_4px_8px_rgba(142,0,8,0.25)]"
+        href="index.html"><span class="amarante-regular font-bold">Mano</span><span
+          class="yatra-one-regular text-primary">ध्वनि </span></a>
       <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
         <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
         <a class="nav-pill" id="nav-analysis-link" href="analysis.html">Analysis</a>
         <a class="nav-pill" id="nav-results-link" href="results.html">Result</a>
       </div>
       <div class="flex items-center gap-4 ml-auto">
-        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
-          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
-          <span id="user-name-index" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+        <div id="user-badge" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
+          <img id="user-avatar" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+          <span id="user-name" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
         </div>
         <div id="auth-section">
           <a id="login-signup-btn" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
@@ -67,7 +72,7 @@
       <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
         <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings:'FILL' 1;">psychology</span>
       </div>
-      <h1 class="font-headline text-3xl font-black tracking-tighter text-on-surface uppercase">Welcome to PsychSense</h1>
+      <h1 class="font-headline text-3xl font-black tracking-tighter text-on-surface uppercase">Welcome to ManoDhwani</h1>
       <p class="font-body text-sm text-on-surface-variant mt-2 text-center">Sign in to begin your mental health assessment</p>
     </div>
 
@@ -141,9 +146,9 @@
     <div class="relative flex flex-col md:flex-row justify-between items-center px-8 py-6 max-w-[1920px] mx-auto">
       <span class="font-headline font-bold text-neutral-900 text-sm tracking-widest">TEAM G-1107</span>
       <div class="flex flex-wrap justify-center gap-6">
-        <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold" href="#">PS-NEURO</a>
+        <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold" href="#">MD-NEURO</a>
       </div>
-      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 PSYCHSENSE — CLINICAL AI</span>
+      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 MANODHWANI — CLINICAL AI</span>
     </div>
   </footer>
 
@@ -154,9 +159,9 @@
   // Logic for unified header
   onAuthStateChanged(auth, user => {
     const loginBtn = document.getElementById('login-signup-btn');
-    const badgeWrap = document.getElementById('user-badge-index');
-    const avatarNav = document.getElementById('user-avatar-index');
-    const nameNavEl = document.getElementById('user-name-index');
+    const badgeWrap = document.getElementById('user-badge');
+    const avatarNav = document.getElementById('user-avatar');
+    const nameNavEl = document.getElementById('user-name');
     const resLink = document.getElementById('nav-results-link');
 
     if (user) {
@@ -170,11 +175,11 @@
       if (resLink) resLink.href = 'results.html';
 
       // Redirect: new signups go to user-info to fill profile, logins go straight to analysis
-      if (window._psIsNewSignup) {
-        window._psIsNewSignup = false;
+      if (window._mdIsNewSignup) {
+        window._mdIsNewSignup = false;
         window.location.href = 'user-info.html';
-      } else if (window._psJustLoggedIn) {
-        window._psJustLoggedIn = false;
+      } else if (window._mdJustLoggedIn) {
+        window._mdJustLoggedIn = false;
         window.location.href = 'analysis.html';
       }
     } else {
@@ -240,11 +245,11 @@
 
     try {
       if (currentTab === 'login') {
-        window._psJustLoggedIn = true;
+        window._mdJustLoggedIn = true;
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const name = document.getElementById('auth-name').value.trim();
-        window._psIsNewSignup = true;
+        window._mdIsNewSignup = true;
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(cred.user, { displayName: name });
       }
@@ -270,7 +275,7 @@
     btn.disabled = true;
     try {
       const { signInWithPopup } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js');
-      window._psJustLoggedIn = true;
+      window._mdJustLoggedIn = true;
       await signInWithPopup(auth, provider);
       // onAuthStateChanged will redirect
     } catch (err) {

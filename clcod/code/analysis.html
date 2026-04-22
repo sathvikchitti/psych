@@ -3,15 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>PsychSense - Assessment</title>
+<title>ManoDhwani - Assessment</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amarante&family=Yatra+One&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/star-border.css">
 <script src="js/storage-helper.js"></script>
 <script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-lowest":"#ffffff","surface-container-highest":"#e5e2e1","secondary-container":"#9b98ff","surface-container":"#f0eded",error:"#ba1a1a","on-primary":"#ffffff","on-error":"#ffffff","surface-dim":"#dcd9d9","inverse-on-surface":"#f3f0ef","on-surface-variant":"#5d3f3c",primary:"#8e0008","outline-variant":"#e6bdb8",background:"#fcf9f8","tertiary-container":"#9b4000",secondary:"#5652b4","on-primary-container":"#ffc7c0","on-tertiary":"#ffffff",surface:"#fcf9f8","error-container":"#ffdad6","primary-fixed":"#ffdad5","on-error-container":"#93000a","surface-bright":"#fcf9f8","primary-fixed-dim":"#ffb4aa",outline:"#916f6b","on-secondary":"#ffffff",tertiary:"#752f00","surface-tint":"#bf0611","primary-container":"#bb000e","surface-container-high":"#eae7e7","tertiary-fixed":"#ffdbcb","on-primary-fixed":"#410001","surface-variant":"#e5e2e1","inverse-primary":"#ffb4aa","on-secondary-container":"#30298c","on-tertiary-fixed":"#341100","on-surface":"#1c1b1b","surface-container-low":"#f6f3f2","on-background":"#1c1b1b"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},fontFamily:{headline:["Epilogue"],body:["Plus Jakarta Sans"],label:["Space Grotesk"],display:"Epilogue"}}}};</script>
 <style>
   .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+  .amarante-regular { font-family: "Amarante", serif; font-weight: 400; font-style: normal; }
+  .yatra-one-regular { font-family: "Yatra One", system-ui; font-weight: 400; font-style: normal; text-transform: none !important; }
   .page{display:none}.page.active{display:block}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes progress{0%{left:-40%}100%{left:110%}}
@@ -64,7 +67,7 @@
   @keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
   .modal-glass { animation: modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
   /* Nav Pills */
-  .nav-pill { font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:8px 20px; border-radius:999px; border:1.5px solid rgba(28,27,27,0.12); box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.25s ease; color:#3a3a3a; background:rgba(255,255,255,0.7); text-decoration:none; }
+  .nav-pill { font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:8px 20px; border-radius:999px; border:1.5px solid rgba(28,27,27,0.12); box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.25s ease; color:#3a3a3a; background:rgba(255,255,255,0.7); text-decoration:none; display:inline-block; }
   .nav-pill:hover { background:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.13); transform:translateY(-2px); color:#8e0008; border-color:rgba(142,0,8,0.25); }
   .nav-pill.active { background:#8e0008; color:#fff; border-color:#8e0008; box-shadow:0 4px 16px rgba(142,0,8,0.25); }
   body, .bg-fixed-image, #page-assessment {
@@ -139,16 +142,18 @@
   <!-- TopNavBar -->
     <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
     <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
-      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <a class="text-2xl tracking-tighter text-stone-950 flex-shrink-0 flex items-center gap-1 transition-all duration-300 hover:-translate-y-1 hover:drop-shadow-[0_4px_8px_rgba(142,0,8,0.25)]"
+        href="index.html"><span class="amarante-regular font-bold">Mano</span><span
+          class="yatra-one-regular text-primary">ध्वनि </span></a>
       <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
         <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
         <a class="nav-pill active" id="nav-analysis-link" href="analysis.html">Analysis</a>
         <a class="nav-pill" id="nav-results-link" href="results.html">Result</a>
       </div>
       <div class="flex items-center gap-4 ml-auto">
-        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
-          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
-          <span id="user-name-index" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+        <div id="user-badge" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
+          <img id="user-avatar" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+          <span id="user-name" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
         </div>
         <div id="auth-section">
           <a id="login-signup-btn" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
@@ -300,9 +305,9 @@
     <div class="relative flex flex-col md:flex-row justify-between items-center px-8 py-6 max-w-[1920px] mx-auto">
       <span class="font-headline font-bold text-neutral-900 text-sm tracking-widest">TEAM G-1107</span>
       <div class="flex flex-wrap justify-center gap-6">
-        <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold" href="#">PS-NEURO</a>
+      <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold" href="#">MD-NEURO</a>
       </div>
-      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 PSYCHSENSE — CLINICAL AI</span>
+      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 MANODHWANI — CLINICAL AI</span>
     </div>
   </footer>
 </div>
@@ -319,16 +324,16 @@
 <!-- ═══════════════════════════════════════ ALL JS ══════════════════════════ -->
 <script>
 // ── State ──────────────────────────────────────────────────────────
-let userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
-let textInputVal = sessionStorage.getItem('ps_textInputVal') || '';
-let audioBase64 = sessionStorage.getItem('ps_audioBase64') || null;
+let userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{"name":"","age":"","gender":""}');
+let textInputVal = sessionStorage.getItem('md_textInputVal') || '';
+let audioBase64 = sessionStorage.getItem('md_audioBase64') || null;
 let audioUrl = null;
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
 let recordingTime = 0;
-let aiResult = JSON.parse(sessionStorage.getItem('ps_aiResult') || 'null');
+let aiResult = JSON.parse(sessionStorage.getItem('md_aiResult') || 'null');
 const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
 
 // ── Page Navigation ────────────────────────────────────────────────
@@ -338,10 +343,10 @@ function showPage(id) {
   if (pg) { pg.classList.add('active'); window.scrollTo(0,0); }
 }
 window.goTo = function(page) {
-  sessionStorage.setItem('ps_userInfo', JSON.stringify(userInfo));
-  sessionStorage.setItem('ps_aiResult', JSON.stringify(aiResult));
-  sessionStorage.setItem('ps_textInputVal', textInputVal);
-  if (audioBase64) { try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {} }
+  sessionStorage.setItem('md_userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('md_aiResult', JSON.stringify(aiResult));
+  sessionStorage.setItem('md_textInputVal', textInputVal);
+  if (audioBase64) { try { sessionStorage.setItem('md_audioBase64', audioBase64); } catch(e) {} }
   if (['results','profile'].includes(page)) {
     sessionStorage.setItem('pendingPageTransition', page);
     window.location.href = 'results.html';
@@ -360,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (audioBase64) { showAudioRestored(); window.updateAssessBtn(); }
   else {
     // Check IndexedDB if sessionStorage failed earlier
-    window.PS_Storage.loadFromIDB('audioBlob').then(blob => {
+    window.MD_Storage.loadFromIDB('audioBlob').then(blob => {
       if (blob) {
         showAudioRestored();
         window.updateAssessBtn();
@@ -424,10 +429,10 @@ window.toggleRecording = async function() {
         reader.onloadend = async () => { 
           audioBase64 = reader.result; 
           // Fallback: still try sessionStorage for small clips
-          try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {}
+          try { sessionStorage.setItem('md_audioBase64', audioBase64); } catch(e) {}
           
           // Primary: Save actual blob to IndexedDB for large files
-          try { await window.PS_Storage.saveToIDB('audioBlob', blob); } catch(e) { console.error("IDB Save Failed", e); }
+          try { await window.MD_Storage.saveToIDB('audioBlob', blob); } catch(e) { console.error("IDB Save Failed", e); }
           
           window.updateAssessBtn(); 
           showAudioRecorded(); 
@@ -509,8 +514,8 @@ function handleAudioUpload(event) {
   const reader = new FileReader();
   reader.onloadend = async () => { 
     audioBase64 = reader.result; 
-    try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {}
-    try { await window.PS_Storage.saveToIDB('audioBlob', file); } catch(e) { console.error("IDB Save Failed", e); }
+    try { sessionStorage.setItem('md_audioBase64', audioBase64); } catch(e) {}
+    try { await window.MD_Storage.saveToIDB('audioBlob', file); } catch(e) { console.error("IDB Save Failed", e); }
     window.updateAssessBtn(); 
     showAudioRecorded(); 
   };
@@ -519,8 +524,8 @@ function handleAudioUpload(event) {
 
 function removeAudio() {
   audioBase64 = null; audioUrl = null;
-  sessionStorage.removeItem('ps_audioBase64');
-  if (window.PS_Storage) window.PS_Storage.clearFromIDB('audioBlob');
+  sessionStorage.removeItem('md_audioBase64');
+  if (window.MD_Storage) window.MD_Storage.clearFromIDB('audioBlob');
   const display = document.getElementById('audio-display');
   if (display) display.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-6">
     <div class="w-20 h-20 rounded-full bg-surface-container-lowest flex items-center justify-center">
@@ -549,12 +554,12 @@ window.runInitialAnalysis = async function() {
   }
 
   // Persist to sessionStorage so synthesizing.html can pick it up
-  sessionStorage.setItem('ps_userInfo', JSON.stringify(userInfo));
-  sessionStorage.setItem('ps_textInputVal', textInputVal);
+  sessionStorage.setItem('md_userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('md_textInputVal', textInputVal);
 
   // Note: audio is already in IndexedDB from the recording/upload step.
   // Clear UI inputs for display only — do NOT remove from sessionStorage here;
-  // synthesizing.html needs ps_textInputVal to run the analysis.
+  // synthesizing.html needs md_textInputVal to run the analysis.
   const textEl2 = document.getElementById('text-input');
   if (textEl2) textEl2.value = '';
 
@@ -573,9 +578,9 @@ window.runInitialAnalysis = async function() {
 
   onAuthStateChanged(auth, async (user) => {
     const loginBtn = document.getElementById('login-signup-btn');
-    const badgeWrap = document.getElementById('user-badge-index');
-    const avatarNav = document.getElementById('user-avatar-index');
-    const nameNavEl = document.getElementById('user-name-index');
+    const badgeWrap = document.getElementById('user-badge');
+    const avatarNav = document.getElementById('user-avatar');
+    const nameNavEl = document.getElementById('user-name');
     const resLink = document.getElementById('nav-results-link');
 
     if (!user) {
@@ -605,7 +610,7 @@ window.runInitialAnalysis = async function() {
     const cu = window.currentUser;
 
     // ─── User Info Modal Logic ───
-    const savedInfo = sessionStorage.getItem('ps_userInfo');
+    const savedInfo = sessionStorage.getItem('md_userInfo');
     if (!savedInfo) {
       // Pre-fill modal from Firebase profile
       const modalName = document.getElementById('modal-name');
@@ -648,7 +653,7 @@ window.runInitialAnalysis = async function() {
     const errEl = document.getElementById('modal-error');
     if (!name) { errEl.classList.remove('hidden'); return; }
     errEl.classList.add('hidden');
-    sessionStorage.setItem('ps_userInfo', JSON.stringify({ name, age, gender }));
+    sessionStorage.setItem('md_userInfo', JSON.stringify({ name, age, gender }));
     const modal = document.getElementById('user-info-modal');
     if (modal) { modal.style.opacity='0'; modal.style.transition='opacity 0.3s'; setTimeout(()=>modal.classList.remove('open'),300); }
     // Also fill legacy inputs if they exist

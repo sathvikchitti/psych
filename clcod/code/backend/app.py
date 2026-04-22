@@ -1,5 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════════════╗
-# ║  PsychSense — Flask Backend  (v3 — Audio + Text + Cognitive)        ║
+# ║  ManoDhwani Unified Backend API (v3 — Audio + Text + Cognitive)      ║
 # ║  Model : AudioTextFusionNet (WavLM + RoBERTa + CognitiveFeatures)  ║
 # ║  Checkpoint : model_new_feature.pt  (saved by v3 training code)    ║
 # ║                                                                      ║
@@ -87,7 +87,7 @@ N_RISK        = 1
 TEXT_DIM_BASE = 768   # RoBERTa base hidden size
 # Full TEXT_DIM = 778 — read from checkpoint after load
 
-print(f"[PsychSense] Device: {DEVICE}  |  FP16: {FP16}")
+print(f"[ManoDhwani] Device: {DEVICE}  |  FP16: {FP16}")
 
 # ─────────────────────────────────────────────────────────────────────
 # COGNITIVE DISTORTION + COPING MECHANISM PATTERNS  (identical to v3)
@@ -375,7 +375,7 @@ class AudioTextFusionNet(nn.Module):
 # ─────────────────────────────────────────────────────────────────────
 
 def load_everything():
-    print("[PsychSense] Loading checkpoint …")
+    print("[ManoDhwani] Loading checkpoint …")
     if not os.path.exists(CHECKPOINT_PATH):
         raise FileNotFoundError(
             f"Checkpoint not found at '{CHECKPOINT_PATH}'.\n"
@@ -403,12 +403,12 @@ def load_everything():
     model.load_state_dict(ckpt["model_state"])
     model.eval()
     model.to(DEVICE)
-    print(f"[PsychSense] AudioTextFusionNet loaded  threshold={threshold_:.2f}")
-    print(f"[PsychSense]   AUDIO_DIM={AUDIO_DIM_}  TEXT_DIM={TEXT_DIM_} "
+    print(f"[ManoDhwani] AudioTextFusionNet loaded  threshold={threshold_:.2f}")
+    print(f"[ManoDhwani]   AUDIO_DIM={AUDIO_DIM_}  TEXT_DIM={TEXT_DIM_} "
           f"(RoBERTa={TEXT_DIM_BASE_} + cognitive={TEXT_DIM_ - TEXT_DIM_BASE_})")
 
     # ── WavLM ─────────────────────────────────────────────────────────
-    print("[PsychSense] Loading WavLM-base-plus …")
+    print("[ManoDhwani] Loading WavLM-base-plus …")
     AUDIO_MODEL = "microsoft/wavlm-base-plus"
     _hf_kwargs  = {"local_files_only": True} if os.environ.get("HF_OFFLINE") else {}
     wav_feat    = Wav2Vec2FeatureExtractor.from_pretrained(AUDIO_MODEL, **_hf_kwargs)
@@ -421,16 +421,16 @@ def load_everything():
         # the checkpoint values. missing_keys will be the frozen layers (expected).
         missing, unexpected = wavlm.load_state_dict(ckpt["wavlm_ft_state"], strict=False)
         n_layers = ckpt.get("WAVLM_UNFREEZE_LAYERS", "?")
-        print(f"[PsychSense] WavLM: patched {len(ckpt['wavlm_ft_state'])} fine-tuned "
+        print(f"[ManoDhwani] WavLM: patched {len(ckpt['wavlm_ft_state'])} fine-tuned "
               f"keys (last {n_layers} layers) — {len(missing)} frozen keys kept from base")
         if unexpected:
-            print(f"[PsychSense] WavLM WARNING: unexpected keys in checkpoint: {unexpected}")
+            print(f"[ManoDhwani] WavLM WARNING: unexpected keys in checkpoint: {unexpected}")
     elif "wavlm_state" in ckpt:
         # Backwards-compat: old checkpoint with full state dict
         wavlm.load_state_dict(ckpt["wavlm_state"])
-        print("[PsychSense] WavLM: loaded full state dict from checkpoint (legacy format)")
+        print("[ManoDhwani] WavLM: loaded full state dict from checkpoint (legacy format)")
     else:
-        print("[PsychSense] WARNING: no WavLM weights in checkpoint — "
+        print("[ManoDhwani] WARNING: no WavLM weights in checkpoint — "
               "using vanilla pretrained weights. Re-train to save fine-tuned layers.")
 
     wavlm.eval()
@@ -439,10 +439,10 @@ def load_everything():
     if FP16:
         wavlm = wavlm.half()
     wavlm = wavlm.to(DEVICE)
-    print("[PsychSense] WavLM loaded")
+    print("[ManoDhwani] WavLM loaded")
 
     # ── RoBERTa ───────────────────────────────────────────────────────
-    print("[PsychSense] Loading RoBERTa-base …")
+    print("[ManoDhwani] Loading RoBERTa-base …")
     TEXT_MODEL    = "roberta-base"
     roberta_tok   = RobertaTokenizer.from_pretrained(TEXT_MODEL, **_hf_kwargs)
     roberta_model = RobertaModel.from_pretrained(TEXT_MODEL, **_hf_kwargs)
@@ -452,16 +452,16 @@ def load_everything():
             ckpt["roberta_ft_state"], strict=False
         )
         n_layers = ckpt.get("ROBERTA_UNFREEZE_LAYERS", "?")
-        print(f"[PsychSense] RoBERTa: patched {len(ckpt['roberta_ft_state'])} fine-tuned "
+        print(f"[ManoDhwani] RoBERTa: patched {len(ckpt['roberta_ft_state'])} fine-tuned "
               f"keys (last {n_layers} layers + pooler) — {len(missing)} frozen keys kept from base")
         if unexpected:
-            print(f"[PsychSense] RoBERTa WARNING: unexpected keys in checkpoint: {unexpected}")
+            print(f"[ManoDhwani] RoBERTa WARNING: unexpected keys in checkpoint: {unexpected}")
     elif "roberta_state" in ckpt:
         # Backwards-compat: old checkpoint with full state dict
         roberta_model.load_state_dict(ckpt["roberta_state"])
-        print("[PsychSense] RoBERTa: loaded full state dict from checkpoint (legacy format)")
+        print("[ManoDhwani] RoBERTa: loaded full state dict from checkpoint (legacy format)")
     else:
-        print("[PsychSense] WARNING: no RoBERTa weights in checkpoint — "
+        print("[ManoDhwani] WARNING: no RoBERTa weights in checkpoint — "
               "using vanilla pretrained weights. Re-train to save fine-tuned layers.")
 
     roberta_model.eval()
@@ -470,7 +470,7 @@ def load_everything():
     if FP16:
         roberta_model = roberta_model.half()
     roberta_model = roberta_model.to(DEVICE)
-    print("[PsychSense] RoBERTa loaded")
+    print("[ManoDhwani] RoBERTa loaded")
 
     return (model,
             AUDIO_DIM_, TEXT_DIM_, TEXT_DIM_BASE_,
@@ -976,7 +976,7 @@ app = Flask(__name__)
 
 _ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 CORS(app, resources={r"/*": {"origins": _ALLOWED_ORIGIN}})
-print(f"[PsychSense] CORS origin: {_ALLOWED_ORIGIN}")
+print(f"[ManoDhwani] CORS origin: {_ALLOWED_ORIGIN}")
 
 
 @app.route("/health", methods=["GET"])

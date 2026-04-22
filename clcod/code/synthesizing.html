@@ -10,6 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap"
     rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amarante&family=Yatra+One&display=swap" rel="stylesheet">
   <link
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
     rel="stylesheet" />
@@ -178,34 +179,44 @@
       background-position: center !important;
       background-attachment: fixed !important;
     }
+    .nav-pill { font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:8px 20px; border-radius:999px; border:1.5px solid rgba(28,27,27,0.12); box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.25s ease; color:#3a3a3a; background:rgba(255,255,255,0.7); text-decoration:none; display:inline-block; }
+    .nav-pill:hover { background:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.13); transform:translateY(-2px); color:#8e0008; border-color:rgba(142,0,8,0.25); }
+    .nav-pill.active { background:#8e0008; color:#fff; border-color:#8e0008; box-shadow:0 4px 16px rgba(142,0,8,0.25); }
+    .amarante-regular { font-family: "Amarante", serif; font-weight: 400; font-style: normal; }
+    .yatra-one-regular { font-family: "Yatra One", system-ui; font-weight: 400; font-style: normal; text-transform: none !important; }
   </style>
 </head>
 
 <body class="bg-background text-white antialiased selection:bg-cyan-500/30 bg-fixed-image pt-24 min-h-screen">
 
   <!-- Navigation -->
-  <nav class="bg-white/70 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-surface-container"
+  <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm"
     style="z-index: 50;">
     <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
-      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0"
-        href="index.html">PSYCHSENSE</a>
+      <a class="text-2xl tracking-tighter text-stone-950 flex-shrink-0 flex items-center gap-1 transition-all duration-300 hover:-translate-y-1 hover:drop-shadow-[0_4px_8px_rgba(142,0,8,0.25)]"
+        href="index.html"><span class="amarante-regular font-bold">Mano</span><span
+          class="yatra-one-regular text-primary">ध्वनि </span></a>
       <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
         <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
         <a class="nav-pill active" id="nav-analysis-link" href="analysis.html">Analysis</a>
         <a class="nav-pill" id="nav-results-link" href="results.html">Result</a>
       </div>
       <div class="flex items-center gap-4 ml-auto">
-        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer"
+        <div id="user-badge" class="hidden items-center gap-3 cursor-pointer"
           onclick="window.location.href='profile.html'">
-          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover"
+          <img id="user-avatar" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover"
             referrerpolicy="no-referrer"
             onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
-          <span id="user-name-index"
+          <span id="user-name"
             class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
         </div>
         <div id="auth-section">
           <a id="login-signup-btn" href="login.html"
-            class="bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm hover:bg-primary-container transition-all duration-300 hover:-translate-y-[2px]">Signup/Login</a>
+            class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div class="star-border-inner bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm">
+              Signup/Login
+            </div>
+          </a>
         </div>
       </div>
     </div>
@@ -249,7 +260,7 @@
         <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold"
           href="#">PS-NEURO</a>
       </div>
-      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 PSYCHSENSE —
+      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 MANODHWANI —
         CLINICAL AI</span>
     </div>
   </footer>
@@ -267,9 +278,9 @@
     }, 2500);
 
     // Read inputs saved by analysis.html
-    const userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
-    const textInputVal = sessionStorage.getItem('ps_textInputVal') || '';
-    const audioBase64 = sessionStorage.getItem('ps_audioBase64') || null;
+    const userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{"name":"","age":"","gender":""}');
+    const textInputVal = sessionStorage.getItem('md_textInputVal') || '';
+    const audioBase64 = sessionStorage.getItem('md_audioBase64') || null;
 
     async function analyzeWithFlask() {
       const emptyQ = { answers: { elevatedMood: false, reducedSleep: false, impulsivity: false, racingThoughts: false }, duration: 0, seasonalPattern: 'No seasonal pattern', postpartum: 'Not applicable', impairment: 30 };
@@ -280,7 +291,7 @@
       // Try to load from IndexedDB first (preferred for large audio)
       let audioBlob = null;
       try {
-        audioBlob = await window.PS_Storage.loadFromIDB('audioBlob');
+        audioBlob = await window.MD_Storage.loadFromIDB('audioBlob');
       } catch (e) { console.warn("IDB Load Failed", e); }
 
       const hasAudio = !!(audioBlob || audioBase64);
@@ -311,7 +322,7 @@
           const blob = await (await fetch(audioBase64)).blob();
           formData.append('audio', blob, 'recording.wav');
         } catch (e) {
-          console.warn('[PsychSense] Failed to attach audio blob fallback (ignored):', e);
+          console.warn('[ManoDhwani] Failed to attach audio blob fallback (ignored):', e);
         }
       }
 
@@ -333,10 +344,10 @@
       try {
         const result = await analyzeWithFlask();
         clearInterval(msgInterval);
-        sessionStorage.setItem('ps_aiResult', JSON.stringify(result));
+        sessionStorage.setItem('md_aiResult', JSON.stringify(result));
 
         // Clean up input data from sessionStorage now that analysis is complete
-        sessionStorage.removeItem('ps_textInputVal');
+        sessionStorage.removeItem('md_textInputVal');
 
         const isDepressed = result.riskLevel === 'Moderate' || result.riskLevel === 'High';
         if (!isDepressed) {
@@ -348,15 +359,15 @@
           sessionStorage.setItem('pendingPageTransition', 'results');
           window.location.href = 'results.html';
         } else {
-          sessionStorage.setItem('ps_riskLevel', result.riskLevel);
+          sessionStorage.setItem('md_riskLevel', result.riskLevel);
           const prob = result.modelProb != null ? Math.round(result.modelProb) : Math.round(result.confidenceScore);
-          sessionStorage.setItem('ps_riskProb', String(prob));
+          sessionStorage.setItem('md_riskProb', String(prob));
           window.location.href = 'questionnaire.html';
         }
       } catch (err) {
         clearInterval(msgInterval);
         console.error('Analysis failed:', err);
-        sessionStorage.setItem('ps_errorMessage', err.message || 'An unexpected error occurred.');
+        sessionStorage.setItem('md_errorMessage', err.message || 'An unexpected error occurred.');
         window.location.href = 'error.html';
       }
     })();
@@ -370,9 +381,9 @@
 
     onAuthStateChanged(auth, async (user) => {
       const loginBtn = document.getElementById('login-signup-btn');
-      const badgeWrap = document.getElementById('user-badge-index');
-      const avatarNav = document.getElementById('user-avatar-index');
-      const nameNavEl = document.getElementById('user-name-index');
+      const badgeWrap = document.getElementById('user-badge');
+      const avatarNav = document.getElementById('user-avatar');
+      const nameNavEl = document.getElementById('user-name');
       const resLink = document.getElementById('nav-results-link');
 
       if (!user) {

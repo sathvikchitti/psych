@@ -1,9 +1,9 @@
 /**
- * PsychSense Storage Helper
+ * ManoDhwani Storage Helper
  * Uses IndexedDB to store large assets (like audio blobs) that exceed sessionStorage limits.
  */
 
-const DB_NAME = 'PsychSenseDB';
+const DB_NAME = 'ManoDhwaniDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'assets';
 
@@ -68,4 +68,4 @@ async function clearFromIDB(key) {
   });
 }
 
-window.PS_Storage = { saveToIDB, loadFromIDB, clearFromIDB };
+window.MD_Storage = { saveToIDB, loadFromIDB, clearFromIDB };

@@ -1,447 +1,613 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>PsychSense - AI Powered Multi-Modal Depression Detection System</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/star-border.css">
 
-<script>
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "surface-container-lowest": "#ffffff",
-          "on-tertiary-container": "#ffc9b0",
-          "inverse-surface": "#313030",
-          "surface-container-highest": "#e5e2e1",
-          "secondary-container": "#9b98ff",
-          "surface-container": "#f0eded",
-          "on-secondary-fixed": "#100069",
-          error: "#ba1a1a",
-          "tertiary-fixed-dim": "#ffb692",
-          "on-primary": "#ffffff",
-          "on-error": "#ffffff",
-          "surface-dim": "#dcd9d9",
-          "inverse-on-surface": "#f3f0ef",
-          "on-surface-variant": "#5d3f3c",
-          primary: "#8e0008",
-          "outline-variant": "#e6bdb8",
-          background: "#fcf9f8",
-          "tertiary-container": "#9b4000",
-          secondary: "#5652b4",
-          "on-primary-container": "#ffc7c0",
-          "on-tertiary": "#ffffff",
-          surface: "#fcf9f8",
-          "error-container": "#ffdad6",
-          "primary-fixed": "#ffdad5",
-          "on-error-container": "#93000a",
-          "surface-bright": "#fcf9f8",
-          "primary-fixed-dim": "#ffb4aa",
-          outline: "#916f6b",
-          "on-secondary": "#ffffff",
-          "on-secondary-fixed-variant": "#3e399a",
-          tertiary: "#752f00",
-          "surface-tint": "#bf0611",
-          "secondary-fixed-dim": "#c3c0ff",
-          "primary-container": "#bb000e",
-          "surface-container-high": "#eae7e7",
-          "tertiary-fixed": "#ffdbcb",
-          "on-primary-fixed": "#410001",
-          "surface-variant": "#e5e2e1",
-          "inverse-primary": "#ffb4aa",
-          "secondary-fixed": "#e3dfff",
-          "on-secondary-container": "#30298c",
-          "on-tertiary-fixed": "#341100",
-          "on-surface": "#1c1b1b",
-          "on-tertiary-fixed-variant": "#793000",
-          "surface-container-low": "#f6f3f2",
-          "on-background": "#1c1b1b"
-        },
-        borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
-        fontFamily: {
-          headline: ["Epilogue"],
-          body: ["Plus Jakarta Sans"],
-          label: ["Space Grotesk"],
-          display: "Epilogue"
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>ManoDhwani - AI Powered Multi-Modal Depression Detection System</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amarante&family=Yatra+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/star-border.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#ffc9b0",
+            "inverse-surface": "#313030",
+            "surface-container-highest": "#e5e2e1",
+            "secondary-container": "#9b98ff",
+            "surface-container": "#f0eded",
+            "on-secondary-fixed": "#100069",
+            error: "#ba1a1a",
+            "tertiary-fixed-dim": "#ffb692",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "surface-dim": "#dcd9d9",
+            "inverse-on-surface": "#f3f0ef",
+            "on-surface-variant": "#5d3f3c",
+            primary: "#8e0008",
+            "outline-variant": "#e6bdb8",
+            background: "#fcf9f8",
+            "tertiary-container": "#9b4000",
+            secondary: "#5652b4",
+            "on-primary-container": "#ffc7c0",
+            "on-tertiary": "#ffffff",
+            surface: "#fcf9f8",
+            "error-container": "#ffdad6",
+            "primary-fixed": "#ffdad5",
+            "on-error-container": "#93000a",
+            "surface-bright": "#fcf9f8",
+            "primary-fixed-dim": "#ffb4aa",
+            outline: "#916f6b",
+            "on-secondary": "#ffffff",
+            "on-secondary-fixed-variant": "#3e399a",
+            tertiary: "#752f00",
+            "surface-tint": "#bf0611",
+            "secondary-fixed-dim": "#c3c0ff",
+            "primary-container": "#bb000e",
+            "surface-container-high": "#eae7e7",
+            "tertiary-fixed": "#ffdbcb",
+            "on-primary-fixed": "#410001",
+            "surface-variant": "#e5e2e1",
+            "inverse-primary": "#ffb4aa",
+            "secondary-fixed": "#e3dfff",
+            "on-secondary-container": "#30298c",
+            "on-tertiary-fixed": "#341100",
+            "on-surface": "#1c1b1b",
+            "on-tertiary-fixed-variant": "#793000",
+            "surface-container-low": "#f6f3f2",
+            "on-background": "#1c1b1b"
+          },
+          borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+          fontFamily: {
+            headline: ["Epilogue"],
+            body: ["Plus Jakarta Sans"],
+            label: ["Space Grotesk"],
+            display: "Epilogue"
+          }
         }
       }
+    };
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     }
-  };
-</script>
 
-<style>
-  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .amarante-regular {
+      font-family: "Amarante", serif;
+      font-weight: 400;
+      font-style: normal;
+    }
 
-  /* ═══════════════════════════════════════════
+    .yatra-one-regular {
+      font-family: "Yatra One", system-ui;
+      font-weight: 400;
+      font-style: normal;
+      text-transform: none !important;
+    }
+
+    /* ═══════════════════════════════════════════
      MAIN SITE STYLES
   ═══════════════════════════════════════════ */
 
-  /* Nav pill links */
-  .nav-pill {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 8px 20px;
-    border-radius: 999px;
-    border: 1.5px solid rgba(28,27,27,0.12);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    transition: all 0.25s ease;
-    color: #3a3a3a;
-    background: rgba(255,255,255,0.7);
-  }
+    /* Nav pill links */
+    .nav-pill {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 20px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(28, 27, 27, 0.12);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+      transition: all 0.25s ease;
+      color: #3a3a3a;
+      background: rgba(255, 255, 255, 0.7);
+      display: inline-block;
+    }
 
-  .nav-pill:hover {
-    background: #fff;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.13);
-    transform: translateY(-2px);
-    color: #8e0008;
-    border-color: rgba(142,0,8,0.25);
-  }
+    .nav-pill:hover {
+      background: #fff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.13);
+      transform: translateY(-2px);
+      color: #8e0008;
+      border-color: rgba(142, 0, 8, 0.25);
+    }
 
-  .nav-pill.active {
-    background: #8e0008;
-    color: #fff;
-    border-color: #8e0008;
-    box-shadow: 0 4px 16px rgba(142,0,8,0.25);
-  }
+    .nav-pill.active {
+      background: #8e0008;
+      color: #fff;
+      border-color: #8e0008;
+      box-shadow: 0 4px 16px rgba(142, 0, 8, 0.25);
+    }
 
-  /* Metric cards */
-  .metric-card {
-    border-radius: 1.5rem;
-    background: #fff;
-    box-shadow: 0 4px 24px rgba(28,27,27,0.07);
-    transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
-  }
+    /* Metric cards */
+    .metric-card {
+      border-radius: 1.5rem;
+      background: #fff;
+      box-shadow: 0 4px 24px rgba(28, 27, 27, 0.07);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
 
-  .metric-card:hover {
-    transform: translateY(-12px) scale(1.02);
-    box-shadow: 0 24px 60px rgba(28,27,27,0.16), 0 0 0 1px rgba(142,0,8,0.08);
-  }
+    .metric-card:hover {
+      transform: translateY(-12px) scale(1.02);
+      box-shadow: 0 24px 60px rgba(28, 27, 27, 0.16), 0 0 0 1px rgba(142, 0, 8, 0.08);
+    }
 
-  /* Modal */
-  #info-modal { display: none; position: fixed; inset: 0; z-index: 300; align-items: center; justify-content: center; }
-  #info-modal.open { display: flex; }
+    /* Modal */
+    #info-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
 
-  .modal-glass {
-    background: rgba(255,255,255,0.13);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(255,255,255,0.28);
-    border-radius: 1.75rem;
-    box-shadow: 0 40px 90px rgba(0,0,0,0.55);
-    animation: modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
-  }
+    #info-modal.open {
+      display: flex;
+    }
 
-  .modal-input,
-  input[type="text"].modal-input,
-  input[type="number"].modal-input,
-  select.modal-input {
-    width: 100%;
-    background: rgba(30,20,20,0.55) !important;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    border: 1.5px solid rgba(255,255,255,0.22);
-    border-radius: 0.6rem;
-    padding: 13px 16px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 15px;
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    outline: none;
-    transition: border 0.2s, background 0.2s;
-    color-scheme: dark;
-  }
+    .modal-glass {
+      background: rgba(255, 255, 255, 0.13);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 1.75rem;
+      box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+      animation: modalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
 
-  .modal-input::placeholder { color: rgba(255,255,255,0.45); }
+    .modal-input,
+    input[type="text"].modal-input,
+    input[type="number"].modal-input,
+    select.modal-input {
+      width: 100%;
+      background: rgba(30, 20, 20, 0.55) !important;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      border-radius: 0.6rem;
+      padding: 13px 16px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      color: #fff !important;
+      -webkit-text-fill-color: #fff !important;
+      outline: none;
+      transition: border 0.2s, background 0.2s;
+      color-scheme: dark;
+    }
 
-  .modal-input:focus,
-  input[type="number"].modal-input:focus,
-  select.modal-input:focus {
-    border-color: rgba(187,0,14,0.7);
-    background: rgba(50,20,20,0.65) !important;
-  }
+    .modal-input::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+    }
 
-  .modal-input option { background: #1c1b1b; color: #fff; }
+    .modal-input:focus,
+    input[type="number"].modal-input:focus,
+    select.modal-input:focus {
+      border-color: rgba(187, 0, 14, 0.7);
+      background: rgba(50, 20, 20, 0.65) !important;
+    }
 
-  @keyframes modalIn {
-    from { opacity: 0; transform: scale(0.93) translateY(24px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-  }
+    .modal-input option {
+      background: #1c1b1b;
+      color: #fff;
+    }
 
-  @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
-  #modal-overlay { animation: fadeOverlay 0.3s ease both; }
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.93) translateY(24px);
+      }
 
-  .hover-float { transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-  .hover-float:hover { transform: scale(1.05) translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
 
-  /* Hero section background */
-  .hero-bg-gradient {
-    background: linear-gradient(135deg, rgba(252,249,248,0.95) 0%, rgba(240,237,237,0.8) 40%, rgba(230,225,225,0.6) 100%);
-  }
+    @keyframes fadeOverlay {
+      from {
+        opacity: 0;
+      }
 
-  /* Standardized silk background */
-  body, .hero-section {
-    background-image: url('assets/hero_silk_bg.png') !important;
-    background-size: cover !important;
-    background-position: center !important;
-    background-attachment: fixed !important;
-  }
-</style>
+      to {
+        opacity: 1;
+      }
+    }
+
+    #modal-overlay {
+      animation: fadeOverlay 0.3s ease both;
+    }
+
+    .hover-float {
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .hover-float:hover {
+      transform: scale(1.05) translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Hero section background */
+    .hero-bg-gradient {
+      background: linear-gradient(135deg, rgba(252, 249, 248, 0.95) 0%, rgba(240, 237, 237, 0.8) 40%, rgba(230, 225, 225, 0.6) 100%);
+    }
+
+    /* Standardized silk background */
+    body,
+    .hero-section {
+      background-image: url('assets/hero_silk_bg.png') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-attachment: fixed !important;
+    }
+  </style>
 </head>
 
-<body class="bg-background text-on-background font-body antialiased selection:bg-primary-container selection:text-on-primary-container pb-32">
+<body
+  class="bg-background text-on-background font-body antialiased selection:bg-primary-container selection:text-on-primary-container pb-32">
 
-<!-- ═══ MAIN SITE CONTENT ═══ -->
-<div id="main-content">
+  <!-- ═══ MAIN SITE CONTENT ═══ -->
+  <div id="main-content">
 
-  <!-- User Info Modal -->
-  <div id="info-modal">
-    <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="closeInfoModal()"></div>
-    <div class="modal-glass relative w-full max-w-md mx-4 p-8 flex flex-col gap-6 z-10">
-      <div class="flex items-center gap-4 mb-1">
-        <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center flex-shrink-0">
-          <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">person</span>
+    <!-- User Info Modal -->
+    <div id="info-modal">
+      <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="closeInfoModal()"></div>
+      <div class="modal-glass relative w-full max-w-md mx-4 p-8 flex flex-col gap-6 z-10">
+        <div class="flex items-center gap-4 mb-1">
+          <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">person</span>
+          </div>
+          <div>
+            <p class="font-label text-[10px] uppercase tracking-widest text-white/50 mb-0.5">Before We Begin</p>
+            <h2 class="font-headline font-bold text-white text-xl leading-tight">Patient Information</h2>
+          </div>
+          <button onclick="closeInfoModal()" class="ml-auto text-white/40 hover:text-white transition-colors">
+            <span class="material-symbols-outlined">close</span>
+          </button>
         </div>
-        <div>
-          <p class="font-label text-[10px] uppercase tracking-widest text-white/50 mb-0.5">Before We Begin</p>
-          <h2 class="font-headline font-bold text-white text-xl leading-tight">Patient Information</h2>
+        <div id="lp-autofill-banner"
+          class="hidden items-center gap-2 bg-green-500/10 border border-green-400/30 rounded-xl px-4 py-2.5">
+          <span class="material-symbols-outlined text-green-400 text-sm"
+            style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+          <span class="font-label text-[11px] text-green-300 font-semibold uppercase tracking-wider">Auto-filled from
+            your profile</span>
         </div>
-        <button onclick="closeInfoModal()" class="ml-auto text-white/40 hover:text-white transition-colors">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-      <div id="lp-autofill-banner" class="hidden items-center gap-2 bg-green-500/10 border border-green-400/30 rounded-xl px-4 py-2.5">
-        <span class="material-symbols-outlined text-green-400 text-sm" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
-        <span class="font-label text-[11px] text-green-300 font-semibold uppercase tracking-wider">Auto-filled from your profile</span>
-      </div>
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-1.5">
-          <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Full Name</label>
-          <input id="lp-modal-name" type="text" class="modal-input" placeholder="Enter your full name">
-        </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-1.5">
-            <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Age</label>
-            <input id="lp-modal-age" type="number" min="10" max="100" class="modal-input" placeholder="e.g. 25">
+            <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Full Name</label>
+            <input id="lp-modal-name" type="text" class="modal-input" placeholder="Enter your full name">
           </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Gender</label>
-            <select id="lp-modal-gender" class="modal-input">
-              <option value="" disabled selected>Select</option>
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Other">Other</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1.5">
+              <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Age</label>
+              <input id="lp-modal-age" type="number" min="10" max="100" class="modal-input" placeholder="e.g. 25">
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Gender</label>
+              <select id="lp-modal-gender" class="modal-input">
+                <option value="" disabled selected>Select</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
           </div>
         </div>
-      </div>
-      <p id="lp-modal-error" class="hidden font-label text-xs text-red-400 font-semibold">Please enter your full name to continue.</p>
-      <button onclick="submitLandingModal()" class="star-border rounded-xl hover-float mt-1 shadow-[0_4px_20px_rgba(187,0,14,0.4)] w-full">
-        <div class="star-border-inner bg-primary rounded-xl text-white font-label font-bold text-sm uppercase tracking-wider py-4 flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1;">start</span>
-          Begin Assessment
-        </div>
-      </button>
-    </div>
-  </div>
-
-  <!-- Top Nav Bar -->
-  <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
-    <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
-      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
-      <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
-        <a class="nav-pill active" href="index.html">HOME</a>
-        <a class="nav-pill" href="analysis.html">Analysis</a>
-        <a class="nav-pill" href="results.html">Result</a>
-      </div>
-      <div class="flex items-center gap-4 ml-auto">
-        <!-- Profile badge (shown when logged in) -->
-        <div id="user-badge-home" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
-          <img id="user-avatar-home" src="" alt="Profile" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
-          <span id="user-name-home" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
-        </div>
-        <!-- Login button (shown when logged out) -->
-        <a id="login-signup-btn-home" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
-          <div class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3">
-            Signup/Login
-          </div>
-        </a>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Hero Section -->
-  <section class="hero-section relative w-full min-h-screen flex items-center justify-center pt-20 pb-32">
-    <div class="max-w-4xl mx-auto px-8 w-full relative z-10 flex flex-col items-center text-center gap-8">
-      <div id="status-badge" class="inline-flex items-center gap-3 bg-surface-container-highest px-4 py-2 rounded-xl transition-all duration-500">
-        <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
-        <span id="status-label" class="font-label text-xs uppercase tracking-widest text-on-surface">Checking…</span>
-      </div>
-      <div class="flex flex-col gap-4">
-        <h2 class="font-label text-sm md:text-base uppercase tracking-[0.2em] text-primary">AI POWERED MULTI-MODAL DEPRESSION DETECTION SYSTEM</h2>
-        <h1 class="font-headline text-6xl md:text-8xl lg:text-[100px] font-black tracking-tighter leading-[0.9] text-on-surface uppercase">Psych<br>Sense</h1>
-      </div>
-      <p class="font-body text-xl md:text-2xl text-on-surface-variant max-w-2xl leading-relaxed">
-        Analyzing micro-fluctuations in voice and linguistic patterns to provide objective, clinical-grade mental health assessments.
-      </p>
-      <div class="flex items-center gap-6">
-        <button id="get-started-btn" onclick="window.handleGetStarted()" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
-          <div class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-base uppercase tracking-wider px-10 py-5 flex items-center justify-center gap-3">
-            GET STARTED
-            <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">arrow_forward</span>
+        <p id="lp-modal-error" class="hidden font-label text-xs text-red-400 font-semibold">Please enter your full name
+          to continue.</p>
+        <button onclick="submitLandingModal()"
+          class="star-border rounded-xl hover-float mt-1 shadow-[0_4px_20px_rgba(187,0,14,0.4)] w-full">
+          <div
+            class="star-border-inner bg-primary rounded-xl text-white font-label font-bold text-sm uppercase tracking-wider py-4 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1;">start</span>
+            Begin Assessment
           </div>
         </button>
       </div>
     </div>
-  </section>
 
-  <!-- Precision Metrics Section -->
-  <section class="py-32 w-full">
-    <div class="max-w-[1920px] mx-auto px-8 w-full">
-      <div class="flex items-start gap-8 mb-24">
-        <span class="font-label text-sm text-on-surface-variant">01</span>
-        <div class="h-[1px] bg-outline-variant/20 flex-grow mt-2"></div>
-        <h2 class="font-headline text-4xl md:text-6xl font-bold tracking-tight text-on-surface uppercase w-full md:w-auto text-right">Precision Metrics</h2>
+    <!-- Top Nav Bar -->
+    <nav
+      class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm"
+      style="z-index: 50;">
+      <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
+        <a class="text-2xl tracking-tighter text-stone-950 flex-shrink-0 flex items-center gap-1 transition-all duration-300 hover:-translate-y-1 hover:drop-shadow-[0_4px_8px_rgba(142,0,8,0.25)]"
+          href="index.html"><span class="amarante-regular font-bold">Mano</span><span
+            class="yatra-one-regular text-primary">ध्वनि </span></a>
+        <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
+          <a class="nav-pill active" href="index.html">HOME</a>
+          <a class="nav-pill" href="analysis.html">Analysis</a>
+          <a class="nav-pill" href="results.html">Result</a>
+        </div>
+        <div class="flex items-center gap-4 ml-auto">
+          <!-- Profile badge (shown when logged in) -->
+          <div id="user-badge" class="hidden items-center gap-3 cursor-pointer"
+            onclick="window.location.href='profile.html'">
+            <img id="user-avatar" src="" alt="Profile"
+              class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer"
+              onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+            <span id="user-name"
+              class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+          </div>
+          <!-- Login button (shown when logged out) -->
+          <a id="login-signup-btn" href="login.html"
+            class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div
+              class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3">
+              Signup/Login
+            </div>
+          </a>
+        </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-10">
+    </nav>
 
-        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10">
-          <div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
-            <span class="material-symbols-outlined text-3xl">graphic_eq</span>
-          </div>
-          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Vocal Biomarkers</h3>
-          <p class="font-body text-base text-on-surface-variant leading-relaxed">Detecting imperceptible micro-fluctuations, analyzing pitch variance, and measuring speech latency with millisecond precision.</p>
-          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Micro-fluctuations</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Pitch Variance</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Speech Latency</span>
-          </div>
+    <!-- Hero Section -->
+    <section class="hero-section relative w-full min-h-screen flex items-center justify-center pt-20 pb-32">
+      <div class="max-w-4xl mx-auto px-8 w-full relative z-10 flex flex-col items-center text-center gap-8">
+        <div id="status-badge"
+          class="inline-flex items-center gap-3 bg-surface-container-highest px-4 py-2 rounded-xl transition-all duration-500">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
+          <span id="status-label" class="font-label text-xs uppercase tracking-widest text-on-surface">Checking…</span>
         </div>
-
-        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10 lg:-translate-y-8 border border-primary/10">
-          <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.15)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.25)] transition-all duration-300">
-            <span class="material-symbols-outlined text-3xl">psychology</span>
-          </div>
-          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Linguistic Patterns</h3>
-          <p class="font-body text-base text-on-surface-variant leading-relaxed">Evaluating complex syntax structures, identifying subtle vocabulary shifts, and tracking specific word frequency indicative of cognitive state.</p>
-          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Syntax Analysis</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Vocabulary Shifts</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Word Frequency</span>
-          </div>
+        <div class="flex flex-col gap-4">
+          <h2 class="font-label text-sm md:text-base uppercase tracking-[0.2em] text-primary">AI POWERED MULTI-MODAL
+            DEPRESSION DETECTION SYSTEM</h2>
+          <h1 class="text-6xl md:text-8xl lg:text-[100px] tracking-tighter leading-[0.9] text-on-surface transition-all duration-500 hover:-translate-y-2 hover:drop-shadow-[0_20px_40px_rgba(142,0,8,0.2)]">
+            <span class="amarante-regular uppercase"><i>Mano</i></span><br class="md:hidden"><span
+              class="yatra-one-regular text-[0.85em] md:text-[0.9em]"> ध्वनी</span>
+          </h1>
         </div>
-
-        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10">
-          <div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
-            <span class="material-symbols-outlined text-3xl">monitor_heart</span>
-          </div>
-          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Clinical Assessment</h3>
-          <p class="font-body text-base text-on-surface-variant leading-relaxed">Utilizing validated PHQ-9 framework and integrating dual-channel analysis to generate structured clinical reports for healthcare providers.</p>
-          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">PHQ-9 Framework</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Dual-Channel</span>
-            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Clinical Reports</span>
-          </div>
+        <p class="font-body text-xl md:text-2xl text-on-surface-variant max-w-2xl leading-relaxed">
+          Analyzing micro-fluctuations in voice and linguistic patterns to provide objective, clinical-grade mental
+          health assessments.
+        </p>
+        <div class="flex items-center gap-6">
+          <button id="get-started-btn" onclick="window.handleGetStarted()"
+            class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div
+              class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-base uppercase tracking-wider px-10 py-5 flex items-center justify-center gap-3">
+              GET STARTED
+              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">arrow_forward</span>
+            </div>
+          </button>
         </div>
-
       </div>
-    </div>
-  </section>
+    </section>
 
-</div><!-- /#main-content -->
+    <!-- Precision Metrics Section -->
+    <section class="py-32 w-full">
+      <div class="max-w-[1920px] mx-auto px-8 w-full">
+        <div class="flex items-start gap-8 mb-24">
+          <span class="font-label text-sm text-on-surface-variant">01</span>
+          <h2 id="precision-metrics-title" class="font-headline text-4xl md:text-6xl font-bold tracking-tight text-on-surface uppercase w-full md:w-auto text-left">
+            Precision Metrics</h2>
+          <div class="h-[1px] bg-outline-variant/20 flex-grow mt-6"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-10">
 
-<script>
-  // Track whether the user is logged in (set by onAuthStateChanged below)
-  window._psUserLoggedIn = false;
+          <div class="metric-card group flex flex-col items-start text-left gap-6 p-10">
+            <div
+              class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
+              <span class="material-symbols-outlined text-3xl">graphic_eq</span>
+            </div>
+            <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Vocal Biomarkers</h3>
+            <p class="font-body text-base text-on-surface-variant leading-relaxed">Detecting imperceptible
+              micro-fluctuations, analyzing pitch variance, and measuring speech latency with millisecond precision.</p>
+            <div class="mt-auto pt-8 flex flex-wrap justify-start gap-2">
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Micro-fluctuations</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Pitch
+                Variance</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Speech
+                Latency</span>
+            </div>
+          </div>
 
-  // Smart GET STARTED handler: logged-in → go straight to analysis; guest → show modal
-  window.handleGetStarted = function() {
-    if (window._psUserLoggedIn) {
+          <div
+            class="metric-card group flex flex-col items-start text-left gap-6 p-10 lg:-translate-y-8 border border-primary/10">
+            <div
+              class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.15)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.25)] transition-all duration-300">
+              <span class="material-symbols-outlined text-3xl">psychology</span>
+            </div>
+            <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Linguistic Patterns</h3>
+            <p class="font-body text-base text-on-surface-variant leading-relaxed">Evaluating complex syntax structures,
+              identifying subtle vocabulary shifts, and tracking specific word frequency indicative of cognitive state.
+            </p>
+            <div class="mt-auto pt-8 flex flex-wrap justify-start gap-2">
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Syntax
+                Analysis</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Vocabulary
+                Shifts</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Word
+                Frequency</span>
+            </div>
+          </div>
+
+          <div class="metric-card group flex flex-col items-start text-left gap-6 p-10">
+            <div
+              class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
+              <span class="material-symbols-outlined text-3xl">monitor_heart</span>
+            </div>
+            <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Clinical Assessment</h3>
+            <p class="font-body text-base text-on-surface-variant leading-relaxed">Utilizing validated PHQ-9 framework
+              and integrating dual-channel analysis to generate structured clinical reports for healthcare providers.
+            </p>
+            <div class="mt-auto pt-8 flex flex-wrap justify-start gap-2">
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">PHQ-9
+                Framework</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Dual-Channel</span>
+              <span
+                class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Clinical
+                Reports</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#main-content -->
+
+  <script>
+    // Track whether the user is logged in (set by onAuthStateChanged below)
+    window._mdUserLoggedIn = false;
+
+    // Smart GET STARTED handler: logged-in → go straight to analysis; guest → show modal
+    window.handleGetStarted = function () {
+      if (window._mdUserLoggedIn) {
+        window.location.href = 'analysis.html';
+      } else {
+        document.getElementById('info-modal').classList.add('open');
+      }
+    };
+
+    function closeInfoModal() {
+      const m = document.getElementById('info-modal');
+      m.style.opacity = '0';
+      m.style.transition = 'opacity 0.25s';
+      setTimeout(() => { m.classList.remove('open'); m.style.opacity = ''; m.style.transition = ''; }, 260);
+    }
+
+    function submitLandingModal() {
+      const name = (document.getElementById('lp-modal-name').value || '').trim();
+      const age = (document.getElementById('lp-modal-age').value || '').trim();
+      const gender = document.getElementById('lp-modal-gender').value || '';
+      const errEl = document.getElementById('lp-modal-error');
+      if (!name) { errEl.classList.remove('hidden'); return; }
+      errEl.classList.add('hidden');
+      sessionStorage.setItem('md_userInfo', JSON.stringify({ name, age, gender }));
       window.location.href = 'analysis.html';
-    } else {
-      document.getElementById('info-modal').classList.add('open');
     }
-  };
 
-  function closeInfoModal() {
-    const m = document.getElementById('info-modal');
-    m.style.opacity = '0';
-    m.style.transition = 'opacity 0.25s';
-    setTimeout(() => { m.classList.remove('open'); m.style.opacity = ''; m.style.transition = ''; }, 260);
-  }
+    // Backend status check
+    const statusDot = document.getElementById('status-dot');
+    const statusLabel = document.getElementById('status-label');
+    const BACKEND_URL = 'https://sense123-psychsense.hf.space';
 
-  function submitLandingModal() {
-    const name = (document.getElementById('lp-modal-name').value || '').trim();
-    const age = (document.getElementById('lp-modal-age').value || '').trim();
-    const gender = document.getElementById('lp-modal-gender').value || '';
-    const errEl = document.getElementById('lp-modal-error');
-    if (!name) { errEl.classList.remove('hidden'); return; }
-    errEl.classList.add('hidden');
-    sessionStorage.setItem('ps_userInfo', JSON.stringify({ name, age, gender }));
-    window.location.href = 'analysis.html';
-  }
-
-  // Backend status check
-  const statusDot = document.getElementById('status-dot');
-  const statusLabel = document.getElementById('status-label');
-  const BACKEND_URL = 'https://sense123-psychsense.hf.space';
-
-  async function checkBackendHealth() {
-    try {
-      const res = await fetch(`${BACKEND_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(4000) });
-      if (res.ok) {
-        statusDot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
-        statusLabel.textContent = 'System Active';
-      } else { setStatusDown(); }
-    } catch (_) { setStatusDown(); }
-  }
-
-  function setStatusDown() {
-    statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
-    statusLabel.textContent = 'System De-activated';
-    statusLabel.style.color = '#b91c1c';
-  }
-
-  checkBackendHealth();
-  setInterval(checkBackendHealth, 30000);
-</script>
-
-<!-- Firebase Auth: swap login button with profile pic on login -->
-<script type="module">
-  import { auth } from './js/firebase-config.js';
-  import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
-
-  onAuthStateChanged(auth, (user) => {
-    const loginBtn   = document.getElementById('login-signup-btn-home');
-    const badgeWrap  = document.getElementById('user-badge-home');
-    const avatar     = document.getElementById('user-avatar-home');
-    const nameEl     = document.getElementById('user-name-home');
-
-    if (user) {
-      window._psUserLoggedIn = true;
-      if (loginBtn)  loginBtn.style.display  = 'none';
-      if (badgeWrap) { badgeWrap.classList.remove('hidden'); badgeWrap.classList.add('flex'); }
-      const displayName = user.displayName || user.email || 'User';
-      const avatarUrl   = user.photoURL ||
-        `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
-      if (avatar)  avatar.src         = avatarUrl;
-      if (nameEl)  nameEl.textContent = displayName.split(' ')[0];
-    } else {
-      window._psUserLoggedIn = false;
-      if (loginBtn)  loginBtn.style.display  = '';
-      if (badgeWrap) { badgeWrap.classList.add('hidden'); badgeWrap.classList.remove('flex'); }
+    async function checkBackendHealth() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+          statusDot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+          statusLabel.textContent = 'System Active';
+        } else { setStatusDown(); }
+      } catch (_) { setStatusDown(); }
     }
-  });
-</script>
+
+    function setStatusDown() {
+      statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+      statusLabel.textContent = 'System De-activated';
+      statusLabel.style.color = '#b91c1c';
+    }
+
+    checkBackendHealth();
+    setInterval(checkBackendHealth, 30000);
+  </script>
+
+  <!-- Scramble Text Animation for Precision Metrics -->
+  <script>
+    (function() {
+      const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*!?';
+      function scrambleText(el, finalText, duration) {
+        const totalFrames = Math.round(duration / 40);
+        const resolveAt   = (i) => Math.floor(totalFrames * (i / finalText.length) * 0.75 + totalFrames * 0.25);
+        let frame = 0;
+        const iv = setInterval(() => {
+          let out = '';
+          for (let i = 0; i < finalText.length; i++) {
+            if (finalText[i] === ' ') { out += ' '; continue; }
+            if (frame >= resolveAt(i)) {
+              out += finalText[i];
+            } else {
+              out += CHARS[Math.floor(Math.random() * CHARS.length)];
+            }
+          }
+          el.textContent = out;
+          if (++frame > totalFrames) {
+            el.textContent = finalText;
+            clearInterval(iv);
+          }
+        }, 40);
+      }
+
+      function initScramble() {
+        const el = document.getElementById('precision-metrics-title');
+        if (!el) return;
+        const finalText = 'Precision Metrics';
+        el.textContent = finalText;
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              setTimeout(() => scrambleText(el, finalText, 1600), 150);
+              observer.disconnect();
+            }
+          });
+        }, { threshold: 0.3 });
+
+        observer.observe(el);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initScramble);
+      } else {
+        initScramble();
+      }
+    })();
+  </script>
+
+  <!-- Firebase Auth: swap login button with profile pic on login -->
+  <script type="module">
+    import { auth } from './js/firebase-config.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+
+    // ─── AUTH SYNC LOGIC ───
+    onAuthStateChanged(auth, user => {
+      const loginBtn = document.getElementById('login-signup-btn');
+      const badgeWrap = document.getElementById('user-badge');
+      const avatarNav = document.getElementById('user-avatar');
+      const nameNavEl = document.getElementById('user-name');
+
+      if (user) {
+        window._mdUserLoggedIn = true;
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (badgeWrap) { badgeWrap.classList.remove('hidden'); badgeWrap.classList.add('flex'); }
+        const displayName = user.displayName || user.email || 'User';
+        const avatarUrl = user.photoURL ||
+          `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+        if (avatar) avatar.src = avatarUrl;
+        if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
+      } else {
+        window._mdUserLoggedIn = false;
+        if (loginBtn) loginBtn.style.display = '';
+        if (badgeWrap) { badgeWrap.classList.add('hidden'); badgeWrap.classList.remove('flex'); }
+      }
+    });
+  </script>
 
 </body>
+
 </html>

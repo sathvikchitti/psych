@@ -1,8 +1,8 @@
-# PsychSense — Setup Guide
+# ManoDhwani — Setup Guide
 
 ## Folder structure after setup
 ```
-psychsense/
+manodhwani/
   backend/
     app.py               ← Flask server  (this file)
     requirements.txt
@@ -56,10 +56,10 @@ python app.py
 
 You should see:
 ```
-[PsychSense] Device: cuda  (or cpu)
-[PsychSense] DepressionNet loaded  CLNF_DIM=...  threshold=...
-[PsychSense] WavLM loaded ✓
-[PsychSense] BERT loaded ✓
+[ManoDhwani] Device: cuda  (or cpu)
+[ManoDhwani] DepressionNet loaded  CLNF_DIM=...  threshold=...
+[ManoDhwani] WavLM loaded ✓
+[ManoDhwani] BERT loaded ✓
  * Running on http://0.0.0.0:5000
 ```
 

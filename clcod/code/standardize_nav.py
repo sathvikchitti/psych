@@ -1,7 +1,7 @@
 import os
 import re
 
-workspace = r"d:\tmp\import\psychsense_integrated\code"
+workspace = 'd:/tmp/import/psychsense_3d_v9/psychsense_code'
 files_to_update = [
     'index.html', 'analysis.html', 'results.html', 
     'questionnaire.html', 'synthesizing.html', 
@@ -10,7 +10,7 @@ files_to_update = [
 
 standard_nav_template = """  <nav class="bg-white/70 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-surface-container" style="z-index: 50;">
     <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
-      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">MANODHWANI</a>
       <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
         <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
         <a class="nav-pill" id="nav-analysis-link" href="analysis.html">Analysis</a>
