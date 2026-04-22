@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>PsychSense - User Info Assessment</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="assets/css/star-border.css">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fcf9f8",
+                        "on-secondary-fixed-variant": "#3e399a",
+                        "surface-container-high": "#eae7e7",
+                        "tertiary-container": "#9b4000",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e5e2e1",
+                        secondary: "#5652b4",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#e6bdb8",
+                        "on-secondary-fixed": "#100069",
+                        background: "#fcf9f8",
+                        outline: "#916f6b",
+                        "on-tertiary-fixed-variant": "#793000",
+                        "on-surface-variant": "#5d3f3c",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#e3dfff",
+                        primary: "#8e0008",
+                        "on-tertiary-fixed": "#341100",
+                        "secondary-container": "#9b98ff",
+                        error: "#ba1a1a",
+                        "surface-container": "#f0eded",
+                        "surface-tint": "#bf0611",
+                        "surface-dim": "#dcd9d9",
+                        "on-primary-fixed-variant": "#930008",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed": "#ffdad5",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#1c1b1b",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-container": "#ffc9b0",
+                        "on-secondary-container": "#30298c",
+                        "tertiary-fixed": "#ffdbcb",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-primary-fixed": "#410001",
+                        "surface-container-low": "#f6f3f2",
+                        "primary-container": "#bb000e",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#ffb4aa",
+                        "primary-fixed-dim": "#ffb4aa",
+                        surface: "#fcf9f8",
+                        "secondary-fixed-dim": "#c3c0ff",
+                        "on-background": "#1c1b1b",
+                        "inverse-surface": "#313030",
+                        "tertiary-fixed-dim": "#ffb692",
+                        tertiary: "#752f00",
+                        "on-primary-container": "#ffc7c0"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.125rem",
+                        lg: "0.25rem",
+                        xl: "0.5rem",
+                        full: "0.75rem"
+                    },
+                    fontFamily: {
+                        headline: ["Epilogue"],
+                        body: ["Plus Jakarta Sans"],
+                        label: ["Space Grotesk"],
+                        display: "Epilogue"
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+      .bg-fixed-image {
+        background-image: url('assets/hero_silk_bg.png') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+      }
+      .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+    </style>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .display-lg { @apply font-headline text-5xl md:text-7xl font-bold leading-none tracking-tighter; }
+            .headline-lg { @apply font-headline text-3xl md:text-5xl font-bold leading-tight tracking-tight; }
+            .title-lg { @apply font-body text-xl md:text-2xl font-semibold leading-relaxed text-on-surface; }
+            .body-md { @apply font-body text-base font-normal leading-relaxed text-on-surface-variant; }
+            .label-md { @apply font-label text-sm uppercase tracking-widest font-medium text-on-surface-variant; }
+            .label-sm { @apply font-label text-xs uppercase tracking-widest font-medium text-on-surface-variant; }
+        }
+    </style>
+
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body bg-fixed-image pt-24">
+<!-- TopNavBar -->
+  <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
+    <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
+      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
+        <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
+        <a class="nav-pill active" id="nav-analysis-link" href="analysis.html">Analysis</a>
+        <a class="nav-pill" id="nav-results-link" href="results.html">Result</a>
+      </div>
+      <div class="flex items-center gap-4 ml-auto">
+        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
+          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+          <span id="user-name-index" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+        </div>
+        <div id="auth-section">
+          <a id="login-signup-btn" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div class="star-border-inner bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm">
+              Signup/Login
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-start w-full max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-24">
+    <div class="w-full max-w-4xl mb-16 flex flex-col items-start relative pl-12 md:pl-24">
+        <span class="absolute top-0 left-0 label-sm text-outline">01</span>
+        <h1 class="display-lg text-on-surface mb-6">User Info</h1>
+    </div>
+
+    <!-- Main Form Card -->
+    <div class="w-full max-w-2xl bg-stone-50/95 backdrop-blur-md relative p-8 md:p-12 z-10 shadow-[0_24px_48px_-12px_rgba(28,27,27,0.12)] rounded-2xl border border-white/20">
+        <div class="flex flex-col md:flex-row gap-12 items-start">
+            <!-- Profile Photo Area -->
+            <div class="flex flex-col items-center gap-4 flex-shrink-0">
+                <div class="relative group cursor-pointer">
+                    <div class="w-32 h-32 rounded-full bg-surface-container overflow-hidden relative">
+                        <img id="profile-img" alt="Subject Placeholder" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" src="https://ui-avatars.com/api/?background=8e0008&color=fff&name=PS"/>
+                        <div class="absolute inset-0 bg-on-surface/10 group-hover:bg-on-surface/0 transition-colors"></div>
+                    </div>
+                    <div class="absolute bottom-1 right-1 w-5 h-5 bg-surface-container-lowest rounded-full flex items-center justify-center">
+                        <div class="w-3 h-3 bg-[#4ade80] rounded-full"></div>
+                    </div>
+                </div>
+                <span class="label-sm hover:text-primary cursor-pointer transition-colors">Profile Ready</span>
+            </div>
+
+            <!-- Form Fields -->
+            <div class="w-full flex flex-col gap-8 flex-grow pt-2">
+                <div class="flex flex-col gap-2">
+                    <label class="label-sm" for="fullName">Full Name</label>
+                    <div class="relative bg-surface-container-low px-4 py-3 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-on-surface-variant">person</span>
+                        <input class="bg-transparent border-none p-0 w-full text-on-surface focus:ring-0 body-md placeholder:text-outline/50" id="fullName" placeholder="Enter subject name" type="text"/>
+                    </div>
+                </div>
+                <div class="flex flex-col md:flex-row gap-8">
+                    <div class="flex flex-col gap-2 w-full md:w-1/2">
+                        <label class="label-sm" for="age">Age</label>
+                        <div class="relative bg-surface-container-low px-4 py-3 flex items-center gap-3">
+                            <span class="material-symbols-outlined text-on-surface-variant">calendar_today</span>
+                            <input class="bg-transparent border-none p-0 w-full text-on-surface focus:ring-0 body-md placeholder:text-outline/50" id="age" placeholder="Years" type="number"/>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 w-full md:w-1/2">
+                        <label class="label-sm" for="gender">Gender</label>
+                        <div class="relative bg-surface-container-low px-4 py-3 flex items-center gap-3">
+                            <span class="material-symbols-outlined text-on-surface-variant">wc</span>
+                            <select class="bg-transparent border-none p-0 w-full text-on-surface focus:ring-0 body-md appearance-none" id="gender">
+                                <option disabled selected value="">Select</option>
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            <span class="material-symbols-outlined absolute right-4 pointer-events-none text-on-surface-variant">expand_more</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-16 flex items-center justify-end gap-6 pt-8 bg-transparent border-t border-stone-200/50">
+            <button onclick="window.history.back()" class="label-md px-6 py-3 border border-outline-variant/20 text-on-background hover:bg-surface-container-low transition-colors rounded-DEFAULT">CANCEL</button>
+            <button onclick="proceedToAssessment()" class="star-border rounded-DEFAULT shadow-[0_4px_14px_0_rgba(187,0,14,0.39)] transition-all transform hover:-translate-y-0.5" style="border:none;">
+                <div class="star-border-inner bg-primary text-on-primary label-md px-8 py-3 rounded-DEFAULT flex items-center gap-2 hover:bg-primary-container">
+                    PROCEED <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </div>
+            </button>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-stone-100/90 backdrop-blur-md fixed bottom-0 left-0 right-0 z-50 w-full border-t border-stone-200">
+    <div class="relative flex flex-col md:flex-row justify-between items-center px-8 py-6 max-w-[1920px] mx-auto">
+        <span class="font-headline font-bold text-stone-950 text-sm tracking-widest">TEAM G-1107</span>
+        <div class="flex flex-wrap justify-center gap-6">
+            <a class="font-label text-[10px] uppercase tracking-widest text-stone-500 hover:text-primary transition-colors font-bold" href="#">PS-NEURO</a>
+        </div>
+        <span class="font-label text-[10px] uppercase tracking-widest text-stone-400 mt-6 md:mt-0 text-center md:text-right">© 2026 PSYCHSENSE — CLINICAL AI</span>
+    </div>
+</footer>
+
+<script type="module">
+    import { auth, db } from './js/firebase-config.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+    onAuthStateChanged(auth, async (user) => {
+        const loginBtn = document.getElementById('login-signup-btn');
+        const badgeWrap = document.getElementById('user-badge-index');
+        const avatarNav = document.getElementById('user-avatar-index');
+        const nameNavEl = document.getElementById('user-name-index');
+        const resLink = document.getElementById('nav-results-link');
+
+        if (!user) {
+            if (loginBtn) loginBtn.style.display = '';
+            if (badgeWrap) badgeWrap.classList.add('hidden');
+            if (resLink) resLink.href = 'login.html';
+            window.location.href = 'login.html';
+            return;
+        }
+
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (badgeWrap) badgeWrap.classList.replace('hidden', 'flex');
+        const displayName = user.displayName || user.email || 'User';
+        const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?background=bb000e&color=fff&name=${encodeURIComponent(displayName)}`;
+        
+        if (avatarNav) avatarNav.src = avatarUrl;
+        if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
+        if (resLink) resLink.href = 'results.html';
+
+        const nameInput = document.getElementById('fullName');
+        const ageInput = document.getElementById('age');
+        const genderInput = document.getElementById('gender');
+        const profileImg = document.getElementById('profile-img');
+
+        // Profile image in form
+        if (profileImg) profileImg.src = avatarUrl;
+
+        // Auto-fill from Firestore
+        try {
+            const snap = await getDoc(doc(db, 'users', user.uid));
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.fullName && !nameInput.value) nameInput.value = data.fullName;
+                if (data.age && !ageInput.value) ageInput.value = data.age;
+                if (data.gender && !genderInput.value) genderInput.value = data.gender;
+            } else if (user.displayName) {
+                nameInput.value = user.displayName;
+            }
+        } catch (e) {
+            if (user.displayName) nameInput.value = user.displayName;
+        }
+    });
+
+    window.proceedToAssessment = function() {
+        const name = document.getElementById('fullName').value.trim();
+        const age = document.getElementById('age').value.trim();
+        const gender = document.getElementById('gender').value;
+
+        if (!name) {
+            alert('Please enter a full name.');
+            return;
+        }
+
+        sessionStorage.setItem('ps_userInfo', JSON.stringify({ name, age, gender }));
+        window.location.href = 'analysis.html';
+    };
+</script>
+</body>
+</html>

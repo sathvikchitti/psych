@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PsychSense - AI Powered Multi-Modal Depression Detection System</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-container-lowest": "#ffffff",
+          "on-tertiary-container": "#ffc9b0",
+          "inverse-surface": "#313030",
+          "surface-container-highest": "#e5e2e1",
+          "secondary-container": "#9b98ff",
+          "surface-container": "#f0eded",
+          "on-secondary-fixed": "#100069",
+          error: "#ba1a1a",
+          "tertiary-fixed-dim": "#ffb692",
+          "on-primary": "#ffffff",
+          "on-error": "#ffffff",
+          "surface-dim": "#dcd9d9",
+          "inverse-on-surface": "#f3f0ef",
+          "on-surface-variant": "#5d3f3c",
+          primary: "#8e0008",
+          "outline-variant": "#e6bdb8",
+          background: "#fcf9f8",
+          "tertiary-container": "#9b4000",
+          secondary: "#5652b4",
+          "on-primary-container": "#ffc7c0",
+          "on-tertiary": "#ffffff",
+          surface: "#fcf9f8",
+          "error-container": "#ffdad6",
+          "primary-fixed": "#ffdad5",
+          "on-error-container": "#93000a",
+          "surface-bright": "#fcf9f8",
+          "primary-fixed-dim": "#ffb4aa",
+          outline: "#916f6b",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed-variant": "#3e399a",
+          tertiary: "#752f00",
+          "surface-tint": "#bf0611",
+          "secondary-fixed-dim": "#c3c0ff",
+          "primary-container": "#bb000e",
+          "surface-container-high": "#eae7e7",
+          "tertiary-fixed": "#ffdbcb",
+          "on-primary-fixed": "#410001",
+          "surface-variant": "#e5e2e1",
+          "inverse-primary": "#ffb4aa",
+          "secondary-fixed": "#e3dfff",
+          "on-secondary-container": "#30298c",
+          "on-tertiary-fixed": "#341100",
+          "on-surface": "#1c1b1b",
+          "on-tertiary-fixed-variant": "#793000",
+          "surface-container-low": "#f6f3f2",
+          "on-background": "#1c1b1b"
+        },
+        borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+        fontFamily: {
+          headline: ["Epilogue"],
+          body: ["Plus Jakarta Sans"],
+          label: ["Space Grotesk"],
+          display: "Epilogue"
+        }
+      }
+    }
+  };
+</script>
+
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+  /* ═══════════════════════════════════════════
+     PARTICLE HERO — fullscreen dark intro
+  ═══════════════════════════════════════════ */
+  #particle-hero {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: #05050a;
+    overflow: hidden;
+    cursor: default;
+  }
+
+  #hero-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    transition: none;
+  }
+
+  #particle-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Bottom-left text block */
+  #hero-text {
+    position: absolute;
+    bottom: 60px;
+    left: 64px;
+    z-index: 5;
+  }
+
+  .hero-eyebrow {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(180, 160, 255, 0.55);
+    margin: 0 0 14px 0;
+  }
+
+  #hero-text h1 {
+    font-family: "Epilogue", sans-serif;
+    font-size: clamp(48px, 5.2vw, 78px);
+    font-weight: 900;
+    line-height: 1.0;
+    color: #ffffff;
+    margin: 0 0 36px 0;
+  }
+
+  #hero-text h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: rgba(190, 170, 255, 0.9);
+  }
+
+  /* Scroll hint — bottom right */
+  #hero-scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    right: 52px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    color: rgba(255, 255, 255, 0.28);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes scrollPulse {
+    0%,100% { opacity: 0.28; transform: translateY(0); }
+    50%      { opacity: 0.6;  transform: translateY(6px); }
+  }
+
+  /* Loading indicator */
+  #hero-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    transition: opacity 0.6s ease;
+  }
+
+  .loading-ring {
+    width: 48px;
+    height: 48px;
+    border: 2px solid rgba(180, 160, 255, 0.15);
+    border-top-color: rgba(180, 160, 255, 0.7);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(180, 160, 255, 0.45);
+  }
+
+  /* Main content hidden under hero initially */
+  #main-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  body.hero-active {
+    overflow: hidden;
+  }
+
+  /* ═══════════════════════════════════════════
+     MAIN SITE STYLES
+  ═══════════════════════════════════════════ */
+  body, .bg-fixed-image {
+    background-image: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7));
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  #main-content { position: relative; z-index: 1; }
+
+  /* Nav pill links */
+  .nav-pill {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(28,27,27,0.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    transition: all 0.25s ease;
+    color: #3a3a3a;
+    background: rgba(255,255,255,0.7);
+  }
+
+  .nav-pill:hover {
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+    transform: translateY(-2px);
+    color: #8e0008;
+    border-color: rgba(142,0,8,0.25);
+  }
+
+  .nav-pill.active {
+    background: #8e0008;
+    color: #fff;
+    border-color: #8e0008;
+    box-shadow: 0 4px 16px rgba(142,0,8,0.25);
+  }
+
+  /* Metric cards */
+  .metric-card {
+    border-radius: 1.5rem;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(28,27,27,0.07);
+    transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .metric-card:hover {
+    transform: translateY(-12px) scale(1.02);
+    box-shadow: 0 24px 60px rgba(28,27,27,0.16), 0 0 0 1px rgba(142,0,8,0.08);
+  }
+
+  /* Modal */
+  #info-modal { display: none; position: fixed; inset: 0; z-index: 300; align-items: center; justify-content: center; }
+  #info-modal.open { display: flex; }
+
+  .modal-glass {
+    background: rgba(255,255,255,0.13);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,0.28);
+    border-radius: 1.75rem;
+    box-shadow: 0 40px 90px rgba(0,0,0,0.55);
+    animation: modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .modal-input,
+  input[type="text"].modal-input,
+  input[type="number"].modal-input,
+  select.modal-input {
+    width: 100%;
+    background: rgba(30,20,20,0.55) !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: 1.5px solid rgba(255,255,255,0.22);
+    border-radius: 0.6rem;
+    padding: 13px 16px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 15px;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    outline: none;
+    transition: border 0.2s, background 0.2s;
+    color-scheme: dark;
+  }
+
+  .modal-input::placeholder { color: rgba(255,255,255,0.45); }
+
+  .modal-input:focus,
+  input[type="number"].modal-input:focus,
+  select.modal-input:focus {
+    border-color: rgba(187,0,14,0.7);
+    background: rgba(50,20,20,0.65) !important;
+  }
+
+  .modal-input option { background: #1c1b1b; color: #fff; }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.93) translateY(24px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
+  #modal-overlay { animation: fadeOverlay 0.3s ease both; }
+
+  .hover-float { transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .hover-float:hover { transform: scale(1.05) translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+
+  /* Hero section background */
+  .hero-bg-gradient {
+    background: linear-gradient(135deg, rgba(252,249,248,0.95) 0%, rgba(240,237,237,0.8) 40%, rgba(230,225,225,0.6) 100%);
+  }
+
+  /* Subtle silk-like texture for hero */
+  .hero-section {
+    background: 
+      radial-gradient(ellipse at 20% 50%, rgba(142,0,8,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(86,82,180,0.04) 0%, transparent 60%),
+      linear-gradient(135deg, #fcf9f8 0%, #f5f0f0 50%, #f0ecec 100%);
+  }
+</style>
+</head>
+
+<body class="bg-background text-on-background font-body antialiased selection:bg-primary-container selection:text-on-primary-container pb-32">
+
+<!-- ═══ PARTICLE HERO ═══ -->
+<div id="particle-hero">
+  <canvas id="particle-canvas"></canvas>
+  <div id="hero-flash"></div>
+
+  <!-- Loading indicator -->
+  <div id="hero-loading">
+    <div class="loading-ring"></div>
+    <p class="loading-text">Loading</p>
+  </div>
+
+  <div id="hero-text" style="opacity:0; transition: opacity 1s ease 0.5s;">
+    <p class="hero-eyebrow">AI-Powered Multi-Modal Depression Detection</p>
+    <h1>Welcome to<br><em>PsychSense.</em></h1>
+  </div>
+
+  <div id="hero-scroll-hint" style="opacity:0; transition: opacity 1s ease 1s;">
+    <svg width="13" height="21" viewBox="0 0 13 21" fill="none">
+      <rect x="4.5" y="2" width="4" height="6" rx="2" fill="rgba(255,255,255,0.45)"/>
+      <path d="M2.5 13 L6.5 18 L10.5 13" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <span>Scroll</span>
+  </div>
+</div>
+
+<!-- ═══ MAIN SITE CONTENT ═══ -->
+<div id="main-content">
+
+  <!-- User Info Modal -->
+  <div id="info-modal">
+    <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="closeInfoModal()"></div>
+    <div class="modal-glass relative w-full max-w-md mx-4 p-8 flex flex-col gap-6 z-10">
+      <div class="flex items-center gap-4 mb-1">
+        <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">person</span>
+        </div>
+        <div>
+          <p class="font-label text-[10px] uppercase tracking-widest text-white/50 mb-0.5">Before We Begin</p>
+          <h2 class="font-headline font-bold text-white text-xl leading-tight">Patient Information</h2>
+        </div>
+        <button onclick="closeInfoModal()" class="ml-auto text-white/40 hover:text-white transition-colors">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div id="lp-autofill-banner" class="hidden items-center gap-2 bg-green-500/10 border border-green-400/30 rounded-xl px-4 py-2.5">
+        <span class="material-symbols-outlined text-green-400 text-sm" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+        <span class="font-label text-[11px] text-green-300 font-semibold uppercase tracking-wider">Auto-filled from your profile</span>
+      </div>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Full Name</label>
+          <input id="lp-modal-name" type="text" class="modal-input" placeholder="Enter your full name">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Age</label>
+            <input id="lp-modal-age" type="number" min="10" max="100" class="modal-input" placeholder="e.g. 25">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Gender</label>
+            <select id="lp-modal-gender" class="modal-input">
+              <option value="" disabled selected>Select</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <p id="lp-modal-error" class="hidden font-label text-xs text-red-400 font-semibold">Please enter your full name to continue.</p>
+      <button onclick="submitLandingModal()" class="hover-float w-full bg-primary text-white font-label font-bold text-sm uppercase tracking-wider py-4 rounded-xl shadow-[0_4px_20px_rgba(187,0,14,0.4)] flex items-center justify-center gap-2 mt-1">
+        <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1;">start</span>
+        Begin Assessment
+      </button>
+    </div>
+  </div>
+
+  <!-- Top Nav Bar -->
+  <nav class="bg-white/70 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-surface-container" style="z-index: 50;">
+    <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
+      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
+        <a class="nav-pill active" href="index.html">HOME</a>
+        <a class="nav-pill" href="analysis.html">Analysis</a>
+        <a class="nav-pill" href="results.html">Result</a>
+      </div>
+      <div class="flex items-center gap-4 ml-auto">
+        <div class="flex items-center gap-4">
+          <a href="login.html" class="bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm hover:bg-primary-container transition-all duration-300 hover:-translate-y-[2px]">Signup/Login</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-section relative w-full min-h-screen flex items-center justify-center pt-20 pb-32">
+    <div class="max-w-4xl mx-auto px-8 w-full relative z-10 flex flex-col items-center text-center gap-8">
+      <div id="status-badge" class="inline-flex items-center gap-3 bg-surface-container-highest px-4 py-2 rounded-xl transition-all duration-500">
+        <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
+        <span id="status-label" class="font-label text-xs uppercase tracking-widest text-on-surface">Checking…</span>
+      </div>
+      <div class="flex flex-col gap-4">
+        <h2 class="font-label text-sm md:text-base uppercase tracking-[0.2em] text-primary">AI POWERED MULTI-MODAL DEPRESSION DETECTION SYSTEM</h2>
+        <h1 class="font-headline text-6xl md:text-8xl lg:text-[100px] font-black tracking-tighter leading-[0.9] text-on-surface uppercase">Psych<br>Sense</h1>
+      </div>
+      <p class="font-body text-xl md:text-2xl text-on-surface-variant max-w-2xl leading-relaxed">
+        Analyzing micro-fluctuations in voice and linguistic patterns to provide objective, clinical-grade mental health assessments.
+      </p>
+      <div class="flex items-center gap-6">
+        <button id="get-started-btn" onclick="document.getElementById('info-modal').classList.add('open')" class="bg-primary text-on-primary font-label text-base uppercase tracking-wider px-10 py-5 rounded-sm hover:bg-primary-container transition-all duration-300 hover:-translate-y-[2px] inline-flex items-center gap-3">
+          GET STARTED
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Precision Metrics Section -->
+  <section class="py-32 bg-background w-full">
+    <div class="max-w-[1920px] mx-auto px-8 w-full">
+      <div class="flex items-start gap-8 mb-24">
+        <span class="font-label text-sm text-on-surface-variant">01</span>
+        <div class="h-[1px] bg-outline-variant/20 flex-grow mt-2"></div>
+        <h2 class="font-headline text-4xl md:text-6xl font-bold tracking-tight text-on-surface uppercase w-full md:w-auto text-right">Precision Metrics</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-10">
+
+        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10">
+          <div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
+            <span class="material-symbols-outlined text-3xl">graphic_eq</span>
+          </div>
+          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Vocal Biomarkers</h3>
+          <p class="font-body text-base text-on-surface-variant leading-relaxed">Detecting imperceptible micro-fluctuations, analyzing pitch variance, and measuring speech latency with millisecond precision.</p>
+          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Micro-fluctuations</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Pitch Variance</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Speech Latency</span>
+          </div>
+        </div>
+
+        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10 lg:-translate-y-8 border border-primary/10">
+          <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.15)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.25)] transition-all duration-300">
+            <span class="material-symbols-outlined text-3xl">psychology</span>
+          </div>
+          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Linguistic Patterns</h3>
+          <p class="font-body text-base text-on-surface-variant leading-relaxed">Evaluating complex syntax structures, identifying subtle vocabulary shifts, and tracking specific word frequency indicative of cognitive state.</p>
+          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Syntax Analysis</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Vocabulary Shifts</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Word Frequency</span>
+          </div>
+        </div>
+
+        <div class="metric-card group flex flex-col items-center text-center gap-6 p-10">
+          <div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center text-primary mb-4 shadow-[0_8px_24px_rgba(142,0,8,0.12)] group-hover:shadow-[0_12px_32px_rgba(142,0,8,0.2)] transition-all duration-300">
+            <span class="material-symbols-outlined text-3xl">monitor_heart</span>
+          </div>
+          <h3 class="font-headline text-2xl font-bold text-on-surface uppercase">Clinical Assessment</h3>
+          <p class="font-body text-base text-on-surface-variant leading-relaxed">Utilizing validated PHQ-9 framework and integrating dual-channel analysis to generate structured clinical reports for healthcare providers.</p>
+          <div class="mt-auto pt-8 flex flex-wrap justify-center gap-2">
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">PHQ-9 Framework</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Dual-Channel</span>
+            <span class="bg-surface-container-highest px-3 py-1 rounded-xl font-label text-xs uppercase tracking-wider text-on-surface">Clinical Reports</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</div><!-- /#main-content -->
+
+<script>
+  function closeInfoModal() {
+    const m = document.getElementById('info-modal');
+    m.style.opacity = '0';
+    m.style.transition = 'opacity 0.25s';
+    setTimeout(() => { m.classList.remove('open'); m.style.opacity = ''; m.style.transition = ''; }, 260);
+  }
+
+  function submitLandingModal() {
+    const name = (document.getElementById('lp-modal-name').value || '').trim();
+    const age = (document.getElementById('lp-modal-age').value || '').trim();
+    const gender = document.getElementById('lp-modal-gender').value || '';
+    const errEl = document.getElementById('lp-modal-error');
+    if (!name) { errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    sessionStorage.setItem('ps_userInfo', JSON.stringify({ name, age, gender }));
+    window.location.href = 'analysis.html';
+  }
+
+  // Backend status check
+  const statusDot = document.getElementById('status-dot');
+  const statusLabel = document.getElementById('status-label');
+  const BACKEND_URL = 'http://127.0.0.1:7860';
+
+  async function checkBackendHealth() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(4000) });
+      if (res.ok) {
+        statusDot.className = 'w-2 h-2 rounded-full bg-green-500 animate-pulse';
+        statusLabel.textContent = 'System Active';
+      } else { setStatusDown(); }
+    } catch (_) { setStatusDown(); }
+  }
+
+  function setStatusDown() {
+    statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+    statusLabel.textContent = 'System De-activated';
+    statusLabel.style.color = '#b91c1c';
+  }
+
+  checkBackendHealth();
+  setInterval(checkBackendHealth, 30000);
+</script>
+
+<!-- ═══════════════════════════════════════════
+     PARTICLE HERO — Three.js + GLB + Scroll
+═══════════════════════════════════════════ -->
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.128.0';
+import { GLTFLoader } from 'https://esm.sh/three@0.128.0/examples/jsm/loaders/GLTFLoader';
+
+(function () {
+  const hero    = document.getElementById('particle-hero');
+  const canvas  = document.getElementById('particle-canvas');
+  const flash   = document.getElementById('hero-flash');
+  const loading = document.getElementById('hero-loading');
+  const heroText = document.getElementById('hero-text');
+  const heroHint = document.getElementById('hero-scroll-hint');
+  if (!hero || !canvas) return;
+
+  // Lock scroll while hero visible
+  document.body.classList.add('hero-active');
+
+  // ── Renderer ──────────────────────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x05050a, 1);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100);
+  camera.position.set(0, 0, 3.2);
+  camera.lookAt(0, 0, 0);
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ── Mouse tracking ─────────────────────────────────────────────────────────
+  const mouse = { x: 0, y: 0 };
+  document.addEventListener('mousemove', e => {
+    mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
+  });
+
+  // ── Load scene.glb → extract vertices → build PointCloud ─────────────────
+  let points = null;
+  let tRX = 0, tRY = 0, cRX = 0, cRY = 0;
+
+  const loader = new GLTFLoader();
+  loader.load('scene.glb',
+    gltf => {
+      // Hide loading, show text/hint
+      loading.style.opacity = '0';
+      setTimeout(() => { loading.style.display = 'none'; }, 600);
+      heroText.style.opacity = '1';
+      heroHint.style.opacity = '1';
+
+      const posChunks = [], colChunks = [];
+
+      gltf.scene.traverse(child => {
+        if (!child.isMesh) return;
+        const geo = child.geometry;
+        const pos = geo.attributes.position;
+        if (!pos) return;
+
+        child.updateWorldMatrix(true, false);
+        const mat = child.matrixWorld;
+        const tmp = new THREE.Vector3();
+        const arr = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+          tmp.fromBufferAttribute(pos, i).applyMatrix4(mat);
+          arr[i*3] = tmp.x; arr[i*3+1] = tmp.y; arr[i*3+2] = tmp.z;
+        }
+        posChunks.push(arr);
+
+        const col = geo.attributes.color || geo.attributes.COLOR_0;
+        if (col) {
+          const ca = new Float32Array(col.count * 3);
+          for (let i = 0; i < col.count; i++) {
+            ca[i*3] = col.getX(i); ca[i*3+1] = col.getY(i); ca[i*3+2] = col.getZ(i);
+          }
+          colChunks.push(ca);
+        } else {
+          const ca = new Float32Array(pos.count * 3).fill(1);
+          colChunks.push(ca);
+        }
+      });
+
+      if (!posChunks.length) { console.error('No geometry in scene.glb'); return; }
+
+      // Sub-sample to 500k max
+      const total = posChunks.reduce((s, a) => s + a.length / 3, 0);
+      const step  = Math.max(1, Math.ceil(total / 500000));
+
+      const mPos = [], mCol = [];
+      posChunks.forEach((pa, idx) => {
+        const ca = colChunks[idx];
+        const n  = pa.length / 3;
+        for (let i = 0; i < n; i += step) {
+          mPos.push(pa[i*3], pa[i*3+1], pa[i*3+2]);
+          // Blue-purple tint from luminance
+          const lum = 0.18 + (ca[i*3]*0.299 + ca[i*3+1]*0.587 + ca[i*3+2]*0.114) * 0.6;
+          mCol.push(lum * 0.58, lum * 0.60, lum * 1.0);
+        }
+      });
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(mPos, 3));
+      geo.setAttribute('color',    new THREE.Float32BufferAttribute(mCol, 3));
+
+      // Centre & scale
+      geo.computeBoundingBox();
+      const box = geo.boundingBox;
+      const ctr = new THREE.Vector3(); box.getCenter(ctr);
+      const sz  = new THREE.Vector3(); box.getSize(sz);
+      const scale = 2.2 / Math.max(sz.x, sz.y, sz.z);
+      const posAttr = geo.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        posAttr.setXYZ(i,
+          (posAttr.getX(i) - ctr.x) * scale,
+          (posAttr.getY(i) - ctr.y) * scale,
+          (posAttr.getZ(i) - ctr.z) * scale
+        );
+      }
+      posAttr.needsUpdate = true;
+
+      const mat = new THREE.PointsMaterial({
+        size: 0.006,
+        vertexColors: true,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+      });
+      points = new THREE.Points(geo, mat);
+      scene.add(points);
+      console.log('Particle cloud ready:', posAttr.count, 'pts');
+    },
+    xhr => {
+      if (xhr.total) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        const loadingText = loading.querySelector('.loading-text');
+        if (loadingText) loadingText.textContent = `Loading ${pct}%`;
+      }
+    },
+    err => {
+      console.error('GLB error:', err);
+      loading.style.display = 'none';
+      heroText.style.opacity = '1';
+      heroHint.style.opacity = '1';
+    }
+  );
+
+  // ── Scroll-driven zoom + flash transition ──────────────────────────────────
+  let scrollProgress = 0;
+  let transitioning  = false;
+  let heroGone       = false;
+
+  function onWheel(e) {
+    if (heroGone) return;
+    e.preventDefault();
+    scrollProgress = Math.min(1, scrollProgress + Math.abs(e.deltaY) / 600);
+    if (scrollProgress >= 1 && !transitioning) triggerExit();
+  }
+
+  let touchStartY = 0;
+  function onTouchStart(e) { touchStartY = e.touches[0].clientY; }
+  function onTouchMove(e) {
+    if (heroGone) return;
+    e.preventDefault();
+    const dy = touchStartY - e.touches[0].clientY;
+    scrollProgress = Math.min(1, scrollProgress + Math.abs(dy) / 400);
+    touchStartY = e.touches[0].clientY;
+    if (scrollProgress >= 1 && !transitioning) triggerExit();
+  }
+
+  window.addEventListener('wheel', onWheel, { passive: false });
+  window.addEventListener('touchstart', onTouchStart, { passive: true });
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+
+  function triggerExit() {
+    if (transitioning || heroGone) return;
+    transitioning = true;
+
+    // Phase 1: white flash builds (0 → 1 over 400ms)
+    let t0 = performance.now();
+    function animFlash(now) {
+      const p = Math.min((now - t0) / 400, 1);
+      flash.style.opacity = p;
+      if (p < 1) requestAnimationFrame(animFlash);
+      else {
+        // Phase 2: swap to main site
+        heroGone = true;
+        document.body.classList.remove('hero-active');
+        window.removeEventListener('wheel', onWheel);
+        window.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('touchmove', onTouchMove);
+        hero.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+
+        // Phase 3: flash fades out over 350ms revealing main site
+        let t1 = performance.now();
+        const pageFlash = document.createElement('div');
+        pageFlash.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#fff;pointer-events:none;';
+        document.body.appendChild(pageFlash);
+        function animFadeOut(now2) {
+          const p2 = Math.min((now2 - t1) / 450, 1);
+          pageFlash.style.opacity = 1 - p2;
+          if (p2 < 1) requestAnimationFrame(animFadeOut);
+          else pageFlash.remove();
+        }
+        requestAnimationFrame(animFadeOut);
+      }
+    }
+    requestAnimationFrame(animFlash);
+  }
+
+  // ── Render loop ────────────────────────────────────────────────────────────
+  let last = performance.now();
+  (function animate() {
+    if (heroGone) return;
+    requestAnimationFrame(animate);
+
+    const now = performance.now();
+    const dt  = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    if (points) {
+      // Mouse-look
+      tRY =  mouse.x * 0.3;
+      tRX = -mouse.y * 0.15;
+      const k = 1 - Math.exp(-5 * dt);
+      cRX += (tRX - cRX) * k;
+      cRY += (tRY - cRY) * k;
+      points.rotation.x = cRX;
+      points.rotation.y = cRY;
+
+      // Idle breathe
+      points.position.y = Math.sin(now * 0.0007) * 0.016;
+
+      // Scroll-driven zoom: camera moves from z=3.2 toward z=0.4
+      const zoom = 3.2 - scrollProgress * 2.8;
+      camera.position.z += (zoom - camera.position.z) * 0.18;
+    }
+
+    renderer.render(scene, camera);
+  })();
+
+})();
+</script>
+
+</body>
+</html>

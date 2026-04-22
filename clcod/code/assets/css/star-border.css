@@ -1,0 +1,55 @@
+@keyframes star-movement-bottom {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(-100%, 0%); opacity: 0; }
+}
+@keyframes star-movement-top {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(100%, 0%); opacity: 0; }
+}
+
+.star-border {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  padding: 1px; /* Border thickness */
+  isolation: isolate;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.star-border::before, .star-border::after {
+  content: "";
+  position: absolute;
+  width: 300%;
+  height: 50%;
+  opacity: 0.7;
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.star-border::before {
+  bottom: -11px;
+  right: -250%;
+  animation: star-movement-bottom 5s linear infinite alternate;
+  background: radial-gradient(circle, magenta, transparent 10%);
+}
+
+.star-border::after {
+  top: -10px;
+  left: -250%;
+  animation: star-movement-top 5s linear infinite alternate;
+  background: radial-gradient(circle, magenta, transparent 10%);
+}
+
+.star-border-inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}

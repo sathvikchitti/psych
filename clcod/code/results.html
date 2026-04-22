@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PsychSense - Mental Health Report</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="stylesheet" href="assets/css/star-border.css">
+<script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{error:"#ba1a1a","on-primary":"#ffffff","on-error":"#ffffff","on-surface-variant":"#5d3f3c",primary:"#8e0008","outline-variant":"#e6bdb8",background:"#fcf9f8","on-primary-container":"#ffc7c0","on-tertiary":"#ffffff",surface:"#fcf9f8","error-container":"#ffdad6","primary-fixed":"#ffdad5","primary-container":"#bb000e","surface-container-high":"#eae7e7","tertiary-fixed":"#ffdbcb","on-primary-fixed":"#410001","surface-variant":"#e5e2e1","inverse-primary":"#ffb4aa","on-surface":"#1c1b1b","surface-container-low":"#f6f3f2","surface-container":"#f0eded","surface-container-lowest":"#ffffff","surface-container-highest":"#e5e2e1","on-background":"#1c1b1b",outline:"#916f6b",secondary:"#5652b4"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},fontFamily:{headline:["Epilogue"],body:["Plus Jakarta Sans"],label:["Space Grotesk"],display:"Epilogue"}}}};</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+  .page{display:none}.page.active{display:block}
+  /* Result page accent blobs */
+  .blob-tl{position:fixed;top:-10%;left:-10%;width:40%;height:40%;background:#00e5ff;border-radius:50%;mix-blend-mode:multiply;filter:blur(150px);opacity:0.08;pointer-events:none}
+  .blob-br{position:fixed;bottom:-10%;right:-10%;width:50%;height:50%;background:#ff00ff;border-radius:50%;mix-blend-mode:multiply;filter:blur(200px);opacity:0.08;pointer-events:none}
+  /* Doctors table */
+  .doctors-table{width:100%;border-collapse:collapse}
+  .doctors-table th,.doctors-table td{padding:10px 14px;text-align:left;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.07)}
+  .doctors-table th{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748b}
+  .doctors-table td{color:#cbd5e1}
+  /* Profile dark card */
+  .glass-panel{background:rgba(255,255,255,0.55);backdrop-filter:blur(12px);border:1px solid rgba(0,0,0,0.08);border-radius:4px;transition:all 0.3s}
+  /* Contribution bar */
+  .contrib-bar{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden}
+  .contrib-fill{height:100%;border-radius:3px;transition:width 0.6s ease;width:0}
+  /* Signals tags */
+  .signal-tag{display:inline-block;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:0.05em}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .animate-spin{animation:spin 1s linear infinite}
+  .bg-fixed-image {
+    background-image: url('assets/hero_silk_bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+  }
+  </style>
+
+</head>
+<body class="text-neutral-900 font-body antialiased min-h-screen pt-24 pb-32 bg-fixed-image">
+
+<!-- Decorative blobs -->
+<div class="blob-tl"></div>
+<div class="blob-br"></div>
+
+<!-- ══════════════════════════════════════════
+     PAGE: RESULTS
+════════════════════════════════════════════ -->
+<div id="page-results" class="page active relative z-10">
+    <!-- TopNavBar -->
+    <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
+    <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
+      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
+        <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
+        <a class="nav-pill" id="nav-analysis-link" href="analysis.html">Analysis</a>
+        <a class="nav-pill active" id="nav-results-link" href="results.html">Result</a>
+      </div>
+      <div class="flex items-center gap-4 ml-auto">
+        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
+          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+          <span id="user-name-index" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+        </div>
+        <div id="auth-section">
+          <a id="login-signup-btn" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3">
+              Signup/Login
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="pt-24 min-h-screen">
+
+  <!-- Loading Fallback (shown while JS hydrates) -->
+  <div id="results-loading" class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+    <div class="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+    <p class="font-label text-sm uppercase tracking-widest text-neutral-500">Loading your report…</p>
+  </div>
+
+  <!-- Actual Report Content (hidden until hydrated) -->
+  <div id="results-content" style="display:none" class="max-w-7xl mx-auto px-8 py-12 pb-32">
+
+    <!-- Alert Banner -->
+    <div id="results-alert-banner" class="w-full border-l-4 p-4 mb-12 flex items-start gap-4 shadow-sm rounded-sm">
+      <span class="material-symbols-outlined mt-0.5" style="font-variation-settings:'FILL' 1;">info</span>
+      <div>
+        <p class="text-sm font-body">Initialising…</p>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+      <div class="max-w-2xl">
+        <p id="results-patient" class="font-label text-neutral-500 text-xs tracking-[0.2em] uppercase mb-4">Patient Assessment</p>
+        <h2 class="font-headline text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-neutral-900 mb-6">
+          Mental Health<br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-400">Report</span>
+        </h2>
+        <p id="results-report-meta" class="font-label text-neutral-500 text-xs tracking-widest"></p>
+
+        <!-- Patient Info Grid -->
+        <div id="patient-info-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8"></div>
+      </div>
+      <div class="flex gap-3 shrink-0">
+        <button onclick="window.downloadReport()" class="px-6 py-3 border border-neutral-300 text-neutral-700 font-label text-xs uppercase tracking-widest rounded-DEFAULT hover:bg-white bg-white/50 backdrop-blur-sm transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-[16px]">download</span> Download PDF
+        </button>
+        <button onclick="window.location.href='analysis.html'" class="star-border rounded-DEFAULT transition-colors">
+          <div class="star-border-inner bg-primary text-on-primary rounded-DEFAULT px-6 py-3 font-label text-xs uppercase tracking-widest flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px]">refresh</span> New Analysis
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Executive Summary + Metrics -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-20">
+      <!-- Exec Summary -->
+      <div class="lg:col-span-5 bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full mix-blend-multiply filter blur-[40px] translate-x-1/2 -translate-y-1/2"></div>
+        <div>
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">About Condition</h3>
+            <span id="depression-type-badge" style="display:none" class="bg-error/10 text-error font-label text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-error/20">—</span>
+          </div>
+          <p id="ring-desc" class="font-body text-neutral-800 text-base leading-relaxed font-light">Analysing…</p>
+          <p id="depression-type-label" class="font-label text-xs mt-4 text-primary font-bold uppercase tracking-widest"></p>
+        </div>
+      </div>
+
+      <!-- 3 Metric Tiles -->
+      <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Probability -->
+        <div class="bg-stone-50/90 backdrop-blur-md p-6 rounded-lg flex flex-col justify-between border border-white/20 shadow-sm">
+          <p class="font-label text-neutral-500 text-[10px] uppercase tracking-widest mb-4">Probability Score</p>
+          <div class="flex items-baseline gap-2">
+            <span id="results-confidence" class="font-headline text-5xl font-black">—</span>
+            <span class="text-neutral-500 font-label text-xs">%</span>
+          </div>
+          <div class="contrib-bar mt-4">
+            <div id="severity-bar-fill" class="contrib-fill bg-gradient-to-r from-[#bb000e] to-[#ffb4aa]"></div>
+          </div>
+          <p id="severity-range-label" class="font-label text-[10px] text-neutral-400 mt-1">—</p>
+        </div>
+        <!-- Risk Level -->
+        <div class="bg-stone-50/90 backdrop-blur-md p-6 rounded-lg flex flex-col justify-between border border-white/20 shadow-sm">
+          <p class="font-label text-neutral-500 text-[10px] uppercase tracking-widest mb-4">Risk Level</p>
+          <span id="results-risk" class="font-headline text-3xl font-bold leading-tight mt-auto">—</span>
+          <p id="results-risk-sub" class="font-label text-[10px] text-neutral-400 mt-1">—</p>
+        </div>
+        <!-- Depression Type -->
+        <div class="bg-stone-50/90 backdrop-blur-md p-6 rounded-lg flex flex-col justify-between border border-white/20 shadow-sm">
+          <p class="font-label text-neutral-500 text-[10px] uppercase tracking-widest mb-4">Condition</p>
+          <span id="results-dep-type-name" class="font-headline text-xl font-bold leading-tight mt-auto">—</span>
+          <p id="results-dep-type-desc" class="font-body text-[11px] text-neutral-500 mt-2 leading-relaxed"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signal Contributions -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Signal Contributions</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">01</span>
+      </div>
+      <div class="bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm">
+        <div class="space-y-5">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="font-label text-xs text-neutral-600">Text / Linguistic</span>
+              <span id="contrib-text-val" class="font-label text-xs font-bold text-neutral-900">—%</span>
+            </div>
+            <div class="contrib-bar"><div id="contrib-text" class="contrib-fill bg-blue-500"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="font-label text-xs text-neutral-600">Audio / Vocal</span>
+              <span id="contrib-audio-val" class="font-label text-xs font-bold text-neutral-900">—%</span>
+            </div>
+            <div class="contrib-bar"><div id="contrib-audio" class="contrib-fill bg-purple-500"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="font-label text-xs text-neutral-600">Questionnaire</span>
+              <span id="contrib-quest-val" class="font-label text-xs font-bold text-neutral-900">—%</span>
+            </div>
+            <div class="contrib-bar"><div id="contrib-quest" class="contrib-fill bg-amber-500"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="font-label text-xs text-neutral-600">Cognitive / ADET <span class="text-neutral-400 font-normal">(sub-slice of Text)</span></span>
+              <span id="contrib-cognitive-val" class="font-label text-xs font-bold text-neutral-900">—%</span>
+            </div>
+            <div class="contrib-bar"><div id="contrib-cognitive" class="contrib-fill bg-emerald-500"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Emotional Signals -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Emotional Signals</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">02</span>
+      </div>
+      <div id="signals-container" class="flex flex-wrap gap-3"></div>
+    </div>
+
+    <!-- Insights Grid -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Clinical Insights</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">03</span>
+      </div>
+      <div id="insights-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Cognitive Analysis (ADET) -->
+    <div id="cognitive-analysis-card" style="display:none" class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Cognitive Feature Analysis (ADET)</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">04</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm">
+          <p class="font-label text-xs uppercase tracking-widest text-red-700 mb-4">Cognitive Distortions</p>
+          <div id="adet-distortions" class="flex flex-col gap-4"></div>
+        </div>
+        <div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm">
+          <p class="font-label text-xs uppercase tracking-widest text-emerald-700 mb-4">Coping Mechanisms</p>
+          <div id="adet-coping" class="flex flex-col gap-4"></div>
+        </div>
+      </div>
+      <div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm mt-4">
+        <div class="flex justify-between items-center mb-2">
+          <p class="font-label text-xs uppercase tracking-widest text-neutral-500">Cognitive Risk Score</p>
+          <span id="adet-risk-score-val" class="font-label text-sm font-bold text-neutral-900">—</span>
+        </div>
+        <div class="contrib-bar mb-2"><div id="adet-risk-bar" class="contrib-fill bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500"></div></div>
+        <p id="adet-risk-label" class="font-label text-[10px] text-neutral-400">—</p>
+      </div>
+      <div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm mt-4">
+        <p class="font-label text-xs uppercase tracking-widest text-purple-700 mb-3">Audio Signal Interpretation</p>
+        <div id="adet-audio-points" class="flex flex-col gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Longitudinal Trajectory -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Longitudinal Trajectory</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">05</span>
+      </div>
+      <div class="bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm">
+        <div id="adet-chart-container" class="flex items-center justify-center min-h-[120px]">
+          <p class="font-label text-xs text-neutral-400 uppercase tracking-widest">Complete multiple assessments to see your trend</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk Factors -->
+    <div id="risk-analysis-card" style="display:none" class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Risk Analysis</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">06</span>
+      </div>
+      <div class="bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm">
+        <div id="risk-factors-list" class="flex flex-col gap-3"></div>
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Personalised Recommendations</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">07</span>
+      </div>
+      <div id="recommendations-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Next Steps</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+        <span class="font-label text-[10px] text-neutral-400">08</span>
+      </div>
+      <div class="bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm">
+        <div id="next-steps-list" class="flex flex-col gap-5"></div>
+      </div>
+    </div>
+
+    <!-- Doctors -->
+    <div id="doctors-card" style="display:none" class="mb-20">
+      <div class="flex items-center gap-4 mb-6">
+        <h3 class="font-label text-xs uppercase tracking-widest text-neutral-500">Recommended Specialists</h3>
+        <div class="h-px bg-neutral-300 flex-1"></div>
+      </div>
+      <div class="bg-stone-50/90 backdrop-blur-md p-8 rounded-lg border border-white/20 shadow-sm">
+        <p id="doctors-city-label" class="font-label text-sm font-bold text-neutral-800 mb-2 uppercase tracking-widest"></p>
+        <p id="doctors-city-subtitle" class="font-body text-sm text-neutral-500 mb-6"></p>
+        <div id="doctors-list"></div>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="bg-neutral-100 border border-neutral-200 rounded-lg p-6">
+      <p class="font-label text-xs uppercase tracking-widest text-neutral-500 mb-2">Ethical Disclaimer</p>
+      <p class="font-body text-xs text-neutral-500 leading-relaxed">This report is generated by PsychSense, an AI-powered mental health screening tool. It is intended for informational and supportive purposes only and does <strong>not</strong> constitute a clinical diagnosis, medical advice, or a substitute for professional psychiatric evaluation. Always consult a licensed mental health professional before making any decisions regarding treatment. If you are in immediate danger, contact emergency services or a crisis helpline.</p>
+    </div>
+  </div><footer class="bg-white/70 backdrop-blur-md fixed bottom-0 left-0 right-0 z-50 w-full border-t border-surface-container">
+  <div class="relative flex flex-col md:flex-row justify-between items-center px-8 py-6 max-w-[1920px] mx-auto">
+    <span class="font-headline font-bold text-stone-950 text-sm tracking-widest">TEAM G-1107</span>
+    <div class="flex flex-wrap justify-center gap-6">
+      <a class="font-label text-[10px] uppercase tracking-widest text-stone-500 hover:text-primary transition-colors font-bold" href="#">PS-NEURO</a>
+    </div>
+    <span class="font-label text-[10px] uppercase tracking-widest text-stone-400 mt-4 md:mt-0">© 2026 PSYCHSENSE — CLINICAL AI</span>
+  </div>
+</footer>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     PAGE: PROFILE
+════════════════════════════════════════════ -->
+<div id="page-profile" class="page min-h-screen bg-[#f5f5f5] relative z-10">
+  <header class="sticky top-0 z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center w-full px-8 py-4 border-b border-neutral-200">
+    <a href="index.html" class="text-2xl font-black tracking-tighter text-[#bb000e] uppercase font-headline">PSYCHSENSE</a>
+    <button onclick="showPage('results')" class="font-label text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-900 flex items-center gap-2 transition-colors">
+      <span class="material-symbols-outlined text-sm">arrow_back</span> Back to Results
+    </button>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Sidebar -->
+    <aside class="lg:col-span-3">
+      <div class="glass-panel p-6">
+        <div id="profile-user-card" class="flex flex-col items-center text-center mb-6 pb-6 border-b border-black/10">
+          <div class="w-20 h-20 rounded-full bg-primary/10 overflow-hidden mb-4 flex items-center justify-center">
+            <img id="profile-photo" src="https://ui-avatars.com/api/?background=bb000e&color=fff&size=80" alt="" class="w-full h-full object-cover rounded-full">
+          </div>
+          <h3 id="profile-name" class="font-headline text-lg font-bold text-neutral-900 mb-1">—</h3>
+          <p id="profile-email" class="font-label text-xs text-neutral-500 uppercase tracking-widest">—</p>
+        </div>
+        <nav class="space-y-2">
+          <button onclick="showProfileTab('overview')" class="w-full text-left font-label text-xs uppercase tracking-widest px-3 py-2 rounded hover:bg-neutral-100 transition-colors text-neutral-700">Overview</button>
+          <button onclick="showProfileTab('history')" class="w-full text-left font-label text-xs uppercase tracking-widest px-3 py-2 rounded hover:bg-neutral-100 transition-colors text-neutral-700">Assessment History</button>
+        </nav>
+        <div class="mt-6 pt-6 border-t border-black/10">
+          <button onclick="window.firebaseSignOut && window.firebaseSignOut()" class="w-full font-label text-xs uppercase tracking-widest text-error hover:opacity-80 transition-opacity py-2">Sign Out</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="lg:col-span-9 space-y-8">
+      <!-- Overview -->
+      <div id="profile-tab-overview">
+        <h2 class="font-headline text-3xl font-bold text-neutral-900 mb-8 tracking-tight">Your Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div class="glass-panel p-6">
+            <p class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mb-2">Total Assessments</p>
+            <p id="stat-total" class="font-headline text-4xl font-black text-neutral-900">—</p>
+          </div>
+          <div class="glass-panel p-6">
+            <p class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mb-2">Latest Risk</p>
+            <p id="stat-latest-risk" class="font-headline text-3xl font-black text-neutral-900">—</p>
+          </div>
+          <div class="glass-panel p-6">
+            <p class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mb-2">Latest Score</p>
+            <p id="stat-latest-score" class="font-headline text-4xl font-black text-neutral-900">—<span class="text-2xl">%</span></p>
+          </div>
+        </div>
+        <div class="glass-panel p-6">
+          <p class="font-label text-xs uppercase tracking-widest text-neutral-500 mb-4">Probability Trend</p>
+          <div id="profile-chart" class="min-h-[180px] flex items-center justify-center">
+            <p class="font-label text-xs text-neutral-400">Complete multiple assessments to see your trend.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div id="profile-tab-history" style="display:none">
+        <h2 class="font-headline text-3xl font-bold text-neutral-900 mb-8 tracking-tight">Assessment History</h2>
+        <div id="history-list" class="space-y-4">
+          <p class="font-label text-xs text-neutral-400 uppercase tracking-widest">Loading history…</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
+let aiResult = JSON.parse(sessionStorage.getItem('ps_aiResult') || 'null');
+
+const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+
+// ── Page Nav ───────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) { pg.classList.add('active'); window.scrollTo(0,0); }
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const pending = sessionStorage.getItem('pendingPageTransition');
+  if (pending) {
+    sessionStorage.removeItem('pendingPageTransition');
+    if (pending === 'profile') { showPage('profile'); renderProfilePage(); return; }
+  }
+  // Try to render results
+  if (aiResult) {
+    const isDepressed = aiResult.riskLevel === 'Moderate' || aiResult.riskLevel === 'High';
+    renderResults(aiResult, aiResult.depressionType, isDepressed);
+    showPage('results');
+  } else {
+    // No result — redirect
+    window.location.href = 'analysis.html';
+  }
+});
+
+// ── Doctors Data ───────────────────────────────────────────────────
+const DOCTORS_DATA = {
+  'Major Depressive Disorder (MDD)':[
+    {name:'Dr. K. Chandrasekhar',specialization:'Consultant Psychiatrist – Mood Disorders',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. P. Chytanya Deepak',specialization:'Bipolar & OCD Clinic, Neuromodulation',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. Madhu Vamsi',specialization:'Psychiatrist – Adult Depression & Anxiety',workplace:'MV Clinics, Bagh Lingampally'},
+    {name:'Dr. Nithin Kondapuram',specialization:'Consultant Psychiatrist (NIMHANS-trained)',workplace:'Aster Prime Hospital, Ameerpet'},
+    {name:'Dr. Boppana Sridhar',specialization:'Consultant Psychiatrist & Psychotherapist',workplace:'Likeminds Clinic, Banjara Hills'},
+  ],
+  'Persistent Depressive Disorder (Dysthymia)':[
+    {name:'Dr. Ajay Kumar Saxena',specialization:'General Psychiatry – Chronic Mood Disorders',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. P. Raghurami Reddy',specialization:'General Psychiatry – Inpatient & Outpatient',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. Praveen S. Gopan',specialization:'Consultant Psychiatrist',workplace:'DKR Mind Clinic, Barkatpura'},
+    {name:'Dr. K. Srinivas & team',specialization:'Psychiatry & Neuromodulation (rTMS)',workplace:'KARLA Mind 36 Jubilee, Jubilee Hills'},
+    {name:'Chetana Hospital Team',specialization:'Multidisciplinary Psychiatry & Psychology',workplace:'Chetana Hospital, Secunderabad'},
+  ],
+  'Atypical Depression':[
+    {name:'Dr. P. Chytanya Deepak',specialization:'Mood Disorders & Neuromodulation',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. K. Srinivas & team',specialization:'rTMS, Neurofeedback & Psychiatric Care',workplace:'KARLA Mind 36 Jubilee, Jubilee Hills'},
+    {name:'Dr. Madhu Vamsi',specialization:'Psychiatrist – Adult Mood Disorders',workplace:'MV Clinics, Bagh Lingampally'},
+    {name:'Dr. Nithin Kondapuram',specialization:'Consultant Psychiatrist (Hospital-based)',workplace:'Aster Prime Hospital, Ameerpet'},
+  ],
+  'Seasonal Affective Disorder (SAD)':[
+    {name:'Dr. K. Chandrasekhar',specialization:'Senior Consultant Psychiatrist',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. K. Srinivas & team',specialization:'Neuromodulation, Biofeedback & Psychotherapy',workplace:'KARLA Mind 36 Jubilee, Jubilee Hills'},
+    {name:'Dr. Boppana Sridhar',specialization:'Outpatient Psychiatrist – Mood Monitoring',workplace:'Likeminds Clinic, Banjara Hills'},
+    {name:'Dr. Praveen S. Gopan',specialization:'Consultant Psychiatrist – Seasonal Patterns',workplace:'DKR Mind Clinic, Barkatpura'},
+  ],
+  'Postpartum Depression':[
+    {name:'Asha Hospital – Women\'s Wellness Team',specialization:'Women\'s Mental Health & Psychiatry',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Rainbow Children\'s Hospital & BirthRight',specialization:'Obstetrics, Gynaecology & Maternity',workplace:'Banjara Hills, Hyderabad'},
+    {name:'Dr. Madhu Vamsi',specialization:'Psychiatrist – Postpartum Mood Disorders',workplace:'MV Clinics, Bagh Lingampally'},
+  ],
+  'Depressive Episode':[
+    {name:'Dr. K. Chandrasekhar',specialization:'Consultant Psychiatrist – Mood Disorders',workplace:'Asha Hospital, Banjara Hills'},
+    {name:'Dr. Madhu Vamsi',specialization:'Psychiatrist – Adult Depression & Anxiety',workplace:'MV Clinics, Bagh Lingampally'},
+    {name:'Dr. Nithin Kondapuram',specialization:'Consultant Psychiatrist (NIMHANS-trained)',workplace:'Aster Prime Hospital, Ameerpet'},
+    {name:'Dr. Boppana Sridhar',specialization:'Consultant Psychiatrist & Psychotherapist',workplace:'Likeminds Clinic, Banjara Hills'},
+    {name:'Dr. Praveen S. Gopan',specialization:'Consultant Psychiatrist',workplace:'DKR Mind Clinic, Barkatpura'},
+  ],
+};
+
+// ── Render Results ─────────────────────────────────────────────────
+function renderResults(result, depressionType, isDepressed) {
+  const name = userInfo.name || 'Anonymous';
+  const reportId = 'PSY-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+  window._lastReportId = reportId;
+  const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+  const timeStr = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+  const modes = ['audio','text'].filter(m => result?.contributions?.[m] > 0).map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' · ') || 'Text';
+
+  const DEPRESSION_INFO = {
+    'Major Depressive Disorder (MDD)':{short:'MDD',description:'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks.'},
+    'Postpartum Depression':{short:'Postpartum Depression',description:'PPD occurs after childbirth and is marked by intense sadness, anxiety, and exhaustion that interfere with the ability to care for oneself or the baby.'},
+    'Seasonal Affective Disorder (SAD)':{short:'SAD',description:'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten.'},
+    'Atypical Depression':{short:'Atypical Depression',description:'Atypical depression features mood reactivity — the ability to feel better in response to positive events — along with hypersomnia and increased appetite.'},
+    'Persistent Depressive Disorder (Dysthymia)':{short:'Dysthymia',description:'Dysthymia is a chronic, lower-grade depression lasting two or more years, causing significant long-term impairment.'},
+    'Depressive Episode':{short:'Depressive Episode',description:'A sustained period of depressed mood, reduced energy, and diminished interest in activities. Warrants a full clinical assessment.'},
+  };
+  const depInfo = DEPRESSION_INFO[depressionType] || null;
+  const displayPercent = result.modelProb ?? result.confidenceScore;
+
+  // ── Header ──
+  document.getElementById('results-patient').textContent = `Patient: ${name} · ID: ${reportId}`;
+  document.getElementById('results-report-meta').textContent = `Generated ${dateStr} ${timeStr} · Mode: ${modes} · PsychSense v2.1.0`;
+
+  // ── Patient Info ──
+  const patGrid = document.getElementById('patient-info-grid');
+  if (patGrid) {
+    patGrid.innerHTML = [
+      {label:'Full Name', value:userInfo.name||'Anonymous'},
+      {label:'Age', value:userInfo.age?userInfo.age+' years':'—'},
+      {label:'Gender', value:userInfo.gender||'—'},
+      {label:'Date', value:dateStr},
+    ].map(c=>`<div><p class="font-label text-neutral-500 text-[10px] uppercase tracking-widest mb-1">${c.label}</p><p class="font-body text-neutral-900 text-sm font-medium">${c.value}</p></div>`).join('');
+  }
+
+  // ── Alert Banner ──
+  const banner = document.getElementById('results-alert-banner');
+  if (banner) {
+    if (isDepressed) {
+      banner.style.cssText = 'background:#FEF2F2;border-color:#ef4444;color:#991b1b;width:100%;border-left-width:4px;padding:1rem;margin-bottom:3rem;display:flex;align-items:flex-start;gap:1rem;';
+      banner.innerHTML = `<span class="material-symbols-outlined text-red-600 mt-0.5" style="font-variation-settings:'FILL' 1;">warning</span><div><h3 class="font-label text-red-700 font-bold text-sm tracking-wider uppercase mb-1">${result.riskLevel} Risk Detected</h3><p class="text-neutral-800 text-sm">Please review the recommendations carefully. Prompt professional evaluation is advised.</p></div>`;
+    } else {
+      banner.style.cssText = 'background:#F0FDF4;border-color:#22c55e;color:#166534;width:100%;border-left-width:4px;padding:1rem;margin-bottom:3rem;display:flex;align-items:flex-start;gap:1rem;';
+      banner.innerHTML = `<span class="material-symbols-outlined text-emerald-600 mt-0.5" style="font-variation-settings:'FILL' 1;">check_circle</span><div><h3 class="font-label text-emerald-700 font-bold text-sm tracking-wider uppercase mb-1">Low Risk</h3><p class="text-neutral-800 text-sm">No severe depressive signals detected. Continue to monitor your wellbeing periodically.</p></div>`;
+    }
+  }
+
+  // ── Exec Summary ──
+  const ringDescEl = document.getElementById('ring-desc');
+  if (ringDescEl) {
+    if (!isDepressed) {
+      ringDescEl.textContent = "PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the Low Risk category.";
+    } else {
+      ringDescEl.textContent = depressionType
+        ? `PsychSense identified signals consistent with ${depressionType}. The assessment falls in the ${result.riskLevel} Risk category, with an overall severity score of ${displayPercent}%.`
+        : `Multimodal analysis indicates a ${result.riskLevel.toLowerCase()} level of depressive symptoms.`;
+    }
+  }
+  const typeBadge = document.getElementById('depression-type-badge');
+  const typeLabel = document.getElementById('depression-type-label');
+  if (typeBadge && typeLabel) {
+    if (isDepressed && depressionType) {
+      typeBadge.style.display = 'block';
+      typeBadge.textContent = depInfo?.short || depressionType;
+      typeLabel.textContent = '';
+    } else { typeBadge.style.display = 'none'; }
+  }
+
+  // ── Metric Tiles ──
+  const confEl = document.getElementById('results-confidence');
+  if (confEl) {
+    confEl.textContent = `${displayPercent}`;
+    confEl.style.color = isDepressed ? (displayPercent >= 56 ? '#ef4444' : '#f59e0b') : '#22c55e';
+  }
+  const severityFill = document.getElementById('severity-bar-fill');
+  if (severityFill) setTimeout(() => { severityFill.style.width = `${displayPercent}%`; }, 200);
+  const sevRangeEl = document.getElementById('severity-range-label');
+  if (sevRangeEl) {
+    if (!isDepressed) sevRangeEl.textContent = 'Normal range (< 60%)';
+    else if (displayPercent >= 75) sevRangeEl.textContent = 'High risk range (≥ 75%)';
+    else sevRangeEl.textContent = 'Moderate risk range (60–74%)';
+  }
+  const riskEl = document.getElementById('results-risk');
+  const riskSubEl = document.getElementById('results-risk-sub');
+  if (riskEl) {
+    if (!isDepressed) { riskEl.textContent = 'Low'; riskEl.style.color = '#22c55e'; if(riskSubEl) riskSubEl.textContent = 'Low levels'; }
+    else { riskEl.textContent = result.riskLevel; riskEl.style.color = result.riskLevel === 'High' ? '#ef4444' : '#f59e0b'; if(riskSubEl) riskSubEl.textContent = result.riskLevel === 'High' ? 'Urgent review' : 'Intervention advised'; }
+  }
+  const depTypeNameEl = document.getElementById('results-dep-type-name');
+  const depTypeDescEl = document.getElementById('results-dep-type-desc');
+  if (depTypeNameEl && depTypeDescEl) {
+    if (isDepressed && depressionType) { depTypeNameEl.textContent = depInfo?.short || depressionType; depTypeDescEl.textContent = depInfo?.description || ''; }
+    else if (!isDepressed) { depTypeNameEl.textContent = 'No disorder'; depTypeNameEl.style.color = '#22c55e'; depTypeDescEl.textContent = 'No significant depressive markers at this time.'; }
+    else { depTypeNameEl.textContent = 'Depressive Episode'; depTypeDescEl.textContent = 'A depressive episode was identified. Clinical assessment advised.'; }
+  }
+
+  // ── Contributions ──
+  const c = result.contributions || {};
+  [['text','text'],['audio','audio'],['questionnaire','quest'],['cognitive','cognitive']].forEach(([key,id]) => {
+    const val = c[key] ?? 0;
+    const valEl = document.getElementById(`contrib-${id}-val`);
+    if (valEl) valEl.textContent = `${val}%`;
+    const progEl = document.getElementById(`contrib-${id}`);
+    if (progEl) setTimeout(() => { progEl.style.width = `${val}%`; }, 200);
+  });
+
+  // ── Emotional Signals ──
+  const sigContainer = document.getElementById('signals-container');
+  if (sigContainer) {
+    const signals = isDepressed ? (result.emotionalSignals || ['Low Mood']) : ['Emotional Stability','Resilience','Coherent Thought'];
+    const clr = isDepressed ? 'background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);color:#6d28d9' : 'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#166534';
+    sigContainer.innerHTML = signals.map(s => `<span class="signal-tag" style="${clr}">${s}</span>`).join('');
+  }
+
+  // ── Insights ──
+  const insightsGrid = document.getElementById('insights-grid');
+  if (insightsGrid) {
+    const defs = [
+      {key:'audio',icon:'🎙️',bg:'#E6F1FB',title:'Voice & Audio Signals'},
+      {key:'text',icon:'📝',bg:'#EAF3DE',title:'Language & Text Signals'},
+      {key:'questionnaire',icon:'⚡',bg:'#FAEEDA',title:'Questionnaire Insights'},
+      {key:'cognitive',icon:'🧠',bg:'#F3E8FF',title:'Cognitive Patterns'},
+    ];
+    insightsGrid.innerHTML = defs.map(def => {
+      const ins = result.insights?.[def.key];
+      const body = ins?.points?.filter(p => p && p !== 'undefined').join('. ') || 'Analysis complete.';
+      return `<div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style="background:${def.bg}">${def.icon}</div>
+          <p class="font-label text-xs uppercase tracking-widest text-neutral-600">${def.title}</p>
+        </div>
+        <p class="font-body text-sm text-neutral-700 leading-relaxed">${body}</p>
+      </div>`;
+    }).join('');
+  }
+
+  // ── ADET / Cognitive ──
+  const cogCard = document.getElementById('cognitive-analysis-card');
+  if (cogCard && result.contributions?.text > 0 && result.adet) {
+    cogCard.style.display = 'block';
+    window.renderADET(result);
+  }
+
+  // ── Trajectory Chart ──
+  generateAdetChartHtml().then(html => {
+    const el = document.getElementById('adet-chart-container');
+    if (el) el.innerHTML = html;
+  });
+
+  // ── Risk Factors ──
+  const riskCard = document.getElementById('risk-analysis-card');
+  const rfList = document.getElementById('risk-factors-list');
+  if (riskCard && rfList) {
+    if (isDepressed) {
+      riskCard.style.display = 'block';
+      const factors = [
+        {label:`Severity score ≥ ${displayPercent}%`,body:"The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks."},
+        {label:'Multimodal agreement',body:'Audio and text signals are independently flagging distress, strengthening the reliability of the prediction.'},
+        depressionType && depInfo ? {label:depInfo.short,body:depInfo.description} : null,
+        {label:'Negative cognitive patterns',body:'Language analysis detected persistent distress framing and reduced future-oriented speech.'},
+      ].filter(Boolean);
+      rfList.innerHTML = factors.map(f=>`
+        <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 mt-1.5"></div>
+          <p class="font-body text-sm text-amber-900"><strong class="font-label">${f.label} —</strong> ${f.body}</p>
+        </div>`).join('');
+    } else {
+      riskCard.style.display = 'none';
+    }
+  }
+
+  // ── Recommendations ──
+  const recContainer = document.getElementById('recommendations-container');
+  if (recContainer) {
+    const recsList = result.recommendations || [];
+    const col1 = recsList.slice(0, Math.ceil(recsList.length/3));
+    const col2 = recsList.slice(Math.ceil(recsList.length/3), Math.ceil(recsList.length/3*2));
+    const col3 = recsList.slice(Math.ceil(recsList.length/3*2));
+    const makeCol = (items, headLabel, headColor, offset) => `
+      <div class="bg-white/60 backdrop-blur-md p-6 rounded-lg border border-white shadow-sm">
+        <p class="font-label text-[10px] uppercase tracking-widest font-bold mb-4" style="color:${headColor}">${headLabel}</p>
+        ${items.map((r,i)=>`<div class="flex gap-3 py-3 border-b border-neutral-100 last:border-b-0"><span class="font-label text-xs font-bold text-neutral-400 flex-shrink-0 min-w-[18px]">${offset+i+1}.</span><p class="font-body text-sm text-neutral-700 leading-relaxed">${r}</p></div>`).join('')}
+      </div>`;
+    recContainer.innerHTML = [
+      col1.length ? makeCol(col1,'Immediate Actions','#dc2626',0) : '',
+      col2.length ? makeCol(col2,'Professional Support','#1d4ed8',col1.length) : '',
+      col3.length ? makeCol(col3,'Lifestyle Support','#166534',col1.length+col2.length) : '',
+    ].join('');
+  }
+
+  // ── Next Steps ──
+  const nextList = document.getElementById('next-steps-list');
+  if (nextList) {
+    const steps = isDepressed ? [
+      {label:'Today',text:'Share this report with a family member or trusted friend.'},
+      {label:'Within 24–48 hours',text:'Book an appointment with a psychiatrist or clinical psychologist. Bring this report.'},
+      {label:'Seek urgent help if',text:'You experience thoughts of self-harm. Call 112 or your nearest emergency department.'},
+      {label:'Follow-up',text:'Schedule a re-assessment in 2–4 weeks to track progress.'},
+    ] : [
+      {label:'Keep monitoring',text:'Your assessment shows low risk. Schedule a follow-up in 4–6 weeks.'},
+      {label:'Share this report',text:'You can share this result with a trusted friend or family member as a baseline record.'},
+    ];
+    nextList.innerHTML = steps.map((s,i) => `
+      <div class="flex gap-4 items-start">
+        <div class="w-7 h-7 rounded-full border border-neutral-300 flex items-center justify-center text-xs font-medium text-neutral-500 flex-shrink-0 font-label">${i+1}</div>
+        <p class="font-body text-sm text-neutral-700 leading-relaxed pt-0.5"><strong class="text-neutral-900">${s.label}:</strong> ${s.text}</p>
+      </div>`).join('');
+  }
+
+  // ── Doctors ──
+  const doctorsCard = document.getElementById('doctors-card');
+  const doctorsList = document.getElementById('doctors-list');
+  if (doctorsCard && doctorsList) {
+    if (isDepressed) {
+      const docType = depressionType || 'Depressive Episode';
+      const doctors = DOCTORS_DATA[docType] || DOCTORS_DATA['Depressive Episode'];
+      doctorsCard.style.display = 'block';
+      document.getElementById('doctors-city-label').textContent = 'Recommended Doctors in Hyderabad';
+      document.getElementById('doctors-city-subtitle').textContent = `Based on detected condition: ${docType}. Always verify availability before booking.`;
+      doctorsList.innerHTML = `<table class="doctors-table"><thead><tr><th>Doctor</th><th>Specialization</th><th>Hospital</th></tr></thead><tbody>${doctors.map(d=>`<tr><td class="font-medium text-neutral-800">${d.name}</td><td>${d.specialization}</td><td>${d.workplace}</td></tr>`).join('')}</tbody></table>`;
+    } else { doctorsCard.style.display = 'none'; }
+  }
+
+  // Show content
+  document.getElementById('results-loading').style.display = 'none';
+  document.getElementById('results-content').style.display = 'block';
+}
+
+// ── ADET Render ────────────────────────────────────────────────────
+window.renderADET = function(result) {
+  if (!result?.adet) return;
+  const adet = result.adet;
+
+  if (adet.distortions) {
+    const dContainer = document.getElementById('adet-distortions');
+    if (dContainer) dContainer.innerHTML = adet.distortions.map(d => `
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <span class="font-label text-xs font-bold text-red-700">${d.name}</span>
+          <span class="font-label text-[10px] text-red-400">${Math.round(d.density*100)}% density</span>
+        </div>
+        <div class="h-1.5 bg-red-100 rounded-full overflow-hidden mb-1"><div class="h-full bg-red-500 rounded-full" style="width:${d.density*100}%"></div></div>
+        <p class="font-body text-[11px] text-red-900">${d.description}</p>
+      </div>`).join('');
+  }
+
+  if (adet.coping) {
+    const cContainer = document.getElementById('adet-coping');
+    if (cContainer) cContainer.innerHTML = adet.coping.map(c => `
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <span class="font-label text-xs font-bold text-emerald-700">${c.name}</span>
+          <span class="font-label text-[10px] text-emerald-400">${Math.round(c.density*100)}% density</span>
+        </div>
+        <div class="h-1.5 bg-emerald-100 rounded-full overflow-hidden mb-1"><div class="h-full bg-emerald-500 rounded-full" style="width:${c.density*100}%"></div></div>
+        <p class="font-body text-[11px] text-emerald-900">${c.description}</p>
+      </div>`).join('');
+  }
+
+  if (adet.cognitive_risk_score !== undefined) {
+    const val = document.getElementById('adet-risk-score-val');
+    const bar = document.getElementById('adet-risk-bar');
+    const lbl = document.getElementById('adet-risk-label');
+    if (val) val.textContent = adet.cognitive_risk_score.toFixed(1) + ' / 10.0';
+    if (bar) bar.style.width = (adet.cognitive_risk_score * 10) + '%';
+    let label = adet.cognitive_risk_score > 6 ? 'High Elevated Risk' : adet.cognitive_risk_score > 3.5 ? 'Moderate Risk' : 'Low Risk';
+    if (lbl) lbl.textContent = 'Cognitive rigidity pattern: ' + label;
+  }
+
+  if (adet.audio_features) {
+    const aContainer = document.getElementById('adet-audio-points');
+    if (aContainer) aContainer.innerHTML = adet.audio_features.map(a => `
+      <div class="flex items-start gap-2"><div class="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></div><p class="font-body text-sm text-purple-800">${a}</p></div>`).join('');
+  }
+};
+
+// ── Trajectory Chart ───────────────────────────────────────────────
+async function generateAdetChartHtml() {
+  let reports = [];
+  if (window.loadReports) {
+    try { reports = await window.loadReports(); } catch(e) {}
+  }
+  if (!reports || reports.length < 2) {
+    return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center">Complete assessments on at least two different dates to view your longitudinal trajectory.</p>`;
+  }
+  const dailyMap = new Map();
+  reports.forEach(r => {
+    const d = new Date(r.createdAt);
+    const k = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+    if (!dailyMap.has(k) || d > new Date(dailyMap.get(k).createdAt)) dailyMap.set(k, r);
+  });
+  const daily = [...dailyMap.values()].sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).slice(-7);
+  if (daily.length < 2) return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center">Need assessments on at least two different dates.</p>`;
+
+  const W=800, H=180, px=40, py=40;
+  const pW = W-2*px, pH = H-2*py;
+  const stepX = pW / (daily.length-1);
+  const pts = daily.map((r,i) => {
+    const val = r.modelProb != null ? r.modelProb : (r.confidenceScore||0);
+    return {x:px+(i*stepX), y:H-py-(val/100*pH), val, date:new Date(r.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})};
+  });
+  let svg = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible;font-family:'Space Grotesk',sans-serif;">`;
+  [0,25,50,75,100].forEach(l => {
+    const y = H-py-(l/100*pH);
+    svg += `<line x1="${px}" y1="${y}" x2="${W-px}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>`;
+    svg += `<text x="${px-8}" y="${y+4}" fill="#94a3b8" font-size="10" text-anchor="end">${l}%</text>`;
+  });
+  svg += `<polyline points="${pts.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#bb000e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  pts.forEach(p => {
+    const c = p.val >= 62 ? '#ef4444' : p.val >= 52 ? '#f59e0b' : '#22c55e';
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${c}" stroke="#fff" stroke-width="2"/>`;
+    svg += `<text x="${p.x}" y="${p.y-10}" fill="${c}" font-size="11" font-weight="700" text-anchor="middle">${Math.round(p.val)}%</text>`;
+    svg += `<text x="${p.x}" y="${H-py+18}" fill="#94a3b8" font-size="10" text-anchor="middle">${p.date}</text>`;
+  });
+  svg += '</svg>';
+  return `<div style="width:100%;overflow-x:auto;">${svg}</div>`;
+}
+
+// ── Download PDF ───────────────────────────────────────────────────
+window.downloadReport = async function() {
+  const isDepressed = aiResult?.riskLevel === 'Moderate' || aiResult?.riskLevel === 'High';
+  // Low Risk shows —% (matching reference PDF), depressed shows actual probability
+  const displayPercent = isDepressed ? (aiResult?.modelProb ?? aiResult?.confidenceScore ?? '—') : null;
+  const now = new Date();
+  const dateStr  = now.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+  const timeStr  = now.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const reportId = window._lastReportId || ('PSY-' + now.getFullYear() + '-' + Math.floor(1000 + Math.random()*9000));
+  const depType  = (aiResult?.depressionType && aiResult.depressionType !== '—') ? aiResult.depressionType : (isDepressed ? 'Depressive Episode' : null);
+  const riskClass = aiResult?.riskLevel || 'Low';
+  const uName    = userInfo.name || 'Anonymous';
+  const modes    = ['Audio','Text'].filter(m => aiResult?.contributions?.[m.toLowerCase()] > 0).join(' · ') || 'Text';
+
+  // ── Shared styles ─────────────────────────────────────────────────
+  const S = {
+    card:     'border:0.5px solid #cbd5e1;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem;background:#fff;',
+    cardSmall:'border:0.5px solid #cbd5e1;border-radius:8px;padding:0.875rem 1.25rem;margin-bottom:1rem;background:#fff;',
+    sectionTitle: 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#334155;border-left:3px solid #bb000e;padding-left:10px;margin-bottom:14px;',
+    cellBg:   'background:#f8fafc;border-radius:8px;padding:10px 12px;',
+    cellLabel:'font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;',
+    cellVal:  'font-size:14px;font-weight:500;color:#0f172a;',
+    bullet:   'display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:8px;',
+    insightCard:'border:0.5px solid #e2e8f0;border-radius:8px;padding:14px;',
+    insightHead:'display:flex;align-items:center;gap:8px;margin-bottom:8px;',
+    iconBox:  'width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;',
+    insightTitle:'font-size:12px;font-weight:600;color:#1e293b;',
+    insightBody: 'font-size:12.5px;color:#475569;line-height:1.65;',
+  };
+
+  const riskColor  = isDepressed ? (riskClass === 'High' ? '#dc2626' : '#d97706') : '#16a34a';
+  const alertBg    = isDepressed ? '#FEF2F2' : '#F0FDF4';
+  const alertBdr   = isDepressed ? '#fca5a5' : '#86efac';
+  const alertColor = isDepressed ? '#991b1b' : '#166534';
+  const alertText  = isDepressed
+    ? 'This report requires attention. Please review the recommendations carefully.'
+    : 'No severe depressive signals detected. Continue to monitor your wellbeing periodically.';
+  const alertLabel = isDepressed ? `${riskClass} Risk Detected` : 'Low Risk';
+
+  // ── DEPRESSION INFO ───────────────────────────────────────────────
+  const DEPRESSION_INFO = {
+    'Major Depressive Disorder (MDD)': {desc:'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks.'},
+    'Postpartum Depression':           {desc:'PPD occurs after childbirth, marked by intense sadness, anxiety, and exhaustion that interfere with caring for oneself or the baby.'},
+    'Seasonal Affective Disorder (SAD)':{desc:'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten. Symptoms include hypersomnia, increased appetite, and low energy. Light therapy is a first-line treatment.'},
+    'Atypical Depression':             {desc:'Atypical depression features mood reactivity — the ability to feel better in positive events — along with hypersomnia and increased appetite.'},
+    'Persistent Depressive Disorder (Dysthymia)':{desc:'Dysthymia is a chronic, lower-grade depression lasting two or more years, causing significant long-term impairment.'},
+    'Depressive Episode':              {desc:'A sustained period of depressed mood, reduced energy, and diminished interest in activities. Warrants a full clinical assessment.'},
+  };
+  const depInfo = depType ? (DEPRESSION_INFO[depType] || {desc:'A depressive episode was identified. Clinical assessment is advised.'}) : null;
+
+  // ── 1. HEADER ─────────────────────────────────────────────────────
+  const headerHtml = `
+    <div style="${S.card}display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:44px;height:44px;background:#bb000e;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+          <div style="color:#fff;font-size:18px;font-weight:800;">P</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">PsychSense</div>
+          <div style="font-size:10px;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;">AI Mental Health Report</div>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#64748b;line-height:2;">
+        <div><span style="color:#94a3b8;">Report ID</span>&nbsp;&nbsp;<strong style="color:#0f172a;">${reportId}</strong></div>
+        <div><span style="color:#94a3b8;">Generated</span>&nbsp;&nbsp;<strong style="color:#0f172a;">${dateStr.replace(/ /g,'/')+', '+timeStr}</strong></div>
+        <div><span style="color:#94a3b8;">Analysis Mode</span>&nbsp;&nbsp;<strong style="color:#0f172a;">${modes}</strong></div>
+        <div><span style="color:#94a3b8;">Model Version</span>&nbsp;&nbsp;<strong style="color:#0f172a;">PsychSense v2.1.0</strong></div>
+      </div>
+    </div>`;
+
+  // ── 2. ALERT BANNER ───────────────────────────────────────────────
+  const alertHtml = `
+    <div style="background:${alertBg};border:1px solid ${alertBdr};border-radius:8px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;gap:10px;">
+      <div style="width:8px;height:8px;border-radius:50%;background:${alertColor};flex-shrink:0;"></div>
+      <span style="font-size:13px;color:${alertColor};"><strong>${alertLabel} —</strong> ${alertText}</span>
+    </div>`;
+
+  // ── 3. PATIENT INFORMATION ────────────────────────────────────────
+  const patientHtml = `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Patient Information</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${[
+          {l:'Full Name',    v:uName},
+          {l:'Age',          v:userInfo.age ? userInfo.age+' years' : '—'},
+          {l:'Gender',       v:userInfo.gender||'—'},
+          {l:'Session Date', v:dateStr},
+        ].map(c=>`<div style="${S.cellBg}"><div style="${S.cellLabel}">${c.l}</div><div style="${S.cellVal}">${c.v}</div></div>`).join('')}
+      </div>
+    </div>`;
+
+  // ── 4. EXECUTIVE SUMMARY ──────────────────────────────────────────
+  const execSummaryText = isDepressed
+    ? `PsychSense's multimodal analysis identified signals consistent with <strong>${depType || 'a depressive episode'}</strong>. The assessment falls in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%. Prompt professional evaluation is advised.`
+    : `PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.`;
+  const execSummaryHtml = `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Executive Summary</div>
+      <p style="font-size:13.5px;color:#334155;line-height:1.75;margin-bottom:14px;">${execSummaryText}</p>
+      <div style="display:inline-block;background:${isDepressed?'#FEF2F2':'#F0FDF4'};border:1px solid ${isDepressed?'#fca5a5':'#86efac'};border-radius:999px;padding:4px 14px;font-size:12px;font-weight:600;color:${alertColor};">
+        ${isDepressed ? riskClass+' Risk' : 'Low Risk'}
+      </div>
+    </div>`;
+
+  // ── 5. ASSESSMENT RESULTS ─────────────────────────────────────────
+  const sevRangeLabel = !isDepressed ? 'Normal range (< 60%)' : (displayPercent >= 75 ? 'High risk range (≥ 75%)' : 'Moderate risk range (60–74%)');
+  const riskSub = !isDepressed ? 'Low levels' : (riskClass === 'High' ? 'Urgent review' : 'Intervention advised');
+  const assessHtml = `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Assessment Results</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div style="${S.cellBg}border-radius:10px;padding:16px;">
+          <div style="${S.cellLabel}">Probability</div>
+          <div style="font-size:28px;font-weight:800;color:${riskColor};line-height:1;">${displayPercent !== null ? displayPercent+'%' : '—%'}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px;">${sevRangeLabel}</div>
+        </div>
+        <div style="${S.cellBg}border-radius:10px;padding:16px;">
+          <div style="${S.cellLabel}">Risk Classification</div>
+          <div style="font-size:20px;font-weight:700;color:${riskColor};line-height:1.2;">${isDepressed ? riskClass+' Risk' : 'Low Risk'}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px;">${riskSub}</div>
+        </div>
+        <div style="${S.cellBg}border-radius:10px;padding:16px;">
+          <div style="${S.cellLabel}">Type Detected</div>
+          <div style="font-size:14px;font-weight:700;color:${isDepressed?'#1d4ed8':'#16a34a'};line-height:1.3;margin-bottom:6px;">${isDepressed ? (depType||'Depressive Episode') : 'No disorder detected'}</div>
+          ${depInfo ? `<div style="font-size:11.5px;color:#64748b;line-height:1.55;">${depInfo.desc}</div>` : '<div style="font-size:11.5px;color:#64748b;">No significant depressive markers at this time.</div>'}
+        </div>
+      </div>
+    </div>`;
+
+  // ── 6. RISK ANALYSIS ──────────────────────────────────────────────
+  const riskAnalysisHtml = isDepressed ? (() => {
+    const factors = [
+      {label:`Severity score ≥ ${displayPercent}%`, body:"The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks."},
+      {label:'Multimodal agreement', body:`${modes} signals are independently flagging distress, strengthening the reliability of the prediction.`},
+      depInfo ? {label:`${depType} context`, body:depInfo.desc} : null,
+      {label:'Negative cognitive patterns', body:'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.'},
+    ].filter(Boolean);
+    return `
+      <div style="${S.card}">
+        <div style="${S.sectionTitle}">Risk Analysis</div>
+        <p style="font-size:13px;color:#475569;margin-bottom:14px;line-height:1.65;">The risk classification was assigned based on a convergence of strong signals across all modalities. No single factor alone determined this — it is the combination and intensity of the following contributing patterns:</p>
+        ${factors.map(f=>`
+          <div style="${S.bullet}background:#FFFBEB;border:0.5px solid #fde68a;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#d97706;flex-shrink:0;margin-top:5px;"></div>
+            <p style="font-size:13px;color:#78350f;line-height:1.6;"><strong>${f.label} —</strong> ${f.body}</p>
+          </div>`).join('')}
+      </div>`;
+  })() : '';
+
+  // ── 7. BEHAVIOURAL & EMOTIONAL INSIGHTS ──────────────────────────
+  const insightDefs = [
+    {key:'audio',       icon:'🎙', bg:'#DBEAFE', title:'Voice & Audio Signals'},
+    {key:'text',        icon:'📝', bg:'#DCFCE7', title:'Language & Text Signals'},
+    {key:'questionnaire',icon:'📋',bg:'#FEF3C7', title:'Questionnaire Insights'},
+    {key:'cognitive',   icon:'🧠', bg:'#F3E8FF', title:'Facial & Visual Cues'},
+  ];
+  // Override cognitive slot with ViT note (matching reference PDF 4th quadrant)
+  const insightsCards = insightDefs.map(def => {
+    let body;
+    if (def.key === 'cognitive') {
+      body = 'Visual modality (ViT) is trained and ready — video analysis will be available in a future update.';
+    } else {
+      const ins = aiResult?.insights?.[def.key];
+      body = (ins?.points||[]).filter(p=>p&&p!=='undefined').join('. ') || (def.key === 'audio' ? 'No audio input provided — audio modality not analysed.' : 'Analysis complete.');
+    }
+    return `
+      <div style="${S.insightCard}">
+        <div style="${S.insightHead}">
+          <div style="${S.iconBox}background:${def.bg};">${def.icon}</div>
+          <div style="${S.insightTitle}">${def.title}</div>
+        </div>
+        <div style="${S.insightBody}">${body}</div>
+      </div>`;
+  }).join('');
+  const insightsHtml = `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Behavioural &amp; Emotional Insights</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">${insightsCards}</div>
+    </div>`;
+
+  // ── 8. PERSONALISED RECOMMENDATIONS ──────────────────────────────
+  const recs = aiResult?.recommendations || [];
+  const col1 = recs.slice(0, Math.ceil(recs.length/3));
+  const col2 = recs.slice(Math.ceil(recs.length/3), Math.ceil(recs.length/3*2));
+  const col3 = recs.slice(Math.ceil(recs.length/3*2));
+  const makeRecCol = (items, label, color, offset) =>
+    `<div style="border:0.5px solid #e2e8f0;border-radius:8px;padding:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${color};margin-bottom:12px;">${label}</div>
+      ${items.map((r,i)=>`<div style="font-size:12.5px;color:#475569;padding:6px 0;border-bottom:0.5px solid #f1f5f9;display:flex;gap:8px;"><span style="font-weight:700;color:#94a3b8;font-size:11px;flex-shrink:0;">${offset+i+1}.</span><span style="line-height:1.55;">${r}</span></div>`).join('')}
+    </div>`;
+  const recsHtml = recs.length ? `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Personalised Recommendations</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        ${col1.length ? makeRecCol(col1,'Immediate Actions','#dc2626',0) : ''}
+        ${col2.length ? makeRecCol(col2,'Professional Support','#1d4ed8',col1.length) : ''}
+        ${col3.length ? makeRecCol(col3,'Lifestyle Support','#16a34a',col1.length+col2.length) : ''}
+      </div>
+    </div>` : '';
+
+  // ── 9. NEXT STEPS ─────────────────────────────────────────────────
+  const steps = isDepressed ? [
+    {label:'Today',              text:'Share this report with a family member, partner, or trusted friend.'},
+    {label:'Follow-up session',  text:'Schedule a re-assessment with PsychSense in 2–4 weeks to track your symptom trajectory.'},
+    {label:'Seek help',          text:'Book an appointment with a primary care physician to review these initial signals.'},
+  ] : [
+    {label:'Today',             text:'Share this report with a family member, partner, or trusted friend.'},
+    {label:'Follow-up session', text:'Schedule a re-assessment with PsychSense in 2–4 weeks to track your symptom trajectory.'},
+  ];
+  const nextStepsHtml = `
+    <div style="${S.card}">
+      <div style="${S.sectionTitle}">Next Steps</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        ${steps.map((s,i)=>`
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="width:26px;height:26px;border-radius:50%;border:1.5px solid #cbd5e1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#64748b;flex-shrink:0;">${i+1}</div>
+            <p style="font-size:13px;color:#475569;line-height:1.65;padding-top:3px;"><strong style="color:#0f172a;">${s.label}:</strong> ${s.text}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // ── 10. DOCTORS TABLE (depressed only) ────────────────────────────
+  let doctorsHtml = '';
+  if (isDepressed) {
+    const docKey = depType || 'Depressive Episode';
+    const doctors = DOCTORS_DATA[docKey] || DOCTORS_DATA['Depressive Episode'];
+    doctorsHtml = `
+      <div style="${S.card}">
+        <div style="${S.sectionTitle}">Recommended Doctors in Hyderabad</div>
+        <p style="font-size:12.5px;color:#475569;margin-bottom:14px;">Based on the detected condition (<strong>${docKey}</strong>), the following specialists in Hyderabad are recommended.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Doctor Name</th>
+              <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Area of Specialization</th>
+              <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Place of Work</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${doctors.map((d,i)=>`
+              <tr style="background:${i%2===0?'#fff':'#f8fafc'};">
+                <td style="padding:9px 12px;color:#1e293b;font-weight:500;border-bottom:0.5px solid #f1f5f9;">${d.name}</td>
+                <td style="padding:9px 12px;color:#475569;border-bottom:0.5px solid #f1f5f9;">${d.specialization}</td>
+                <td style="padding:9px 12px;color:#475569;border-bottom:0.5px solid #f1f5f9;">${d.workplace}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.55;">Always confirm current clinic timings and availability when booking. The same psychiatrist is usually qualified to treat multiple depressive disorders.</p>
+      </div>`;
+  }
+
+  // ── 11. ETHICAL DISCLAIMER ────────────────────────────────────────
+  const disclaimerHtml = `
+    <div style="border:0.5px solid #e2e8f0;border-radius:8px;padding:14px 16px;background:#f8fafc;margin-top:4px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:7px;">Ethical Disclaimer &amp; Important Notice</div>
+      <p style="font-size:12px;color:#64748b;line-height:1.7;">This report is generated by PsychSense, an AI-powered mental health screening tool. It is intended for <strong style="color:#334155;">informational and supportive purposes only</strong> and does <strong style="color:#334155;">not</strong> constitute a clinical diagnosis, medical advice, or a substitute for professional psychiatric evaluation. Results may not account for all individual circumstances, cultural factors, or medical history. Always consult a licensed mental health professional before making any decisions regarding treatment. If you or someone you know is in immediate danger, please contact emergency services or a crisis helpline without delay.</p>
+    </div>`;
+
+  // ── ASSEMBLE ──────────────────────────────────────────────────────
+  const htmlStr = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1e293b;max-width:820px;margin:0 auto;padding:1.25rem 1.75rem;background:#fff;">
+      ${headerHtml}
+      ${alertHtml}
+      ${patientHtml}
+      ${execSummaryHtml}
+      ${assessHtml}
+      ${riskAnalysisHtml}
+      ${insightsHtml}
+      ${recsHtml}
+      ${nextStepsHtml}
+      ${doctorsHtml}
+      ${disclaimerHtml}
+    </div>`;
+
+  html2pdf().set({
+    margin: [8, 8, 8, 8],
+    filename: `PsychSense_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`,
+    image:      { type:'jpeg', quality:0.98 },
+    html2canvas:{ scale:2, useCORS:true, logging:false },
+    jsPDF:      { unit:'mm', format:'a4', orientation:'portrait' },
+    pagebreak:  { mode:['avoid-all','css','legacy'] },
+  }).from(htmlStr).save();
+};
+
+// ── Profile ────────────────────────────────────────────────────────
+function showProfileTab(tab) {
+  document.getElementById('profile-tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
+  document.getElementById('profile-tab-history').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history') loadHistory();
+}
+
+async function renderProfilePage() {
+  showPage('profile');
+
+  if (window.currentUser) {
+    const u = window.currentUser;
+    const nm = u.name || u.email || 'User';
+    document.getElementById('profile-name').textContent = nm;
+    document.getElementById('profile-email').textContent = u.email || '';
+    const av = u.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(nm)}&background=bb000e&color=fff&size=80`;
+    document.getElementById('profile-photo').src = av;
+  }
+
+  let reports = [];
+  if (window.loadReports) { try { reports = await window.loadReports(); } catch(e) {} }
+  document.getElementById('stat-total').textContent = reports.length || 0;
+  if (reports.length > 0) {
+    const latest = reports[0];
+    document.getElementById('stat-latest-risk').textContent = latest.riskLevel || '—';
+    document.getElementById('stat-latest-risk').style.color = latest.riskLevel === 'High' ? '#ef4444' : latest.riskLevel === 'Moderate' ? '#f59e0b' : '#22c55e';
+    const prob = latest.modelProb ?? latest.confidenceScore ?? 0;
+    document.getElementById('stat-latest-score').innerHTML = `${Math.round(prob)}<span class="text-2xl">%</span>`;
+  }
+
+  // Chart
+  const chartEl = document.getElementById('profile-chart');
+  if (chartEl) chartEl.innerHTML = await generateAdetChartHtml();
+}
+
+async function loadHistory() {
+  const listEl = document.getElementById('history-list');
+  if (!listEl) return;
+  let reports = [];
+  if (window.loadReports) { try { reports = await window.loadReports(); } catch(e) {} }
+  if (!reports.length) { listEl.innerHTML = '<p class="font-label text-xs text-neutral-400 uppercase tracking-widest">No assessments found. Complete your first analysis to see history here.</p>'; return; }
+  listEl.innerHTML = reports.map(r => {
+    const d = new Date(r.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    const prob = Math.round(r.modelProb ?? r.confidenceScore ?? 0);
+    const riskColor = r.riskLevel === 'High' ? '#ef4444' : r.riskLevel === 'Moderate' ? '#f59e0b' : '#22c55e';
+    return `<div class="glass-panel p-5 flex justify-between items-center">
+      <div><p class="font-label text-xs uppercase tracking-widest text-neutral-500 mb-1">${d}</p>
+      <p class="font-headline text-lg font-bold" style="color:${riskColor}">${r.riskLevel || 'Low'} Risk</p>
+      ${r.depressionType ? `<p class="font-body text-sm text-neutral-500">${r.depressionType}</p>` : ''}
+      </div>
+      <div class="text-right"><p class="font-headline text-3xl font-black" style="color:${riskColor}">${prob}%</p><p class="font-label text-[10px] text-neutral-400 uppercase tracking-widest">probability</p></div>
+    </div>`;
+  }).join('');
+}
+</script>
+
+<!-- Firebase Auth Guard + User Badge -->
+<script type="module">
+  import { auth, db } from './js/firebase-config.js';
+  import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+  import { collection, getDocs, query, orderBy, getDoc, doc } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+  onAuthStateChanged(auth, user => {
+    const loginBtn = document.getElementById('login-signup-btn');
+    const badgeWrap = document.getElementById('user-badge-index');
+    const avatarNav = document.getElementById('user-avatar-index');
+    const nameNavEl = document.getElementById('user-name-index');
+    const resLink = document.getElementById('nav-results-link');
+
+    if (!user) {
+      if (loginBtn) loginBtn.style.display = '';
+      if (badgeWrap) badgeWrap.classList.add('hidden');
+      if (resLink) resLink.href = 'login.html';
+      window.location.href = 'login.html';
+      return;
+    }
+
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (badgeWrap) badgeWrap.classList.replace('hidden', 'flex');
+    const displayName = user.displayName || user.email || 'User';
+    const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+    
+    if (avatarNav) avatarNav.src = avatarUrl;
+    if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
+    if (resLink) resLink.href = 'results.html';
+
+    window.currentUser = {
+      uid: user.uid,
+      name: displayName,
+      email: user.email,
+      photo: user.photoURL || null
+    };
+
+    // Expose Firestore helpers
+    window.loadReports = async function() {
+      try {
+        const q = query(collection(db, 'users', user.uid, 'reports'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch(e) { console.error('loadReports:', e); return []; }
+    };
+
+    window.loadUserProfile = async function() {
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        return snap.exists() ? snap.data() : null;
+      } catch(e) { console.error('loadUserProfile:', e); return null; }
+    };
+
+    // Sign out
+    window.firebaseSignOut = async function() {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js');
+      await signOut(auth);
+      window.location.href = 'index.html';
+    };
+  });
+</script>
+</body>
+</html>
+

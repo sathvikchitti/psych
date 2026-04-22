@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PsychSense - Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script id="tailwind-config">tailwind.config={theme:{extend:{colors:{"primary":"#8e0008","primary-container":"#bb000e","on-primary":"#ffffff","surface-container-lowest":"#ffffff","surface-container-low":"#f6f3f2","surface-container":"#f0eded","surface-container-high":"#eae7e7","surface-container-highest":"#e5e2e1","on-surface":"#1c1b1b","on-surface-variant":"#5d3f3c","outline":"#916f6b","outline-variant":"#e6bdb8","background":"#fcf9f8","surface":"#fcf9f8","error":"#ba1a1a","on-error":"#ffffff","secondary":"#5652b4"},fontFamily:{headline:["Epilogue","sans-serif"],body:["Plus Jakarta Sans","sans-serif"],label:["Space Grotesk","sans-serif"]}}}};</script>
+<style>
+  body {
+    font-family:'Plus Jakarta Sans',sans-serif;
+    background-image: url('assets/hero_silk_bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    color:#111111;
+  }
+  .font-headline{font-family:'Epilogue',sans-serif}
+  .font-label{font-family:'Space Grotesk',sans-serif}
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+  .glass-panel {
+    background: rgba(240, 240, 240, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    border-radius: 2.5rem;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .glass-panel:hover {
+    transform: translateY(-8px) scale(1.01);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.18);
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(142,0,8,0.25);
+  }
+  /* Chart tabs */
+  .pf-tab{padding:6px 14px;border-radius:9999px;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;border:none;cursor:pointer;transition:all 0.2s;background:rgba(0,0,0,0.06);color:#64748b}
+  .pf-tab.active{background:#8e0008;color:#fff}
+  /* Session rows */
+  .session-row {
+    background: rgba(245,245,245,0.85);
+    backdrop-filter: blur(12px);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 1.75rem;
+    transition: all 0.3s ease;
+  }
+  @media(min-width:640px){.session-row{flex-direction:row;align-items:center}}
+  .session-row:hover {
+    background: #ffffff;
+    transform: scale(1.02) translateY(-2px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    border-color: rgba(142,0,8,0.3);
+  }
+  .risk-pill{padding:4px 14px;border-radius:9999px;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap}
+</style>
+
+</head>
+<body class="antialiased min-h-screen flex">
+
+<!-- SideNavBar -->
+<nav class="hidden md:flex bg-white/70 backdrop-blur-xl fixed left-0 top-0 h-full w-64 border-r border-black/10 flex-col p-6 z-40 shadow-xl">
+  <div class="mb-8">
+    <h1 class="font-headline text-xl font-black uppercase text-[#bb000e] tracking-tighter">PsychSense</h1>
+    <p class="font-label text-xs text-gray-600 mt-1 tracking-wider uppercase">Clinical Portal</p>
+  </div>
+  <button onclick="window.location.href='analysis.html'" class="w-full bg-[#bb000e] text-white font-label text-sm font-bold uppercase tracking-wider py-3 px-4 rounded-sm hover:bg-primary-container transition-colors mb-8 flex justify-center items-center gap-2">
+    <span class="material-symbols-outlined text-sm">add</span>New Session
+  </button>
+  <ul class="flex-1 space-y-1 font-body text-sm font-medium">
+    <li>
+      <a href="index.html" class="flex items-center gap-3 text-gray-700 hover:bg-black/5 px-4 py-3 rounded-sm transition-colors hover:translate-x-1 duration-200">
+        <span class="material-symbols-outlined">home</span>Home
+      </a>
+    </li>
+    <li>
+      <a href="analysis.html" class="flex items-center gap-3 text-gray-700 hover:bg-black/5 px-4 py-3 rounded-sm transition-colors hover:translate-x-1 duration-200">
+        <span class="material-symbols-outlined">analytics</span>Analysis
+      </a>
+    </li>
+    <li>
+      <a href="results.html" class="flex items-center gap-3 text-gray-700 hover:bg-black/5 px-4 py-3 rounded-sm transition-colors hover:translate-x-1 duration-200">
+        <span class="material-symbols-outlined">fact_check</span>Results
+      </a>
+    </li>
+    <li>
+      <a href="profile.html" class="flex items-center gap-3 bg-[#bb000e] text-white px-4 py-3 rounded-sm">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">person</span>Profile
+      </a>
+    </li>
+  </ul>
+  <div class="mt-auto border-t border-black/10 pt-6 space-y-1">
+    <button onclick="window.firebaseSignOut && window.firebaseSignOut()" class="flex items-center gap-3 text-gray-700 hover:text-black px-4 py-2 font-label text-xs uppercase tracking-wider transition-colors w-full text-left">
+      <span class="material-symbols-outlined text-sm">logout</span>Sign Out
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile Top Nav -->
+<nav class="md:hidden bg-white/70 backdrop-blur-xl fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 border-b border-black/10 shadow-md">
+  <h1 class="font-headline text-xl font-black uppercase tracking-tighter text-[#bb000e]">PsychSense</h1>
+  <div class="flex gap-3">
+    <a href="analysis.html" class="font-label text-xs uppercase tracking-wider text-gray-600 hover:text-primary transition-colors">Analysis</a>
+    <a href="results.html" class="font-label text-xs uppercase tracking-wider text-gray-600 hover:text-primary transition-colors">Results</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="flex-1 md:ml-64 pt-20 md:pt-12 px-6 md:px-12 pb-24">
+  <!-- Loading state -->
+  <div id="profile-loading" class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+    <div class="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+    <p class="font-label text-sm uppercase tracking-widest text-gray-500">Loading profile…</p>
+  </div>
+
+  <!-- Profile content (hidden until loaded) -->
+  <div id="profile-content" style="display:none">
+    <!-- Header -->
+    <header class="mb-12 max-w-5xl">
+      <p class="font-label text-primary uppercase tracking-[0.2em] text-sm mb-4">Patient Profile</p>
+      <h2 id="pf-header-name" class="font-headline text-5xl md:text-7xl font-bold tracking-tighter leading-none mb-4">Loading…</h2>
+      <p class="font-body text-lg text-gray-600 max-w-2xl leading-relaxed" id="pf-header-desc">Behavioral analysis and assessment history.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 max-w-7xl">
+      <!-- Left: Identity Card -->
+      <aside class="lg:col-span-4 space-y-6">
+        <!-- ID Card -->
+        <div class="glass-panel p-8 relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
+          <div class="flex items-start gap-6 mb-8 relative z-10">
+            <img id="pf-avatar" src="https://ui-avatars.com/api/?background=bb000e&color=fff&size=80" alt="Profile"
+              class="w-20 h-20 object-cover rounded-full border-2 border-primary/30" referrerpolicy="no-referrer"
+              onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=80'">
+            <div>
+              <h3 id="pf-name" class="font-headline text-2xl font-bold mb-1 text-black">—</h3>
+              <p id="pf-email" class="font-label text-xs text-gray-500 tracking-wider"></p>
+            </div>
+          </div>
+          <div class="space-y-5 relative z-10 border-t border-black/10 pt-6">
+            <div>
+              <p class="font-label text-xs text-gray-500 uppercase tracking-widest mb-1">Age</p>
+              <p id="pf-age" class="font-body text-lg text-black">—</p>
+            </div>
+            <div>
+              <p class="font-label text-xs text-gray-500 uppercase tracking-widest mb-1">Gender</p>
+              <p id="pf-gender" class="font-body text-lg text-black">—</p>
+            </div>
+            <div>
+              <p class="font-label text-xs text-gray-500 uppercase tracking-widest mb-1">Total Assessments</p>
+              <p id="pf-total-sessions" class="font-headline text-3xl font-bold text-primary">0</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="glass-panel p-6 border border-black/5">
+          <h4 class="font-label text-sm uppercase tracking-widest mb-6 border-b border-black/10 pb-4 text-black">Quick Actions</h4>
+          <ul class="space-y-4">
+            <li>
+              <button onclick="window.location.href='analysis.html'" class="w-full text-left font-body text-base flex justify-between items-center group text-black">
+                <span class="group-hover:text-primary transition-colors">New Assessment</span>
+                <span class="material-symbols-outlined text-sm opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all">arrow_forward</span>
+              </button>
+            </li>
+            <li>
+              <button onclick="window.location.href='results.html'" class="w-full text-left font-body text-base flex justify-between items-center group text-black">
+                <span class="group-hover:text-primary transition-colors">View Latest Result</span>
+                <span class="material-symbols-outlined text-sm opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all">arrow_forward</span>
+              </button>
+            </li>
+            <li>
+              <button onclick="window.firebaseSignOut && window.firebaseSignOut()" class="w-full text-left font-body text-base flex justify-between items-center group">
+                <span class="text-error font-medium">Sign Out</span>
+                <span class="material-symbols-outlined text-sm text-error">logout</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Right: PBS Trend + History -->
+      <div class="lg:col-span-8 space-y-10">
+        <!-- PBS Trend Chart -->
+        <section>
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="font-headline text-3xl font-bold tracking-tight text-black">PBS Trend Analysis</h3>
+            <div class="flex gap-2">
+              <button class="pf-tab" id="pf-tab-hourly" onclick="window.pfSwitchTab('hourly')">24H</button>
+              <button class="pf-tab active" id="pf-tab-daily" onclick="window.pfSwitchTab('daily')">7D</button>
+              <button class="pf-tab" id="pf-tab-weekly" onclick="window.pfSwitchTab('weekly')">8W</button>
+              <button class="pf-tab" id="pf-tab-monthly" onclick="window.pfSwitchTab('monthly')">12M</button>
+            </div>
+          </div>
+          <div class="glass-panel border border-black/10 p-6 relative overflow-hidden" style="min-height:260px">
+            <div id="pf-chart-svg" class="w-full"></div>
+          </div>
+          <!-- Risk legend -->
+          <div class="flex gap-6 mt-3">
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-red-500"></div><span class="font-label text-xs text-gray-500">High (&ge;62%)</span></div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-amber-500"></div><span class="font-label text-xs text-gray-500">Moderate (52–62%)</span></div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-green-500"></div><span class="font-label text-xs text-gray-500">Low (&lt;52%)</span></div>
+          </div>
+        </section>
+
+        <!-- Session History -->
+        <section>
+          <div class="flex items-start gap-6 border-t border-black/10 pt-8">
+            <span class="font-label text-xs text-gray-500">02</span>
+            <h3 class="font-headline text-2xl font-bold tracking-tight text-black">Session History</h3>
+          </div>
+          <div id="pf-history-list" class="mt-6 space-y-3">
+            <div class="flex items-center justify-center py-16 text-gray-400">
+              <div class="text-center">
+                <div class="text-4xl mb-3">🗂️</div>
+                <p class="font-label text-sm uppercase tracking-widest">Loading sessions…</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Inject app.js logic for profile rendering -->
+<script>
+// Minimal goTo shim so app.js can navigate
+window.goTo = function(page) {
+  if (page === 'landing') { window.location.href = 'index.html'; return; }
+  if (page === 'user-info' || page === 'assessment') { window.location.href = 'analysis.html'; return; }
+  if (page === 'results') { window.location.href = 'results.html'; return; }
+  if (page === 'profile') return; // already here
+};
+
+let _profileReportsCache = null;
+let _profileCurrentTab = 'daily';
+let userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
+let aiResult = JSON.parse(sessionStorage.getItem('ps_aiResult') || 'null');
+
+// Render the profile with Firebase data
+async function renderProfile(user) {
+  const cu = window.currentUser;
+  if (!cu) { window.location.href = 'login.html'; return; }
+
+  const displayName = cu.name || cu.email || 'User';
+  const avatarUrl = cu.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=bb000e&color=fff&size=128`;
+
+  // Header
+  const headerName = document.getElementById('pf-header-name');
+  if (headerName) headerName.textContent = displayName + '.';
+  const headerDesc = document.getElementById('pf-header-desc');
+  if (headerDesc) headerDesc.innerHTML = `Comprehensive behavioral analysis and PBS trend tracking.`;
+
+  // ID card
+  const pfAvatar = document.getElementById('pf-avatar');
+  if (pfAvatar) { pfAvatar.src = avatarUrl; pfAvatar.referrerPolicy = 'no-referrer'; }
+  const pfName = document.getElementById('pf-name');
+  if (pfName) pfName.textContent = displayName;
+  const pfEmail = document.getElementById('pf-email');
+  if (pfEmail) pfEmail.textContent = cu.email || '';
+  const pfAge = document.getElementById('pf-age');
+  if (pfAge) pfAge.textContent = cu.age || document.getElementById('input-age')?.value || '—';
+  const pfGender = document.getElementById('pf-gender');
+  if (pfGender) pfGender.textContent = cu.gender || '—';
+
+  // Load reports
+  try { _profileReportsCache = window.loadReports ? await window.loadReports() : []; } catch(_) { _profileReportsCache = []; }
+
+  const totalEl = document.getElementById('pf-total-sessions');
+  if (totalEl) totalEl.textContent = _profileReportsCache.length;
+
+  _profileCurrentTab = 'daily';
+  _renderProfileTab('daily');
+  _renderProfileHistory();
+
+  document.getElementById('profile-loading').style.display = 'none';
+  document.getElementById('profile-content').style.display = 'block';
+}
+
+function _renderProfileTab(tab) {
+  _profileCurrentTab = tab;
+  ['hourly','daily','weekly','monthly'].forEach(t => {
+    const btn = document.getElementById(`pf-tab-${t}`);
+    if (!btn) return;
+    btn.classList.toggle('active', t === tab);
+  });
+
+  const reports = _profileReportsCache || [];
+  const now = new Date();
+  let buckets = [];
+
+  if (tab === 'hourly') {
+    for (let h = 23; h >= 0; h--) { const d = new Date(now); d.setMinutes(0,0,0); d.setHours(d.getHours()-h); buckets.push({label:d.getHours()+':00',ts:d.getTime(),value:null}); }
+    reports.forEach(r => { const t=new Date(r.createdAt).getTime(); const age=now-t; if(age>24*3600000)return; const hi=Math.floor((now-t)/3600000); const idx=23-hi; if(idx>=0){const val=r.modelProb??r.confidenceScore??null; if(val!==null&&(buckets[idx].value===null||t>buckets[idx]._latest)){buckets[idx].value=val;buckets[idx]._latest=t;}} });
+  } else if (tab === 'daily') {
+    for (let d=6;d>=0;d--){const dt=new Date(now);dt.setDate(dt.getDate()-d);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),dateStr:dt.toDateString(),value:null,_latest:0});}
+    reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.dateStr===dt.toDateString());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+  } else if (tab === 'weekly') {
+    for(let w=7;w>=0;w--){const dt=new Date(now);dt.setDate(dt.getDate()-w*7);const ws=dt.getTime()-(dt.getDay())*86400000;buckets.push({label:'Wk '+dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),weekStart:ws,weekEnd:ws+7*86400000,value:null,_latest:0});}
+    reports.forEach(r=>{const t=new Date(r.createdAt).getTime();const b=buckets.find(x=>t>=x.weekStart&&t<x.weekEnd);if(!b)return;const val=r.modelProb??r.confidenceScore??null;if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+  } else {
+    for(let m=11;m>=0;m--){const dt=new Date(now.getFullYear(),now.getMonth()-m,1);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'}),month:dt.getMonth(),year:dt.getFullYear(),value:null,_latest:0});}
+    reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.month===dt.getMonth()&&x.year===dt.getFullYear());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+  }
+
+  const chartEl = document.getElementById('pf-chart-svg');
+  if (!chartEl) return;
+  const filled = buckets.map((b,i)=>({...b,i})).filter(b=>b.value!==null);
+  if (filled.length < 2) {
+    chartEl.innerHTML = `<div style="text-align:center;padding:48px 24px;color:#64748b;"><div style="font-size:32px;margin-bottom:12px;">📊</div><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;">Not enough data for this time range</div><div style="font-size:11px;margin-top:6px;color:#94a3b8;">Run more sessions to see your trend</div></div>`;
+    return;
+  }
+
+  const W=780,H=220,PAD={top:24,right:32,bottom:48,left:48};
+  const innerW=W-PAD.left-PAD.right,innerH=H-PAD.top-PAD.bottom,n=buckets.length;
+  const xScale=i=>PAD.left+(i/(n-1))*innerW;
+  const yScale=v=>PAD.top+innerH-((v-0)/(100-0))*innerH;
+  const pts=filled.map(b=>`${xScale(b.i)},${yScale(b.value)}`).join(' ');
+  const areaPath=filled.map((b,fi)=>{const x=xScale(b.i),y=yScale(b.value);return fi===0?`M${x},${y}`:`L${x},${y}`;}).join(' ')+` L${xScale(filled[filled.length-1].i)},${PAD.top+innerH} L${xScale(filled[0].i)},${PAD.top+innerH} Z`;
+  const yGuides=[0,25,50,75,100].map(v=>`<line x1="${PAD.left}" y1="${yScale(v)}" x2="${PAD.left+innerW}" y2="${yScale(v)}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/><text x="${PAD.left-8}" y="${yScale(v)+4}" text-anchor="end" fill="#94a3b8" font-size="9" font-family="Space Grotesk,sans-serif">${v}%</text>`).join('');
+  const stepLabel=Math.ceil(n/6);
+  const xLabels=buckets.map((b,i)=>{if(i%stepLabel!==0&&i!==n-1)return '';return `<text x="${xScale(i)}" y="${H-8}" text-anchor="middle" fill="#64748b" font-size="9" font-family="Space Grotesk,sans-serif">${b.label}</text>`;}).join('');
+  const dots=filled.map(b=>{const x=xScale(b.i),y=yScale(b.value);const clr=b.value>=62?'#ef4444':b.value>=52?'#f59e0b':'#22c55e';return `<circle cx="${x}" cy="${y}" r="5" fill="${clr}" stroke="#d8d8d8" stroke-width="2"><title>${b.label}: ${Math.round(b.value)}% PBS</title></circle>`;}).join('');
+
+  chartEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="pf-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8e0008" stop-opacity="0.15"/><stop offset="100%" stop-color="#8e0008" stop-opacity="0.0"/></linearGradient></defs>
+    <rect x="${PAD.left}" y="${yScale(100)}" width="${innerW}" height="${yScale(62)-yScale(100)}" fill="rgba(239,68,68,0.04)"/>
+    <rect x="${PAD.left}" y="${yScale(62)}" width="${innerW}" height="${yScale(52)-yScale(62)}" fill="rgba(245,158,11,0.04)"/>
+    <rect x="${PAD.left}" y="${yScale(52)}" width="${innerW}" height="${yScale(0)-yScale(52)}" fill="rgba(34,197,94,0.04)"/>
+    ${yGuides}
+    <path d="${areaPath}" fill="url(#pf-grad)"/>
+    <polyline points="${pts}" fill="none" stroke="#8e0008" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${xLabels}
+    <text x="${PAD.left+innerW+5}" y="${yScale(62)+4}" fill="rgba(239,68,68,0.5)" font-size="8" font-family="Space Grotesk">High</text>
+    <text x="${PAD.left+innerW+5}" y="${yScale(52)+4}" fill="rgba(245,158,11,0.5)" font-size="8" font-family="Space Grotesk">Mod</text>
+  </svg>`;
+}
+
+window.pfSwitchTab = _renderProfileTab;
+
+function _renderProfileHistory() {
+  const histEl = document.getElementById('pf-history-list');
+  if (!histEl) return;
+  const reports = _profileReportsCache || [];
+  if (!reports.length) {
+    histEl.innerHTML = `<div style="text-align:center;padding:48px 24px;color:#64748b;"><div style="font-size:32px;margin-bottom:12px;">🗂️</div><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">No sessions yet</div><div style="font-size:11px;margin-top:6px;">Complete your first assessment to see history here</div></div>`;
+    return;
+  }
+  histEl.innerHTML = reports.map((r,idx) => {
+    const dt = new Date(r.createdAt);
+    const date = dt.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});
+    const time = dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const risk = r.riskLevel || 'Low';
+    const rClr = risk==='High'?'#b91c1c':risk==='Moderate'?'#b45309':'#166534';
+    const rBg = risk==='High'?'#fee2e2':risk==='Moderate'?'#fef3c7':'#dcfce7';
+    const rBdr = risk==='High'?'#fca5a5':risk==='Moderate'?'#fcd34d':'#86efac';
+    const pb = r.modelProb != null ? Math.round(r.modelProb) : (r.confidenceScore ?? '?');
+    const hasAudio = r.inputModes?.audio ?? false;
+    const hasText = r.inputModes?.text ?? false;
+    const depType = r.depressionType ? `<span style="font-size:11px;color:#64748b;">${r.depressionType}</span>` : '';
+    return `<div class="session-row">
+      <div style="min-width:110px;"><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:#111;">${date}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${time}</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${hasAudio?`<span style="background:#e9d5ff;border:1px solid #c4b5fd;color:#6d28d9;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Audio</span>`:''}
+          ${hasText?`<span style="background:#cffafe;border:1px solid #67e8f9;color:#0e7490;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Text</span>`:''}
+        </div>
+        ${depType}
+      </div>
+      <div style="text-align:center;min-width:60px;"><div style="font-size:22px;font-weight:800;font-family:'Epilogue',sans-serif;color:#8e0008;">${pb}%</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">PBS</div></div>
+      <span class="risk-pill" style="background:${rBg};border:1px solid ${rBdr};color:${rClr};">${risk} Risk</span>
+      <button onclick="window.location.href='results.html'" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(0,0,0,0.1);border-radius:9999px;padding:6px 14px;color:#64748b;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+        <span class="material-symbols-outlined" style="font-size:14px;">open_in_new</span>View
+      </button>
+    </div>`;
+  }).join('');
+}
+</script>
+
+<!-- Firebase Auth Guard -->
+<script type="module">
+  import { auth, db } from './js/firebase-config.js';
+  import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+  import { collection, getDocs, query, orderBy, getDoc, doc } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+  window.firebaseSignOut = async () => {
+    await signOut(auth);
+    window.location.href = 'index.html';
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = 'login.html'; return; }
+
+    window.currentUser = {
+      uid: user.uid,
+      name: user.displayName || user.email || 'User',
+      email: user.email,
+      photo: user.photoURL || null,
+      gender: '', age: ''
+    };
+
+    // Load Firestore profile
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) { const s = snap.data(); if (s.gender) window.currentUser.gender = s.gender; if (s.age) window.currentUser.age = s.age; }
+    } catch(e) {}
+
+    // Expose loadReports
+    window.loadReports = async () => {
+      try {
+        const q = query(collection(db, 'users', user.uid, 'reports'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch(e) { return []; }
+    };
+
+    // Now render
+    renderProfile(user);
+  });
+</script>
+</body>
+</html>

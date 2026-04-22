@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PsychSense - Assessment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/star-border.css">
+<script src="js/storage-helper.js"></script>
+<script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-lowest":"#ffffff","surface-container-highest":"#e5e2e1","secondary-container":"#9b98ff","surface-container":"#f0eded",error:"#ba1a1a","on-primary":"#ffffff","on-error":"#ffffff","surface-dim":"#dcd9d9","inverse-on-surface":"#f3f0ef","on-surface-variant":"#5d3f3c",primary:"#8e0008","outline-variant":"#e6bdb8",background:"#fcf9f8","tertiary-container":"#9b4000",secondary:"#5652b4","on-primary-container":"#ffc7c0","on-tertiary":"#ffffff",surface:"#fcf9f8","error-container":"#ffdad6","primary-fixed":"#ffdad5","on-error-container":"#93000a","surface-bright":"#fcf9f8","primary-fixed-dim":"#ffb4aa",outline:"#916f6b","on-secondary":"#ffffff",tertiary:"#752f00","surface-tint":"#bf0611","primary-container":"#bb000e","surface-container-high":"#eae7e7","tertiary-fixed":"#ffdbcb","on-primary-fixed":"#410001","surface-variant":"#e5e2e1","inverse-primary":"#ffb4aa","on-secondary-container":"#30298c","on-tertiary-fixed":"#341100","on-surface":"#1c1b1b","surface-container-low":"#f6f3f2","on-background":"#1c1b1b"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},fontFamily:{headline:["Epilogue"],body:["Plus Jakarta Sans"],label:["Space Grotesk"],display:"Epilogue"}}}};</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+  .page{display:none}.page.active{display:block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes progress{0%{left:-40%}100%{left:110%}}
+  @keyframes bar{0%,100%{height:4px}50%{height:20px}}
+  @keyframes breathing{0%,100%{transform:scale(1);opacity:0.8}50%{transform:scale(1.05);opacity:1}}
+  @keyframes loadProgress{0%{width:0%}100%{width:70%}}
+  .animate-spin-slow{animation:spin 4s linear infinite}
+  .animate-progress{animation:progress 1.5s ease-in-out infinite;position:absolute;width:40%;height:100%}
+  .animate-breathing{animation:breathing 4s ease-in-out infinite}
+  .animate-load-progress{animation:loadProgress 5s cubic-bezier(0.4,0,0.2,1) forwards}
+  .recording-bar{width:3px;border-radius:2px;background:#bb000e;animation:bar 0.8s ease-in-out infinite}
+  .recording-bar:nth-child(2){animation-delay:0.1s}.recording-bar:nth-child(3){animation-delay:0.2s}
+  .recording-bar:nth-child(4){animation-delay:0.3s}.recording-bar:nth-child(5){animation-delay:0.15s}
+  .recording-bars{display:flex;align-items:center;gap:3px;height:24px}
+  /* User info page inputs */
+  .field-wrap{background:#f6f3f2;padding:12px 16px;display:flex;align-items:center;gap:10px}
+  .field-wrap input,.field-wrap select{background:transparent;border:none;padding:0;width:100%;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:#1c1b1b;outline:none}
+  .field-wrap select{appearance:none}
+  /* Q option */
+  .q-opt{width:100%;text-align:left;padding:18px 24px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:500;transition:all 0.2s;border:0.5px solid;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.1);color:#111}
+  .q-opt:hover{background:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+  .q-opt.selected{background:#8e0008;color:#fff;border-color:#8e0008;box-shadow:0 4px 14px rgba(187,0,14,0.39)}
+  /* Auto-fill banner */
+  .autofill-banner{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-size:12px;color:#166534;font-weight:600}
+  /* Floating Action Buttons */
+  .hover-float { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .hover-float:hover { transform: scale(1.1) translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(187,0,14,0.2); }
+  .floating-action-btn { position: fixed; z-index: 100; }
+  /* User Info Modal */
+  #user-info-modal { display:none; position:fixed; inset:0; z-index:200; align-items:center; justify-content:center; }
+  #user-info-modal.open { display:flex; }
+  .modal-glass { background: rgba(255,255,255,0.12); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.25); border-radius: 1.5rem; box-shadow: 0 32px 80px rgba(0,0,0,0.5); }
+  .modal-input,
+  input[type="text"].modal-input,
+  input[type="number"].modal-input,
+  select.modal-input {
+    width:100%; background:rgba(30,20,20,0.55) !important;
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    border:1.5px solid rgba(255,255,255,0.22);
+    border-radius:0.5rem; padding:12px 16px;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:15px;
+    color:#fff !important; -webkit-text-fill-color:#fff !important;
+    outline:none; transition:border 0.2s; color-scheme:dark;
+  }
+  .modal-input::placeholder { color:rgba(255,255,255,0.45); }
+  .modal-input:focus,
+  input[type="number"].modal-input:focus,
+  select.modal-input:focus { border-color:rgba(187,0,14,0.7); background:rgba(50,20,20,0.65) !important; }
+  .modal-input option { background:#1c1b1b; color:#fff; }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+  .modal-glass { animation: modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+  /* Nav Pills */
+  .nav-pill { font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:8px 20px; border-radius:999px; border:1.5px solid rgba(28,27,27,0.12); box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.25s ease; color:#3a3a3a; background:rgba(255,255,255,0.7); text-decoration:none; }
+  .nav-pill:hover { background:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.13); transform:translateY(-2px); color:#8e0008; border-color:rgba(142,0,8,0.25); }
+  .nav-pill.active { background:#8e0008; color:#fff; border-color:#8e0008; box-shadow:0 4px 16px rgba(142,0,8,0.25); }
+  body, .bg-fixed-image, #page-assessment {
+    background-image: url('assets/hero_silk_bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+  }
+</style>
+</head>
+<body class="text-on-background font-body antialiased min-h-screen">
+
+
+
+
+<!-- ══════════════════════════════════════════
+     PAGE: ASSESSMENT — new stitch design
+     ════════════════════════════════════════════ -->
+<div id="page-assessment" class="page active min-h-screen bg-fixed-image flex flex-col pt-24 pb-32">
+
+<!-- ═══ USER INFO MODAL ═══ -->
+<div id="user-info-modal">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="modal-glass relative w-full max-w-md mx-4 p-8 flex flex-col gap-6">
+    <div class="flex items-center gap-4 mb-2">
+      <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center flex-shrink-0">
+        <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">person</span>
+      </div>
+      <div>
+        <p class="font-label text-[10px] uppercase tracking-widest text-white/50 mb-0.5">Before We Begin</p>
+        <h2 class="font-headline font-bold text-white text-xl leading-tight">Patient Information</h2>
+      </div>
+      <button onclick="closeInfoModal()" class="ml-auto text-white/40 hover:text-white transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="modal-autofill-banner" class="hidden items-center gap-2 bg-green-500/10 border border-green-400/30 rounded-lg px-4 py-2.5">
+      <span class="material-symbols-outlined text-green-400 text-sm" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+      <span class="font-label text-[11px] text-green-300 font-semibold uppercase tracking-wider">Auto-filled from your profile</span>
+    </div>
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Full Name</label>
+        <input id="modal-name" type="text" class="modal-input" placeholder="Enter your full name">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Age</label>
+          <input id="modal-age" type="number" min="10" max="100" class="modal-input" placeholder="e.g. 25">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label text-[11px] uppercase tracking-widest text-white/60">Gender</label>
+          <select id="modal-gender" class="modal-input">
+            <option value="" disabled selected>Select</option>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <p id="modal-error" class="hidden font-label text-xs text-red-400 font-semibold">Please enter your full name to continue.</p>
+    <button onclick="submitUserInfoModal()" class="star-border rounded-xl hover-float mt-2 shadow-[0_4px_20px_rgba(187,0,14,0.4)] w-full">
+      <div class="star-border-inner bg-primary rounded-xl text-white font-label font-bold text-sm uppercase tracking-wider py-4 flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1;">start</span>
+        Begin Assessment
+      </div>
+    </button>
+  </div>
+</div>
+  <!-- TopNavBar -->
+    <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm" style="z-index: 50;">
+    <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
+      <a class="text-2xl font-black tracking-tighter text-stone-950 font-headline uppercase flex-shrink-0" href="index.html">PSYCHSENSE</a>
+      <div class="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-3">
+        <a class="nav-pill" id="nav-home-link" href="index.html">HOME</a>
+        <a class="nav-pill active" id="nav-analysis-link" href="analysis.html">Analysis</a>
+        <a class="nav-pill" id="nav-results-link" href="results.html">Result</a>
+      </div>
+      <div class="flex items-center gap-4 ml-auto">
+        <div id="user-badge-index" class="hidden items-center gap-3 cursor-pointer" onclick="window.location.href='profile.html'">
+          <img id="user-avatar-index" src="" alt="" class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
+          <span id="user-name-index" class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
+        </div>
+        <div id="auth-section">
+          <a id="login-signup-btn" href="login.html" class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
+            <div class="star-border-inner bg-primary rounded-sm text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3">
+              Signup/Login
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex-grow w-full max-w-7xl mx-auto px-6 lg:px-12 flex flex-col gap-10 relative z-10">
+    <!-- Step indicator -->
+    <div class="flex items-center gap-4 py-4 w-full max-w-3xl">
+      <div class="flex items-center gap-3 opacity-60">
+        <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">check_circle</span>
+        <span class="font-label text-sm text-white uppercase tracking-widest font-semibold">Step 1: Info</span>
+      </div>
+      <div class="flex-grow h-[1px] bg-white/30 max-w-[4rem]"></div>
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-sm font-bold">2</div>
+        <span class="font-headline font-bold text-white tracking-tight text-lg">Assessment</span>
+      </div>
+      <div class="flex-grow h-[1px] bg-white/20 max-w-[4rem]"></div>
+      <div class="flex items-center gap-3 opacity-40">
+        <div class="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center text-sm font-medium">3</div>
+        <span class="font-label text-sm text-white uppercase tracking-widest font-medium">Results</span>
+      </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
+      <!-- Left: Text Expression -->
+      <div class="lg:col-span-7 flex flex-col h-full">
+        <div class="bg-stone-50/95 shadow-[0px_20px_60px_rgba(0,0,0,0.15)] backdrop-blur-sm rounded-[2rem] p-8 lg:p-10 flex flex-col h-[600px] overflow-hidden border border-white/20">
+          <div class="flex justify-between items-center mb-8">
+            <div class="flex items-center gap-4">
+              <div class="p-3 bg-surface rounded-2xl">
+                <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings:'wght' 300;">description</span>
+              </div>
+              <h2 class="font-headline text-2xl lg:text-3xl text-on-surface font-semibold tracking-tighter">Text Expression</h2>
+            </div>
+            <div id="char-count" class="font-label text-xs font-semibold bg-surface-container text-on-surface-variant px-4 py-2 rounded-full tracking-wider">0 / 2000</div>
+          </div>
+          <div class="flex-grow relative">
+            <textarea id="text-input" maxlength="2000"
+              class="w-full h-full bg-surface/50 border border-outline-variant/20 focus:border-primary focus:bg-surface focus:ring-0 rounded-2xl p-6 lg:p-8 font-body text-lg text-on-surface placeholder:text-on-surface-variant/40 resize-none transition-all duration-300"
+              placeholder="Describe how you've been feeling lately… Share your thoughts, emotions, and any concerns you have."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Audio + Continue -->
+      <div class="lg:col-span-5 flex flex-col gap-10">
+        <!-- Audio Card -->
+        <div class="bg-stone-50/95 shadow-[0px_20px_60px_rgba(0,0,0,0.15)] backdrop-blur-sm rounded-[2rem] p-8 lg:p-10 relative overflow-hidden border border-white/20">
+          <div class="flex items-center gap-4 mb-8 relative z-10">
+            <div class="p-3 bg-surface rounded-2xl">
+              <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings:'wght' 300;">mic_external_on</span>
+            </div>
+            <h2 class="font-headline text-2xl text-on-surface font-semibold tracking-tighter">Audio Biomarkers</h2>
+          </div>
+
+          <!-- Audio Display -->
+          <div id="audio-display" class="bg-surface-container-highest/40 backdrop-blur-md rounded-[1.5rem] p-8 flex flex-col items-center justify-center text-center gap-4 mb-8 border border-surface min-h-[160px] relative">
+            <div class="w-24 h-24 rounded-full bg-surface-container-lowest flex items-center justify-center shadow-[0px_20px_40px_rgba(40,20,43,0.04)] mb-2 relative">
+              <div class="absolute inset-0 rounded-full border border-primary/20 animate-pulse"></div>
+              <span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings:'FILL' 1,'wght' 300;">mic</span>
+            </div>
+            <div>
+              <h3 class="font-headline font-bold text-xl text-on-surface tracking-tight">Mic Ready</h3>
+              <p class="text-sm text-on-surface-variant font-body mt-2">Click record or upload a file</p>
+            </div>
+          </div>
+
+          <!-- Audio Actions -->
+          <div class="flex flex-col gap-3">
+            <button id="record-btn" onclick="window.toggleRecording()"
+              class="star-border rounded-full hover:opacity-90 transition-all duration-300 w-full disabled:cursor-not-allowed">
+              <div class="star-border-inner bg-gradient-to-br from-primary to-primary-container rounded-full text-on-primary py-4 px-6 font-label font-semibold tracking-wide flex items-center justify-center gap-3">
+                <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">fiber_manual_record</span>
+                Start Recording
+              </div>
+            </button>
+            <label class="w-full bg-surface-container text-on-surface rounded-full py-4 px-6 font-label font-semibold tracking-wide flex items-center justify-center gap-3 hover:bg-surface-container-high cursor-pointer transition-all duration-300 text-sm">
+              <span class="material-symbols-outlined text-primary">upload_file</span>
+              Upload Audio File
+              <input type="file" accept="audio/*" id="audio-upload-input" class="hidden" onchange="handleAudioUpload(event)">
+            </label>
+            <button id="remove-audio-btn" onclick="removeAudio()" style="display:none"
+              class="w-full text-error font-label text-xs uppercase tracking-widest py-2 hover:underline transition-all">
+              ✕ Remove Audio
+            </button>
+          </div>
+        </div>
+
+        <!-- Recording Instructions -->
+        <div class="bg-stone-50/95 shadow-[0px_20px_60px_rgba(0,0,0,0.15)] backdrop-blur-sm rounded-[2rem] p-8 lg:p-10 border border-white/20">
+          <div class="flex justify-between items-center cursor-pointer group mb-6" onclick="toggleVoiceInstructions()">
+            <h3 class="font-headline font-bold text-xl text-on-surface tracking-tight group-hover:text-primary transition-colors">Recording Instructions</h3>
+            <div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center group-hover:bg-surface-container-highest transition-colors">
+              <span class="material-symbols-outlined text-primary">expand_less</span>
+            </div>
+          </div>
+          <div id="voice-instructions-body">
+            <h4 class="font-bold text-on-surface mb-4 font-body">What to Talk About:</h4>
+            <ul class="space-y-3 font-body text-on-surface-variant mb-6">
+              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-primary/50 text-sm mt-1" style="font-variation-settings:'FILL' 1;">circle</span><span>Your current energy levels</span></li>
+              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-primary/50 text-sm mt-1" style="font-variation-settings:'FILL' 1;">circle</span><span>Recent sleep patterns</span></li>
+              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-primary/50 text-sm mt-1" style="font-variation-settings:'FILL' 1;">circle</span><span>General mood throughout the week</span></li>
+              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-primary/50 text-sm mt-1" style="font-variation-settings:'FILL' 1;">circle</span><span>Any stressors or anxieties</span></li>
+            </ul>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-surface-container-lowest p-4 rounded-2xl">
+                <h5 class="font-bold text-primary flex items-center gap-2 mb-2 text-sm"><span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1;">check_circle</span>Do</h5>
+                <ul class="text-on-surface-variant text-sm space-y-1"><li>Speak naturally</li><li>Find a quiet space</li></ul>
+              </div>
+              <div class="bg-surface-container-lowest p-4 rounded-2xl">
+                <h5 class="font-bold text-error flex items-center gap-2 mb-2 text-sm"><span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1;">cancel</span>Don't</h5>
+                <ul class="text-on-surface-variant text-sm space-y-1"><li>Read from a script</li><li>Have loud background</li></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Floating Action Buttons (Above Footer) -->
+  <div class="fixed bottom-28 left-10 z-[60]">
+    <a href="user-info.html" class="hover-float inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 rounded-full font-label text-sm uppercase tracking-widest font-semibold">
+      <span class="material-symbols-outlined">arrow_back</span>Back
+    </a>
+  </div>
+
+  <div class="fixed bottom-28 right-10 z-[60]">
+    <button id="assess-continue-btn" onclick="window.runInitialAnalysis()" disabled
+      class="star-border rounded-full hover-float transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed shadow-2xl shadow-primary/40">
+      <div class="star-border-inner bg-gradient-to-br from-primary to-primary-container rounded-full text-on-primary px-10 py-5 flex items-center gap-3 font-label text-sm uppercase tracking-widest font-bold">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">analytics</span>
+        Run Analysis
+      </div>
+    </button>
+  </div>
+
+  <!-- Standard Fixed Footer -->
+  <footer class="bg-stone-100/90 backdrop-blur-lg fixed bottom-0 left-0 right-0 z-50 w-full border-t border-stone-200 shadow-xl">
+    <div class="relative flex flex-col md:flex-row justify-between items-center px-8 py-6 max-w-[1920px] mx-auto">
+      <span class="font-headline font-bold text-neutral-900 text-sm tracking-widest">TEAM G-1107</span>
+      <div class="flex flex-wrap justify-center gap-6">
+        <a class="font-label text-[10px] uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors font-bold" href="#">PS-NEURO</a>
+      </div>
+      <span class="font-label text-[10px] uppercase tracking-widest text-neutral-500 mt-4 md:mt-0">© 2026 PSYCHSENSE — CLINICAL AI</span>
+    </div>
+  </footer>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     REMOVED: Synthesizing, Questionnaire, Error
+     pages are now separate files:
+       synthesizing.html
+       questionnaire.html
+     ════════════════════════════════════════════ -->
+
+
+<!-- ═══════════════════════════════════════ ALL JS ══════════════════════════ -->
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let userInfo = JSON.parse(sessionStorage.getItem('ps_userInfo') || '{"name":"","age":"","gender":""}');
+let textInputVal = sessionStorage.getItem('ps_textInputVal') || '';
+let audioBase64 = sessionStorage.getItem('ps_audioBase64') || null;
+let audioUrl = null;
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingTime = 0;
+let aiResult = JSON.parse(sessionStorage.getItem('ps_aiResult') || 'null');
+const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+
+// ── Page Navigation ────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) { pg.classList.add('active'); window.scrollTo(0,0); }
+}
+window.goTo = function(page) {
+  sessionStorage.setItem('ps_userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('ps_aiResult', JSON.stringify(aiResult));
+  sessionStorage.setItem('ps_textInputVal', textInputVal);
+  if (audioBase64) { try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {} }
+  if (['results','profile'].includes(page)) {
+    sessionStorage.setItem('pendingPageTransition', page);
+    window.location.href = 'results.html';
+    return;
+  }
+  showPage(page);
+};
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const textEl = document.getElementById('text-input');
+  if (textEl && textInputVal) { textEl.value = textInputVal; updateCharCount(); }
+  if (textEl) {
+    textEl.addEventListener('input', () => { textInputVal = textEl.value; updateCharCount(); window.updateAssessBtn(); });
+  }
+  if (audioBase64) { showAudioRestored(); window.updateAssessBtn(); }
+  else {
+    // Check IndexedDB if sessionStorage failed earlier
+    window.PS_Storage.loadFromIDB('audioBlob').then(blob => {
+      if (blob) {
+        showAudioRestored();
+        window.updateAssessBtn();
+      }
+    });
+  }
+});
+
+function updateCharCount() {
+  const textEl = document.getElementById('text-input');
+  const ccEl = document.getElementById('char-count');
+  if (!textEl || !ccEl) return;
+  const len = textEl.value.length;
+  ccEl.textContent = `${len} / 2000`;
+  ccEl.style.color = len > 1800 ? '#ba1a1a' : '';
+}
+
+
+
+// ── Assess Button ──────────────────────────────────────────────────
+window.closeInfoModal = function() {
+  const modal = document.getElementById('user-info-modal');
+  if (modal) {
+    modal.style.opacity = '0';
+    modal.style.transition = 'opacity 0.30s';
+    setTimeout(() => {
+      modal.classList.remove('open');
+      modal.style.opacity = '';
+      modal.style.transition = '';
+    }, 320);
+  }
+};
+
+window.updateAssessBtn = function() {
+  const btn = document.getElementById('assess-continue-btn');
+  const textEl = document.getElementById('text-input');
+  const hasText = (textEl && textEl.value.trim().length > 0) || (textInputVal && textInputVal.trim().length > 0);
+  const audioReady = audioBase64 || !!window.restoredAudioBlob; // handle both
+  if (btn) btn.disabled = !hasText && !audioReady;
+};
+
+// ── Toggle voice instructions ──────────────────────────────────────
+window.toggleVoiceInstructions = function() {
+  const body = document.getElementById('voice-instructions-body');
+  if (!body) return;
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+};
+
+// ── Audio Recording ────────────────────────────────────────────────
+window.toggleRecording = async function() {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/wav' });
+        audioUrl = URL.createObjectURL(blob);
+        const reader = new FileReader();
+        reader.onloadend = async () => { 
+          audioBase64 = reader.result; 
+          // Fallback: still try sessionStorage for small clips
+          try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {}
+          
+          // Primary: Save actual blob to IndexedDB for large files
+          try { await window.PS_Storage.saveToIDB('audioBlob', blob); } catch(e) { console.error("IDB Save Failed", e); }
+          
+          window.updateAssessBtn(); 
+          showAudioRecorded(); 
+        };
+        reader.readAsDataURL(blob);
+        showAudioRecorded();
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true; recordingTime = 0;
+      recordingTimer = setInterval(() => { recordingTime++; updateRecordingTimer(); }, 1000);
+      showRecordingActive();
+    } catch(err) { alert('Microphone access denied. Please allow microphone access in your browser settings.'); }
+  } else {
+    if (mediaRecorder) mediaRecorder.stop();
+    isRecording = false; clearInterval(recordingTimer);
+  }
+};
+
+function showRecordingActive() {
+  const display = document.getElementById('audio-display');
+  if (!display) return;
+  display.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-4">
+    <div class="recording-bars">${Array(8).fill('<div class="recording-bar"></div>').join('')}</div>
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 bg-error rounded-full animate-pulse"></div>
+      <span id="rec-time" class="font-label text-sm font-bold tracking-widest">0:00</span>
+      <span class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Recording…</span>
+    </div>
+  </div>`;
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">stop_circle</span> Stop Recording`;
+    btn.classList.add('!from-error','!to-error/80');
+  }
+}
+
+function updateRecordingTimer() {
+  const mins = Math.floor(recordingTime / 60), secs = recordingTime % 60;
+  const el = document.getElementById('rec-time');
+  if (el) el.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+  if (recordingTime >= 300) window.toggleRecording();
+}
+
+function showAudioRecorded() {
+  const display = document.getElementById('audio-display');
+  if (!display) return;
+  display.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-4">
+    <div class="flex items-center gap-3">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span class="font-label text-sm text-[#22c55e] font-bold uppercase tracking-widest">Voice Recorded</span>
+    </div>
+    <audio src="${audioUrl}" controls class="h-8 w-52 opacity-80"></audio>
+  </div>`;
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'block';
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">fiber_manual_record</span> Re-record`;
+    btn.classList.remove('!from-error','!to-error/80');
+  }
+}
+
+function showAudioRestored() {
+  const display = document.getElementById('audio-display');
+  if (!display) return;
+  display.innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-4">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span class="font-label text-sm text-[#22c55e] font-bold uppercase tracking-widest">Audio Loaded</span>
+  </div>`;
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'block';
+}
+
+function handleAudioUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  audioUrl = URL.createObjectURL(file);
+  const reader = new FileReader();
+  reader.onloadend = async () => { 
+    audioBase64 = reader.result; 
+    try { sessionStorage.setItem('ps_audioBase64', audioBase64); } catch(e) {}
+    try { await window.PS_Storage.saveToIDB('audioBlob', file); } catch(e) { console.error("IDB Save Failed", e); }
+    window.updateAssessBtn(); 
+    showAudioRecorded(); 
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAudio() {
+  audioBase64 = null; audioUrl = null;
+  sessionStorage.removeItem('ps_audioBase64');
+  if (window.PS_Storage) window.PS_Storage.clearFromIDB('audioBlob');
+  const display = document.getElementById('audio-display');
+  if (display) display.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 py-6">
+    <div class="w-20 h-20 rounded-full bg-surface-container-lowest flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings:'FILL' 1;">mic</span>
+    </div>
+    <p class="text-sm text-on-surface-variant font-body">Click record or upload a file</p>
+  </div>`;
+  const removeBtn = document.getElementById('remove-audio-btn');
+  if (removeBtn) removeBtn.style.display = 'none';
+  window.updateAssessBtn();
+}
+
+// ── Analysis — navigates to synthesizing.html ──────────────────────
+window.runInitialAnalysis = async function() {
+  userInfo.name   = document.getElementById('input-name')?.value || userInfo.name;
+  userInfo.age    = document.getElementById('input-age')?.value || userInfo.age;
+  userInfo.gender = document.getElementById('input-gender')?.value || userInfo.gender;
+  textInputVal    = document.getElementById('text-input')?.value || textInputVal;
+
+  // Hard guard — must have text OR audio before proceeding
+  const hasText  = !!(textInputVal && textInputVal.trim());
+  const hasAudio = !!(audioBase64);
+  if (!hasText && !hasAudio) {
+    alert('Please enter some text or record / upload an audio clip before running the analysis.');
+    return;
+  }
+
+  // Persist to sessionStorage so synthesizing.html can pick it up
+  sessionStorage.setItem('ps_userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('ps_textInputVal', textInputVal);
+
+  // Note: audio is already in IndexedDB from the recording/upload step.
+  // Clear UI inputs for display only — do NOT remove from sessionStorage here;
+  // synthesizing.html needs ps_textInputVal to run the analysis.
+  const textEl2 = document.getElementById('text-input');
+  if (textEl2) textEl2.value = '';
+
+  // We just ensure location transition happens after a small tick
+  setTimeout(() => {
+    window.location.href = 'synthesizing.html';
+  }, 100);
+};
+</script>
+
+<!-- Firebase Auth Guard + Auto-prefill -->
+<script type="module">
+  import { auth, db } from './js/firebase-config.js';
+  import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+  import { doc, getDoc, setDoc, addDoc, collection } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+  onAuthStateChanged(auth, async (user) => {
+    const loginBtn = document.getElementById('login-signup-btn');
+    const badgeWrap = document.getElementById('user-badge-index');
+    const avatarNav = document.getElementById('user-avatar-index');
+    const nameNavEl = document.getElementById('user-name-index');
+    const resLink = document.getElementById('nav-results-link');
+
+    if (!user) {
+      if (loginBtn) loginBtn.style.display = '';
+      if (badgeWrap) badgeWrap.classList.add('hidden');
+      if (resLink) resLink.href = 'login.html';
+      window.location.href = 'login.html';
+      return;
+    }
+
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (badgeWrap) badgeWrap.classList.replace('hidden', 'flex');
+    const displayName = user.displayName || user.email || 'User';
+    const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+    
+    if (avatarNav) avatarNav.src = avatarUrl;
+    if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
+    if (resLink) resLink.href = 'results.html';
+
+    window.currentUser = { uid:user.uid, name:displayName, email:user.email, photo:user.photoURL||null, gender:'', age:'' };
+
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) { const s = snap.data(); if (s.gender) window.currentUser.gender = s.gender; if (s.age) window.currentUser.age = s.age; }
+    } catch(e) {}
+
+    const cu = window.currentUser;
+
+    // ─── User Info Modal Logic ───
+    const savedInfo = sessionStorage.getItem('ps_userInfo');
+    if (!savedInfo) {
+      // Pre-fill modal from Firebase profile
+      const modalName = document.getElementById('modal-name');
+      const modalAge = document.getElementById('modal-age');
+      const modalGender = document.getElementById('modal-gender');
+      const modalBanner = document.getElementById('modal-autofill-banner');
+      if (modalName) modalName.value = cu.name || '';
+      if (modalAge && cu.age) modalAge.value = cu.age;
+      if (modalGender && cu.gender) modalGender.value = cu.gender;
+      if (cu.photo && modalBanner) { modalBanner.classList.remove('hidden'); modalBanner.classList.add('flex'); }
+      const modal = document.getElementById('user-info-modal');
+      if (modal) modal.classList.add('open');
+    } else {
+      // Already have info — populate old inputs too for backward compat
+      try {
+        const info = JSON.parse(savedInfo);
+        const nameInput = document.getElementById('input-name');
+        if (nameInput && !nameInput.value) nameInput.value = info.name || '';
+        const ageInput = document.getElementById('input-age');
+        if (ageInput && !ageInput.value) ageInput.value = info.age || '';
+        const genderSel = document.getElementById('input-gender');
+        if (genderSel && !genderSel.value) genderSel.value = info.gender || '';
+      } catch(e) {}
+    }
+
+    // Firestore helpers
+    window.saveUserProfile = async (profileData) => {
+      try { await setDoc(doc(db, 'users', user.uid), profileData, { merge:true }); } catch(e) { console.error(e); }
+    };
+    window.saveReport = async (reportData) => {
+      try { await addDoc(collection(db, 'users', user.uid, 'reports'), { ...reportData, createdAt: new Date().toISOString() }); } catch(e) { console.error(e); }
+    };
+  });
+</script>
+<script>
+  function submitUserInfoModal() {
+    const name = (document.getElementById('modal-name').value || '').trim();
+    const age  = (document.getElementById('modal-age').value  || '').trim();
+    const gender = document.getElementById('modal-gender').value || '';
+    const errEl = document.getElementById('modal-error');
+    if (!name) { errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    sessionStorage.setItem('ps_userInfo', JSON.stringify({ name, age, gender }));
+    const modal = document.getElementById('user-info-modal');
+    if (modal) { modal.style.opacity='0'; modal.style.transition='opacity 0.3s'; setTimeout(()=>modal.classList.remove('open'),300); }
+    // Also fill legacy inputs if they exist
+    const ni = document.getElementById('input-name'); if(ni) ni.value = name;
+    const ai = document.getElementById('input-age');  if(ai) ai.value = age;
+    const gi = document.getElementById('input-gender'); if(gi) gi.value = gender;
+  }
+</script>
+</body>
+</html>

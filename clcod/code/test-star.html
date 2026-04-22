@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes star-movement-bottom {
+      0% { transform: translate(0%, 0%); opacity: 1; }
+      100% { transform: translate(-100%, 0%); opacity: 0; }
+    }
+    @keyframes star-movement-top {
+      0% { transform: translate(0%, 0%); opacity: 1; }
+      100% { transform: translate(100%, 0%); opacity: 0; }
+    }
+
+    .star-border {
+      position: relative;
+      display: inline-flex;
+      overflow: hidden;
+      border-radius: 9999px; /* Always pill relative */
+      padding: 1px; /* Thin border */
+      isolation: isolate;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* Outer elements via before/after act as the moving stars */
+    .star-border::before, .star-border::after {
+      content: "";
+      position: absolute;
+      width: 300%;
+      height: 50%;
+      opacity: 0.7;
+      border-radius: 50%;
+      background: radial-gradient(circle, magenta, transparent 10%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .star-border::before {
+      bottom: -11px;
+      right: -250%;
+      animation: star-movement-bottom 5s linear infinite alternate;
+    }
+
+    .star-border::after {
+      top: -10px;
+      left: -250%;
+      animation: star-movement-top 5s linear infinite alternate;
+    }
+
+    /* Button content container */
+    .star-border-inner {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      border-radius: 9999px; /* Subtract border thickness if needed, but 9999px handles it */
+    }
+  </style>
+</head>
+<body class="bg-gray-900 p-20 flex flex-col gap-5">
+  <button class="star-border hover:scale-105 transition-transform">
+    <div class="star-border-inner bg-black text-white px-8 py-3 font-semibold tracking-wider">
+      START ANALYSIS
+    </div>
+  </button>
+  
+  <a href="#" class="star-border">
+    <div class="star-border-inner bg-blue-600 text-white px-6 py-2 rounded-full">
+      LOGIN
+    </div>
+  </a>
+</body>
+</html>
