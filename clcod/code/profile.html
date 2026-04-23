@@ -290,8 +290,11 @@
                 <button class="pf-tab" id="pf-tab-monthly" onclick="window.pfSwitchTab('monthly')">12M</button>
               </div>
             </div>
-            <div class="glass-panel border border-black/10 p-6 relative overflow-hidden" style="min-height:260px">
+            <div class="glass-panel border border-black/10 p-6 relative overflow-hidden cursor-pointer" style="min-height:260px" onclick="window.openChartModal()" title="Click to expand">
               <div id="pf-chart-svg" class="w-full"></div>
+              <div style="position:absolute;top:12px;right:16px;opacity:0.4;pointer-events:none;">
+                <span class="material-symbols-outlined" style="font-size:18px;">open_in_full</span>
+              </div>
             </div>
             <!-- Risk legend -->
             <div class="flex gap-6 mt-3">
@@ -485,6 +488,125 @@
     }
   </script>
 
+  <!-- Chart Modal Popup -->
+  <div id="chart-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px;">
+    <div style="background:rgba(248,246,245,0.97);border-radius:2rem;border:1px solid rgba(0,0,0,0.08);box-shadow:0 40px 80px rgba(0,0,0,0.22);max-width:900px;width:100%;padding:32px 32px 24px;position:relative;">
+      <!-- Close button -->
+      <button onclick="window.closeChartModal()" style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,0.06);border:none;border-radius:9999px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.12)'" onmouseout="this.style.background='rgba(0,0,0,0.06)'">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#64748b;">close</span>
+      </button>
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <h3 style="font-family:'Epilogue',sans-serif;font-size:1.25rem;font-weight:700;color:#1e293b;margin:0;">ManoDhwani Probability Score Trend Analysis</h3>
+        <div style="display:flex;gap:8px;">
+          <button class="pf-tab" id="modal-tab-hourly" onclick="window.pfSwitchModalTab('hourly')">24H</button>
+          <button class="pf-tab active" id="modal-tab-daily" onclick="window.pfSwitchModalTab('daily')">7D</button>
+          <button class="pf-tab" id="modal-tab-weekly" onclick="window.pfSwitchModalTab('weekly')">8W</button>
+          <button class="pf-tab" id="modal-tab-monthly" onclick="window.pfSwitchModalTab('monthly')">12M</button>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div style="background:rgba(245,245,245,0.7);border-radius:1.25rem;padding:20px 16px 8px;border:1px solid rgba(0,0,0,0.06);">
+        <div id="modal-chart-svg" style="width:100%;"></div>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#ef4444;"></div><span style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:#64748b;">High (&ge;62%)</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;"></div><span style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:#64748b;">Moderate (52–62%)</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#22c55e;"></div><span style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:#64748b;">Low (&lt;52%)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Render chart into any container by id
+    function _renderChartInto(containerId, tab) {
+      ['hourly','daily','weekly','monthly'].forEach(t => {
+        const btn = document.getElementById(`modal-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+      });
+      const reports = _profileReportsCache || [];
+      const now = new Date();
+      let buckets = [];
+      if (tab === 'hourly') {
+        for (let h = 23; h >= 0; h--) { const d = new Date(now); d.setMinutes(0,0,0); d.setHours(d.getHours()-h); buckets.push({label:d.getHours()+':00',ts:d.getTime(),value:null,_latest:0}); }
+        reports.forEach(r => { const t=new Date(r.createdAt).getTime(); const age=now-t; if(age>24*3600000)return; const hi=Math.floor((now-t)/3600000); const idx=23-hi; if(idx>=0){const val=r.modelProb??r.confidenceScore??null; if(val!==null&&(buckets[idx].value===null||t>buckets[idx]._latest)){buckets[idx].value=val;buckets[idx]._latest=t;}} });
+      } else if (tab === 'daily') {
+        for (let d=6;d>=0;d--){const dt=new Date(now);dt.setDate(dt.getDate()-d);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),dateStr:dt.toDateString(),value:null,_latest:0});}
+        reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.dateStr===dt.toDateString());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+      } else if (tab === 'weekly') {
+        for (let w=7;w>=0;w--){const dt=new Date(now);dt.setDate(dt.getDate()-w*7);const ws=dt.getTime()-(dt.getDay())*86400000;buckets.push({label:'Wk '+dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),weekStart:ws,weekEnd:ws+7*86400000,value:null,_latest:0});}
+        reports.forEach(r=>{const t=new Date(r.createdAt).getTime();const b=buckets.find(x=>t>=x.weekStart&&t<x.weekEnd);if(!b)return;const val=r.modelProb??r.confidenceScore??null;if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+      } else {
+        for (let m=11;m>=0;m--){const dt=new Date(now.getFullYear(),now.getMonth()-m,1);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'}),month:dt.getMonth(),year:dt.getFullYear(),value:null,_latest:0});}
+        reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.month===dt.getMonth()&&x.year===dt.getFullYear());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+      }
+      const chartEl = document.getElementById(containerId);
+      if (!chartEl) return;
+      const filled = buckets.map((b,i)=>({...b,i})).filter(b=>b.value!==null);
+      if (filled.length < 2) {
+        chartEl.innerHTML=`<div style="text-align:center;padding:48px 24px;color:#64748b;"><div style="font-size:32px;margin-bottom:12px;">📊</div><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;">Not enough data for this time range</div></div>`;
+        return;
+      }
+      const W=780,H=240,PAD={top:24,right:48,bottom:48,left:48};
+      const innerW=W-PAD.left-PAD.right,innerH=H-PAD.top-PAD.bottom,n=buckets.length;
+      const xScale=i=>PAD.left+(i/(n-1))*innerW;
+      const yScale=v=>PAD.top+innerH-((v-0)/(100-0))*innerH;
+      const pts=filled.map(b=>`${xScale(b.i)},${yScale(b.value)}`).join(' ');
+      const areaPath=filled.map((b,fi)=>{const x=xScale(b.i),y=yScale(b.value);return fi===0?`M${x},${y}`:`L${x},${y}`;}).join(' ')+` L${xScale(filled[filled.length-1].i)},${PAD.top+innerH} L${xScale(filled[0].i)},${PAD.top+innerH} Z`;
+      const yGuides=[0,25,50,75,100].map(v=>`<line x1="${PAD.left}" y1="${yScale(v)}" x2="${PAD.left+innerW}" y2="${yScale(v)}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/><text x="${PAD.left-8}" y="${yScale(v)+4}" text-anchor="end" fill="#94a3b8" font-size="9" font-family="Space Grotesk,sans-serif">${v}%</text>`).join('');
+      const stepLabel=Math.ceil(n/6);
+      const xLabels=buckets.map((b,i)=>{if(i%stepLabel!==0&&i!==n-1)return '';return `<text x="${xScale(i)}" y="${H-8}" text-anchor="middle" fill="#64748b" font-size="9" font-family="Space Grotesk,sans-serif">${b.label}</text>`;}).join('');
+      const dots=filled.map(b=>{const x=xScale(b.i),y=yScale(b.value);const clr=b.value>=62?'#ef4444':b.value>=52?'#f59e0b':'#22c55e';return `<circle cx="${x}" cy="${y}" r="6" fill="${clr}" stroke="#fff" stroke-width="2"><title>${b.label}: ${Math.round(b.value)}%</title></circle>`;}).join('');
+      chartEl.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="modal-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8e0008" stop-opacity="0.15"/><stop offset="100%" stop-color="#8e0008" stop-opacity="0.0"/></linearGradient></defs>
+        <rect x="${PAD.left}" y="${yScale(100)}" width="${innerW}" height="${yScale(62)-yScale(100)}" fill="rgba(239,68,68,0.04)"/>
+        <rect x="${PAD.left}" y="${yScale(62)}" width="${innerW}" height="${yScale(52)-yScale(62)}" fill="rgba(245,158,11,0.04)"/>
+        <rect x="${PAD.left}" y="${yScale(52)}" width="${innerW}" height="${yScale(0)-yScale(52)}" fill="rgba(34,197,94,0.04)"/>
+        ${yGuides}
+        <path d="${areaPath}" fill="url(#modal-grad)"/>
+        <polyline points="${pts}" fill="none" stroke="#8e0008" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}${xLabels}
+        <text x="${PAD.left+innerW+5}" y="${yScale(62)+4}" fill="rgba(239,68,68,0.5)" font-size="8" font-family="Space Grotesk">High</text>
+        <text x="${PAD.left+innerW+5}" y="${yScale(52)+4}" fill="rgba(245,158,11,0.5)" font-size="8" font-family="Space Grotesk">Mod</text>
+      </svg>`;
+    }
+
+    let _modalCurrentTab = 'daily';
+
+    window.openChartModal = function() {
+      const modal = document.getElementById('chart-modal');
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      _modalCurrentTab = _profileCurrentTab || 'daily';
+      ['hourly','daily','weekly','monthly'].forEach(t => {
+        const btn = document.getElementById(`modal-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === _modalCurrentTab);
+      });
+      _renderChartInto('modal-chart-svg', _modalCurrentTab);
+    };
+
+    window.closeChartModal = function() {
+      document.getElementById('chart-modal').style.display = 'none';
+      document.body.style.overflow = '';
+    };
+
+    window.pfSwitchModalTab = function(tab) {
+      _modalCurrentTab = tab;
+      _renderChartInto('modal-chart-svg', tab);
+    };
+
+    // Close on backdrop click
+    document.getElementById('chart-modal').addEventListener('click', function(e) {
+      if (e.target === this) window.closeChartModal();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') window.closeChartModal();
+    });
+  </script>
+
   <!-- Firebase Auth Guard -->
   <script type="module">
     import { auth, db } from './js/firebase-config.js';
@@ -509,7 +631,6 @@
 
       // Load Firestore profile
       try {
-        const audioBlob = await window.MD_Storage.loadFromIDB('audioBlob');
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) { const s = snap.data(); if (s.gender) window.currentUser.gender = s.gender; if (s.age) window.currentUser.age = s.age; }
       } catch (e) { }

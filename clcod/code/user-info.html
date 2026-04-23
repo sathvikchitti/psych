@@ -280,6 +280,12 @@
         }
 
         sessionStorage.setItem('md_userInfo', JSON.stringify({ name, age, gender }));
+
+        // Also persist age & gender to Firestore so they appear on the profile page
+        if (window.saveUserProfile) {
+            window.saveUserProfile({ age, gender }).catch(() => {});
+        }
+
         window.location.href = 'analysis.html';
     };
 </script>
