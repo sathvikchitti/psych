@@ -480,9 +480,11 @@
     // Smart GET STARTED handler: logged-in → go straight to analysis; guest → show modal
     window.handleGetStarted = function () {
       if (window._mdUserLoggedIn) {
+        sessionStorage.removeItem('md_userInfo');
         window.location.href = 'analysis.html';
       } else {
-        document.getElementById('info-modal').classList.add('open');
+        sessionStorage.removeItem('md_userInfo');
+        window.location.href = 'login.html';
       }
     };
 

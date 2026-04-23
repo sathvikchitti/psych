@@ -363,13 +363,13 @@
       const pfAvatar = document.getElementById('pf-avatar');
       if (pfAvatar) { pfAvatar.src = avatarUrl; pfAvatar.referrerPolicy = 'no-referrer'; }
       const pfName = document.getElementById('pf-name');
-      if (pfName) pfName.textContent = displayName;
+      if (pfName) pfName.textContent = userInfo.name || displayName;
       const pfEmail = document.getElementById('pf-email');
       if (pfEmail) pfEmail.textContent = cu.email || '';
       const pfAge = document.getElementById('pf-age');
-      if (pfAge) pfAge.textContent = cu.age || document.getElementById('input-age')?.value || '—';
+      if (pfAge) pfAge.textContent = userInfo.age || cu.age || '—';
       const pfGender = document.getElementById('pf-gender');
-      if (pfGender) pfGender.textContent = cu.gender || '—';
+      if (pfGender) pfGender.textContent = userInfo.gender || cu.gender || '—';
 
       // Load reports
       try { _profileReportsCache = window.loadReports ? await window.loadReports() : []; } catch (_) { _profileReportsCache = []; }

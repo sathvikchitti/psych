@@ -612,7 +612,7 @@ window.runInitialAnalysis = async function() {
     const cu = window.currentUser;
 
     // ─── User Info Modal Logic ───
-    const savedInfo = sessionStorage.getItem('md_userInfo');
+    const savedInfo = null; // always show modal so user can confirm/update info each session
     if (!savedInfo) {
       // Pre-fill modal from Firebase profile
       const modalName = document.getElementById('modal-name');
@@ -655,9 +655,14 @@ window.runInitialAnalysis = async function() {
     const errEl = document.getElementById('modal-error');
     if (!name) { errEl.classList.remove('hidden'); return; }
     errEl.classList.add('hidden');
-    sessionStorage.setItem('md_userInfo', JSON.stringify({ name, age, gender }));
+    const info = { name, age, gender };
+    sessionStorage.setItem('md_userInfo', JSON.stringify(info));
+    // Persist to Firestore profile so profile page stays updated
+    if (window.saveUserProfile) {
+      window.saveUserProfile({ name, age, gender }).catch(() => {});
+    }
     const modal = document.getElementById('user-info-modal');
-    if (modal) { modal.style.opacity='0'; modal.style.transition='opacity 0.3s'; setTimeout(()=>modal.classList.remove('open'),300); }
+    if (modal) { modal.style.opacity='0'; modal.style.transition='opacity 0.3s'; setTimeout(()=>{ modal.classList.remove('open'); modal.style.opacity=''; modal.style.transition=''; },300); }
     // Also fill legacy inputs if they exist
     const ni = document.getElementById('input-name'); if(ni) ni.value = name;
     const ai = document.getElementById('input-age');  if(ai) ai.value = age;

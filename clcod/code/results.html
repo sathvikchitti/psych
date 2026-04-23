@@ -645,11 +645,17 @@ function renderResults(result, depressionType, isDepressed) {
     window.renderADET(result);
   }
 
-  // ── Trajectory Chart ──
-  generateAdetChartHtml().then(html => {
-    const el = document.getElementById('adet-chart-container');
-    if (el) el.innerHTML = html;
-  });
+  // ── Trajectory Chart — wait for Firebase auth to expose loadReports ──
+  (function waitForLoadReports(attempts) {
+    if (window.loadReports) {
+      generateAdetChartHtml().then(html => {
+        const el = document.getElementById('adet-chart-container');
+        if (el) el.innerHTML = html;
+      });
+    } else if (attempts > 0) {
+      setTimeout(() => waitForLoadReports(attempts - 1), 300);
+    }
+  })(15);
 
   // ── Risk Factors ──
   const riskCard = document.getElementById('risk-analysis-card');
@@ -822,6 +828,13 @@ async function generateAdetChartHtml() {
 
 // ── Download PDF ───────────────────────────────────────────────────
 window.downloadReport = async function() {
+  // Pre-fetch trajectory chart (needs loadReports which may not be set yet)
+  const trajectoryChartSvg = await (function waitChart(n) {
+    if (window.loadReports) return generateAdetChartHtml();
+    if (n <= 0) return Promise.resolve('');
+    return new Promise(r => setTimeout(() => waitChart(n - 1).then(r), 300));
+  })(10);
+
   // Show loading state on button
   const btn = document.querySelector('[onclick="window.downloadReport()"]');
   const originalHTML = btn ? btn.innerHTML : '';
@@ -952,6 +965,7 @@ window.downloadReport = async function() {
     next_steps:       nextSteps,
     city:             'Hyderabad',
     doctors,
+    trajectory_chart_svg: trajectoryChartSvg,
   };
 
   // ── Call backend and stream PDF to user ──────────────────────────
@@ -1017,9 +1031,17 @@ async function renderProfilePage() {
     document.getElementById('stat-latest-score').innerHTML = `${Math.round(prob)}<span class="text-2xl">%</span>`;
   }
 
-  // Chart
+  // Chart — wait for loadReports to be ready
   const chartEl = document.getElementById('profile-chart');
-  if (chartEl) chartEl.innerHTML = await generateAdetChartHtml();
+  if (chartEl) {
+    (function waitForChart(n) {
+      if (window.loadReports) {
+        generateAdetChartHtml().then(html => { chartEl.innerHTML = html; });
+      } else if (n > 0) {
+        setTimeout(() => waitForChart(n - 1), 300);
+      }
+    })(15);
+  }
 }
 
 async function loadHistory() {
@@ -1121,4 +1143,3 @@ async function loadHistory() {
 </script>
 </body>
 </html>
-
