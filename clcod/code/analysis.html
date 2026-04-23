@@ -334,7 +334,7 @@ let audioChunks = [];
 let recordingTimer = null;
 let recordingTime = 0;
 let aiResult = JSON.parse(sessionStorage.getItem('md_aiResult') || 'null');
-const FLASK_API_URL = 'https://sense123-psychsense-backend.hf.space';
+const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
 
 // ── Page Navigation ────────────────────────────────────────────────
 function showPage(id) {
@@ -594,9 +594,11 @@ window.runInitialAnalysis = async function() {
     if (loginBtn) loginBtn.style.display = 'none';
     if (badgeWrap) badgeWrap.classList.replace('hidden', 'flex');
     const displayName = user.displayName || user.email || 'User';
-    const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+    const avatarUrl = user.photoURL
+      ? user.photoURL + (user.photoURL.includes('?') ? '&' : '?') + 't=' + Date.now()
+      : `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
     
-    if (avatarNav) avatarNav.src = avatarUrl;
+    if (avatarNav) { avatarNav.src = ''; avatarNav.src = avatarUrl; }
     if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
     if (resLink) resLink.href = 'results.html';
 

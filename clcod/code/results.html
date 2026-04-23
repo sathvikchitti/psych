@@ -21,9 +21,9 @@
   .blob-br{position:fixed;bottom:-10%;right:-10%;width:50%;height:50%;background:#ff00ff;border-radius:50%;mix-blend-mode:multiply;filter:blur(200px);opacity:0.08;pointer-events:none}
   /* Doctors table */
   .doctors-table{width:100%;border-collapse:collapse}
-  .doctors-table th,.doctors-table td{padding:10px 14px;text-align:left;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.07)}
+  .doctors-table th,.doctors-table td{padding:10px 14px;text-align:left;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.08)}
   .doctors-table th{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748b}
-  .doctors-table td{color:#cbd5e1}
+  .doctors-table td{color:#1e293b}
   /* Premium Glass Panel (No Rounding) */
   .glass-panel {
     background: rgba(240, 240, 240, 0.85);
@@ -431,7 +431,7 @@
 let userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{"name":"","age":"","gender":""}');
 let aiResult = JSON.parse(sessionStorage.getItem('md_aiResult') || 'null');
 
-const FLASK_API_URL = 'https://sense123-psychsense-backend.hf.space';
+const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
 
 // ── Page Nav ───────────────────────────────────────────────────────
 function showPage(id) {
@@ -502,6 +502,8 @@ const DOCTORS_DATA = {
 
 // ── Render Results ─────────────────────────────────────────────────
 function renderResults(result, depressionType, isDepressed) {
+  // Re-read userInfo from sessionStorage in case auth just filled it in
+  userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{\"name\":\"\",\"age\":\"\",\"gender\":\"\"}');
   const name = userInfo.name || 'Anonymous';
   const reportId = 'MD-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
   window._lastReportId = reportId;
@@ -719,7 +721,7 @@ function renderResults(result, depressionType, isDepressed) {
       doctorsCard.style.display = 'block';
       document.getElementById('doctors-city-label').textContent = 'Recommended Doctors in Hyderabad';
       document.getElementById('doctors-city-subtitle').textContent = `Based on detected condition: ${docType}. Always verify availability before booking.`;
-      doctorsList.innerHTML = `<table class="doctors-table"><thead><tr><th>Doctor</th><th>Specialization</th><th>Hospital</th></tr></thead><tbody>${doctors.map(d=>`<tr><td class="font-medium text-neutral-800">${d.name}</td><td>${d.specialization}</td><td>${d.workplace}</td></tr>`).join('')}</tbody></table>`;
+      doctorsList.innerHTML = `<table class="doctors-table"><thead><tr><th>Doctor</th><th>Specialization</th><th>Hospital</th></tr></thead><tbody>${doctors.map(d=>`<tr><td style="font-weight:600">${d.name}</td><td>${d.specialization}</td><td>${d.workplace}</td></tr>`).join('')}</tbody></table>`;
     } else { doctorsCard.style.display = 'none'; }
   }
 
@@ -1065,9 +1067,12 @@ async function loadHistory() {
     if (loginBtn) loginBtn.style.display = 'none';
     if (badgeWrap) badgeWrap.classList.replace('hidden', 'flex');
     const displayName = user.displayName || user.email || 'User';
-    const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+    // Always use fresh photoURL to avoid stale previous-user avatar
+    const avatarUrl = user.photoURL
+      ? user.photoURL + (user.photoURL.includes('?') ? '&' : '?') + 't=' + Date.now()
+      : `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
     
-    if (avatarNav) avatarNav.src = avatarUrl;
+    if (avatarNav) { avatarNav.src = ''; avatarNav.src = avatarUrl; }
     if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
     if (resLink) resLink.href = 'results.html';
 
@@ -1077,6 +1082,18 @@ async function loadHistory() {
       email: user.email,
       photo: user.photoURL || null
     };
+
+    // ── Auto-fill userInfo from Google auth if name is blank ──
+    if (!userInfo.name) {
+      userInfo.name = displayName;
+      sessionStorage.setItem('md_userInfo', JSON.stringify(userInfo));
+      // Update the rendered patient info grid if already on screen
+      const patGrid = document.getElementById('patient-info-grid');
+      if (patGrid && patGrid.children.length > 0) {
+        const nameCell = patGrid.querySelector('p.font-body');
+        if (nameCell) nameCell.textContent = displayName;
+      }
+    }
 
     // Expose Firestore helpers
     window.loadReports = async function() {

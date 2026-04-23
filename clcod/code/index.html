@@ -507,7 +507,7 @@
     // Backend status check
     const statusDot = document.getElementById('status-dot');
     const statusLabel = document.getElementById('status-label');
-    const BACKEND_URL = 'https://sense123-psychsense-backend.hf.space';
+    const BACKEND_URL = 'https://sense123-psychsense.hf.space';
 
     async function checkBackendHealth() {
       try {
@@ -587,6 +587,12 @@
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
     // ─── AUTH SYNC LOGIC ───
+    // Clear avatar immediately on page load to prevent stale previous-user data
+    const _avatarEl = document.getElementById('user-avatar');
+    const _nameEl = document.getElementById('user-name');
+    if (_avatarEl) _avatarEl.src = '';
+    if (_nameEl) _nameEl.textContent = '';
+
     onAuthStateChanged(auth, user => {
       const loginBtn = document.getElementById('login-signup-btn');
       const badgeWrap = document.getElementById('user-badge');
@@ -598,14 +604,18 @@
         if (loginBtn) loginBtn.style.display = 'none';
         if (badgeWrap) { badgeWrap.classList.remove('hidden'); badgeWrap.classList.add('flex'); }
         const displayName = user.displayName || user.email || 'User';
-        const avatarUrl = user.photoURL ||
-          `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
-        if (avatar) avatar.src = avatarUrl;
+        // Always use fresh photoURL from current auth session
+        const avatarUrl = user.photoURL
+          ? user.photoURL + (user.photoURL.includes('?') ? '&' : '?') + 't=' + Date.now()
+          : `https://ui-avatars.com/api/?background=bb000e&color=fff&size=128&name=${encodeURIComponent(displayName)}`;
+        if (avatarNav) { avatarNav.src = ''; avatarNav.src = avatarUrl; }
         if (nameNavEl) nameNavEl.textContent = displayName.split(' ')[0];
       } else {
         window._mdUserLoggedIn = false;
         if (loginBtn) loginBtn.style.display = '';
         if (badgeWrap) { badgeWrap.classList.add('hidden'); badgeWrap.classList.remove('flex'); }
+        if (_avatarEl) _avatarEl.src = '';
+        if (_nameEl) _nameEl.textContent = '';
       }
     });
   </script>
