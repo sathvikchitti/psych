@@ -1,9 +1,9 @@
 # ╔══════════════════════════════════════════════════════════════════════╗
-# ║  ManoDhwani Unified Backend API (v3 — Audio + Text + Cognitive)      ║
-# ║  Model : AudioTextFusionNet (WavLM + RoBERTa + CognitiveFeatures)  ║
-# ║  Checkpoint : model_new_feature.pt  (saved by v3 training code)    ║
+# ║  ManoDhwani Simplified Backend (v4 — Audio + Text)                   ║
+# ║  Model : AudioTextFusionNet (WavLM + RoBERTa)                        ║
+# ║  Checkpoint : model_new_feature.pt (v4 architecture)                 ║
 # ║                                                                      ║
-# ║  TEXT_DIM = 778  (RoBERTa-768 + 5 distortions + 4 coping + 1 risk) ║
+# ║  TEXT_DIM = 768 (Pure RoBERTa vectors, no cognitive features)        ║
 # ║                                                                      ║
 # ║  POST /analyze                                                       ║
 # ║    Accepts multipart/form-data:                                      ║
@@ -44,8 +44,89 @@ import torch.nn as nn
 import torch.nn.functional as F
 import librosa
 import nltk
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+import io
+import datetime
+import random
+import string
+
+# ── PDF engine selection ──────────────────────────────────────────────
+# Priority: WeasyPrint (best CSS fidelity) → pdfkit (wkhtmltopdf) → disabled
+# WeasyPrint requires GTK3/GLib on Windows; on Linux/Docker it just works.
+# pdfkit requires wkhtmltopdf binary: https://wkhtmltopdf.org/downloads.html
+_PDF_ENGINE = None  # 'weasyprint' | 'pdfkit' | None
+
+try:
+    from weasyprint import HTML as _WP_HTML
+    _PDF_ENGINE = 'weasyprint'
+    print("[ManoDhwani] PDF engine: WeasyPrint ✓")
+except (ImportError, OSError, Exception):
+    pass  # GTK/GLib not available (common on Windows without GTK runtime)
+
+if _PDF_ENGINE is None:
+    try:
+        import pdfkit as _pdfkit
+        import subprocess as _subprocess
+
+        # Common install locations for wkhtmltopdf on Windows
+        _WKHTML_CANDIDATES = [
+            r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
+        ]
+        _wkhtml_path = None
+
+        # First try PATH
+        try:
+            _subprocess.run(
+                ["wkhtmltopdf", "--version"],
+                stdout=_subprocess.DEVNULL,
+                stderr=_subprocess.DEVNULL,
+                check=True,
+            )
+            _wkhtml_path = "wkhtmltopdf"
+        except Exception:
+            pass
+
+        # Then try known Windows locations
+        if _wkhtml_path is None:
+            for _candidate in _WKHTML_CANDIDATES:
+                if os.path.isfile(_candidate):
+                    _wkhtml_path = _candidate
+                    break
+
+        if _wkhtml_path:
+            _pdfkit_config = _pdfkit.configuration(wkhtmltopdf=_wkhtml_path)
+            _PDF_ENGINE = "pdfkit"
+            print(f"[ManoDhwani] PDF engine: pdfkit (wkhtmltopdf) ✓  [{_wkhtml_path}]")
+    except Exception:
+        pass  # pdfkit not installed, or wkhtmltopdf binary not found
+
+_WEASYPRINT_OK = _PDF_ENGINE is not None
+if not _WEASYPRINT_OK:
+    print(
+        "[ManoDhwani] WARNING: No PDF engine available. PDF export disabled.\n"
+        "  Option A (Linux/Docker): pip install weasyprint  — works out of the box.\n"
+        "  Option B (Windows):      Install GTK3 runtime from https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases\n"
+        "                           then: pip install weasyprint\n"
+        "  Option C (any OS):       pip install pdfkit  +  install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html"
+    )
+
+
+def _render_pdf(html_str: str) -> bytes:
+    """Render HTML → PDF bytes using whichever engine is available."""
+    if _PDF_ENGINE == 'weasyprint':
+        return _WP_HTML(string=html_str, base_url=".").write_pdf()
+    elif _PDF_ENGINE == 'pdfkit':
+        options = {
+            'page-size': 'A4',
+            'encoding': 'UTF-8',
+            'enable-local-file-access': '',
+            'print-media-type': '',
+            'no-outline': None,
+        }
+        return _pdfkit.from_string(html_str, False, options=options, configuration=_pdfkit_config)
+    raise RuntimeError("No PDF engine available.")
 from transformers import (
     Wav2Vec2FeatureExtractor,
     WavLMModel,
@@ -71,130 +152,60 @@ CHECKPOINT_PATH = os.environ.get("MODEL_PATH", "model_new_feature.pt")
 DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FP16            = torch.cuda.is_available()
 
-# Audio
+# Config (Simplified v4)
 SR        = 16_000
 CHUNK_SEC = 10
 MAX_DUR   = 300
 
-# Text (sliding window — must match v3 training)
+# Text (sliding window — must match training)
 MAX_TEXT_LEN = 512
 TEXT_STRIDE  = 384
 
-# Cognitive feature dimensions  (must match training)
-N_DISTORTIONS = 5
-N_COPING      = 4
-N_RISK        = 1
-TEXT_DIM_BASE = 768   # RoBERTa base hidden size
-# Full TEXT_DIM = 778 — read from checkpoint after load
+TEXT_DIM = 768   # Pure RoBERTa base hidden size (v4 standard)
 
 print(f"[ManoDhwani] Device: {DEVICE}  |  FP16: {FP16}")
 
 # ─────────────────────────────────────────────────────────────────────
-# COGNITIVE DISTORTION + COPING MECHANISM PATTERNS  (identical to v3)
+# SENTIMENT GUARDRAIL LEXICONS
 # ─────────────────────────────────────────────────────────────────────
 
-DISTORTION_PATTERNS = {
-    "overgeneralization": [
-        r"\balways\b", r"\bnever\b", r"\beveryone\b", r"\bno\s+one\b",
-        r"\bnothing\b", r"\beverything\b", r"\bforever\b", r"\bconstantly\b",
-        r"\ball\s+the\s+time\b", r"\bevery\s+time\b", r"\bnobody\b",
-        r"\bentirely\b", r"\bcompletely\b", r"\bwholly\b",
-    ],
-    "catastrophizing": [
-        r"\bworst\b", r"\bruined\b", r"\beverything\s+is\s+over\b",
-        r"\bterrible\b", r"\bdisaster\b", r"\bhopeless\b", r"\bdesperate\b",
-        r"\bdestroyed\b", r"\bcollapsed\b", r"\bundone\b", r"\bpointless\b",
-        r"\bunbearable\b", r"\boverwhelmed\b", r"\bcan.t\s+take\s+it\b",
-        r"\bgive\s+up\b", r"\bgave\s+up\b", r"\bno\s+way\s+out\b",
-    ],
-    "personalization": [
-        r"\bmy\s+fault\b", r"\bi\s+caused\b", r"\bi\s+am\s+useless\b",
-        r"\bi.m\s+useless\b", r"\bbecause\s+of\s+me\b", r"\bi\s+ruined\b",
-        r"\bi\s+broke\b", r"\bi\s+destroyed\b", r"\bi\s+should\s+have\b",
-        r"\bi\s+shouldn.t\s+have\b", r"\bi\s+let\b", r"\bi\s+blew\b",
-        r"\bblame\s+myself\b", r"\bi.m\s+responsible\b",
-        r"\ball\s+my\s+fault\b", r"\bi\s+failed\b",
-    ],
-    "negative_self_labeling": [
-        r"\bi\s+am\s+worthless\b", r"\bi.m\s+worthless\b",
-        r"\bi\s+am\s+a\s+failure\b", r"\bi.m\s+a\s+failure\b",
-        r"\bi\s+am\s+stupid\b",     r"\bi.m\s+stupid\b",
-        r"\bi\s+am\s+ugly\b",       r"\bi.m\s+ugly\b",
-        r"\bi\s+am\s+broken\b",     r"\bi.m\s+broken\b",
-        r"\bi\s+am\s+pathetic\b",   r"\bi.m\s+pathetic\b",
-        r"\bi\s+am\s+a\s+burden\b", r"\bi.m\s+a\s+burden\b",
-        r"\bi\s+am\s+nothing\b",    r"\bi.m\s+nothing\b",
-        r"\bi\s+hate\s+myself\b",   r"\bi\s+don.t\s+deserve\b",
-        r"\bi\s+am\s+weak\b",       r"\bi.m\s+weak\b",
-        r"\bi\s+am\s+incompetent\b",r"\bi\s+am\s+awful\b",
-    ],
-    "emotional_reasoning": [
-        r"\bi\s+feel\s+like\s+a\s+failure\b",
-        r"\bi\s+feel\s+hopeless\b",  r"\bi\s+feel\s+worthless\b",
-        r"\bi\s+feel\s+empty\b",     r"\bi\s+feel\s+nothing\b",
-        r"\bi\s+just\s+know\b",      r"\bi\s+know\s+it\s+will\b",
-        r"\bi\s+know\s+i.ll\b",
-        r"\bsomething\s+must\s+be\s+wrong\s+with\s+me\b",
-        r"\bif\s+i\s+feel\s+bad\b",  r"\bfeeling\s+so\s+bad\b",
-    ],
-}
+POSITIVE_VIBE_PATTERNS = [
+    r"\bloving?\s+life\b", r"\bexcited?\b", r"\bexciting\b", r"\bamazing\b",
+    r"\bgood\s+vibes?\b",   r"\bsmil(?:e|ing)\b", r"\benjoy(?:ing|ment|ed)?\b", r"\bconfident\b",
+    r"\bthriving\b",      r"\bpositive\s+energy\b", r"\bproud\s+of\s+myself\b",
+    r"\bhappy\b",         r"\bjoy(?:ful|ous)?\b", r"\bwonderful\b",   r"\bthrive\b",
+    r"\bprosper\b",       r"\bfull\s+of\s+possibilities\b", r"\bbest\s+is\s+yet\s+to\s+come\b",
+    r"\bfeeling\s+(?:really\s+)?good\b", r"\bdoing\s+(?:really\s+)?well\b",
+    r"\bliving\s+in\s+the\s+moment\b", r"\bfeeling\s+great\b", r"\bdoing\s+great\b",
+]
 
-COPING_PATTERNS = {
-    "help_seeking": [
-        r"\btalked\s+to\s+someone\b", r"\basked\s+for\s+help\b",
-        r"\bsought\s+help\b",         r"\bspoke\s+to\b",
-        r"\breached\s+out\b",         r"\bcalled\s+someone\b",
-        r"\bsaw\s+a\s+therapist\b",   r"\bsaw\s+my\s+doctor\b",
-        r"\bwent\s+to\s+therapy\b",   r"\bsupport\s+group\b",
-        r"\btold\s+my\b",             r"\bshared\s+with\b",
-        r"\bopened\s+up\b",           r"\bconfided\b",
-    ],
-    "problem_solving": [
-        r"\btrying\s+to\s+fix\b",  r"\bworking\s+on\s+it\b",
-        r"\bmade\s+a\s+plan\b",    r"\bset\s+a\s+goal\b",
-        r"\bfigured\s+out\b",      r"\bsolved\b",
-        r"\btook\s+action\b",      r"\bstepped\s+up\b",
-        r"\bhandled\s+it\b",       r"\bmanaged\s+it\b",
-        r"\bdecided\s+to\b",       r"\bstarted\s+to\b",
-        r"\btaking\s+steps\b",     r"\bworking\s+through\b",
-        r"\baddressing\b",
-    ],
-    "positive_reframing": [
-        r"\bit\s+will\s+get\s+better\b", r"\bstaying\s+hopeful\b",
-        r"\blooking\s+on\s+the\s+bright\b", r"\bsilver\s+lining\b",
-        r"\bthings\s+will\s+improve\b",  r"\bcan\s+get\s+through\b",
-        r"\bi\s+will\s+be\s+okay\b",     r"\bi.ll\s+be\s+okay\b",
-        r"\bnot\s+giving\s+up\b",        r"\bstill\s+hopeful\b",
-        r"\blearned\s+from\b",           r"\bgrew\s+from\b",
-        r"\bopportunity\s+to\b",         r"\bgrateful\s+for\b",
-        r"\bthankful\s+for\b",           r"\bpositive\s+side\b",
-    ],
-    "emotional_expression": [
-        r"\bi\s+feel\s+sad\b",     r"\bi\s+am\s+sad\b",    r"\bi.m\s+sad\b",
-        r"\bi\s+feel\s+angry\b",   r"\bi\s+am\s+angry\b",
-        r"\bi\s+feel\s+upset\b",   r"\bi\s+am\s+upset\b",
-        r"\bi\s+feel\s+scared\b",  r"\bi\s+am\s+scared\b",
-        r"\bi\s+feel\s+anxious\b", r"\bi\s+am\s+anxious\b",
-        r"\bi\s+cried\b",          r"\bi\s+was\s+crying\b",
-        r"\blet\s+it\s+out\b",     r"\bexpressed\s+my\b",
-        r"\blet\s+myself\s+feel\b",
-    ],
-}
+DEPRESSIVE_MARKER_PATTERNS = [
+    r"\bsad\b",           r"\bdepressed\b",    r"\bhopeless\b",    r"\bworthless\b",
+    r"\bmiserable\b",     r"\bempty\b",        r"\bhurt\b",        r"\bpain\b",
+    r"\bsuicide\b",       r"\bkill\s+myself\b", r"\bend\s+it\s+all\b",
+]
 
-DISTORTION_DISPLAY = {
-    "overgeneralization":     "Overgeneralization",
-    "catastrophizing":        "Catastrophizing",
-    "personalization":        "Personalization",
-    "negative_self_labeling": "Negative Self-Labeling",
-    "emotional_reasoning":    "Emotional Reasoning",
-}
-COPING_DISPLAY = {
-    "help_seeking":         "Help Seeking",
-    "problem_solving":      "Problem Solving",
-    "positive_reframing":   "Positive Reframing",
-    "emotional_expression": "Emotional Expression",
-}
 
+def check_sentiment_guardrail(text: str) -> bool:
+    """
+    Returns True if the text has strong positive sentiment
+    and NO significant depressive markers.
+    """
+    if not text or not text.strip():
+        return False
+
+    text_lower = text.lower()
+    pos_hits = sum(len(re.findall(pat, text_lower)) for pat in POSITIVE_VIBE_PATTERNS)
+    neg_hits = sum(len(re.findall(pat, text_lower)) for pat in DEPRESSIVE_MARKER_PATTERNS)
+
+    # Require at least 2 strong positive signals and 0 negative signals
+    return pos_hits >= 2 and neg_hits == 0
+
+
+
+# ─────────────────────────────────────────────────────────────────────
+# UTILS
+# ─────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────
 # UTILS
@@ -204,69 +215,6 @@ def safe_clean(arr, clip=1e6):
     arr = np.array(arr, dtype=np.float32)
     arr[~np.isfinite(arr)] = 0.0
     return np.clip(arr, -clip, clip).astype(np.float32)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# COGNITIVE FEATURE EXTRACTION  (identical logic to v3 training code)
-# ─────────────────────────────────────────────────────────────────────
-
-def extract_cognitive_features(text: str) -> np.ndarray:
-    """
-    Extract a 10-dim cognitive feature vector from raw text.
-    Layout: [d1..d5, c1..c4, risk]  — identical to v3 training.
-    """
-    zero = np.zeros(N_DISTORTIONS + N_COPING + N_RISK, dtype=np.float32)
-    if not text or not isinstance(text, str) or not text.strip():
-        return zero
-
-    text_lower = text.lower()
-    try:
-        words = nltk.word_tokenize(text_lower)
-    except Exception:
-        words = text_lower.split()
-    word_count = max(len(words), 1)
-
-    if word_count < 5:
-        return zero
-
-    distortion_scores = {}
-    for name, patterns in DISTORTION_PATTERNS.items():
-        count = sum(len(re.findall(pat, text_lower)) for pat in patterns)
-        distortion_scores[name] = count / word_count
-
-    coping_scores = {}
-    for name, patterns in COPING_PATTERNS.items():
-        count = sum(len(re.findall(pat, text_lower)) for pat in patterns)
-        coping_scores[name] = count / word_count
-
-    sum_d = sum(distortion_scores.values())
-    sum_c = sum(coping_scores.values())
-    risk  = float(np.clip(sum_d - sum_c, 0.0, 1.0))
-
-    d_vec = np.array([
-        distortion_scores["overgeneralization"],
-        distortion_scores["catastrophizing"],
-        distortion_scores["personalization"],
-        distortion_scores["negative_self_labeling"],
-        distortion_scores["emotional_reasoning"],
-    ], dtype=np.float32)
-
-    c_vec = np.array([
-        coping_scores["help_seeking"],
-        coping_scores["problem_solving"],
-        coping_scores["positive_reframing"],
-        coping_scores["emotional_expression"],
-    ], dtype=np.float32)
-
-    r_vec = np.array([risk], dtype=np.float32)
-    return safe_clean(np.concatenate([d_vec, c_vec, r_vec]))
-
-
-def integrate_into_pipeline(roberta_embedding: np.ndarray,
-                             raw_text: str) -> np.ndarray:
-    """Concatenate RoBERTa(768) + cognitive(10) → 778-dim text vector."""
-    cog = extract_cognitive_features(raw_text)
-    return safe_clean(np.concatenate([roberta_embedding, cog]).astype(np.float32))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -380,13 +328,12 @@ def load_everything():
         raise FileNotFoundError(
             f"Checkpoint not found at '{CHECKPOINT_PATH}'.\n"
             f"Set MODEL_PATH env var to the correct .pt file path.\n"
-            f"Expected checkpoint saved by v3 training as 'model_new_feature.pt'."
+            f"Expected checkpoint saved by v4 training as 'model_new_feature.pt'."
         )
 
     ckpt            = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
     AUDIO_DIM_      = ckpt["AUDIO_DIM"]
-    TEXT_DIM_       = ckpt["TEXT_DIM"]           # 778
-    TEXT_DIM_BASE_  = ckpt.get("TEXT_DIM_BASE", 768)
+    TEXT_DIM_       = ckpt["TEXT_DIM"]           # 768
     FUSION_DIM_     = ckpt.get("FUSION_DIM", 256)
     NUM_HEADS_      = ckpt.get("NUM_HEADS", 4)
     threshold_      = ckpt["threshold"]
@@ -403,9 +350,8 @@ def load_everything():
     model.load_state_dict(ckpt["model_state"])
     model.eval()
     model.to(DEVICE)
-    print(f"[ManoDhwani] AudioTextFusionNet loaded  threshold={threshold_:.2f}")
-    print(f"[ManoDhwani]   AUDIO_DIM={AUDIO_DIM_}  TEXT_DIM={TEXT_DIM_} "
-          f"(RoBERTa={TEXT_DIM_BASE_} + cognitive={TEXT_DIM_ - TEXT_DIM_BASE_})")
+    print(f"[ManoDhwani] AudioTextFusionNet v4 loaded  threshold={threshold_:.2f}")
+    print(f"[ManoDhwani]   AUDIO_DIM={AUDIO_DIM_}  TEXT_DIM={TEXT_DIM_} (Simplified)")
 
     # ── WavLM ─────────────────────────────────────────────────────────
     print("[ManoDhwani] Loading WavLM-base-plus …")
@@ -473,7 +419,7 @@ def load_everything():
     print("[ManoDhwani] RoBERTa loaded")
 
     return (model,
-            AUDIO_DIM_, TEXT_DIM_, TEXT_DIM_BASE_,
+            AUDIO_DIM_, TEXT_DIM_,
             threshold_,
             sc_audio_, sc_text_,
             wav_feat, wavlm,
@@ -481,7 +427,7 @@ def load_everything():
 
 
 (MODEL,
- AUDIO_DIM, TEXT_DIM, TEXT_DIM_BASE_LOADED,
+ AUDIO_DIM, TEXT_DIM,
  THRESHOLD,
  SC_AUDIO, SC_TEXT,
  WAV_FEAT, WAVLM,
@@ -529,10 +475,8 @@ def extract_audio_embedding(audio_path: str) -> np.ndarray:
 
 def extract_text_embedding(text: str) -> np.ndarray:
     """
-    RoBERTa sliding-window [CLS] mean-pool (stride=384) → 768-dim,
-    then appended with 10-dim cognitive features → TEXT_DIM (778)-dim.
-
-    Uses identical sliding-window logic as v3 training.
+    RoBERTa sliding-window [CLS] mean-pool (stride=384) → 768-dim.
+    Uses identical sliding-window logic as training.
     Returns zero vector when no text is provided.
     """
     if not text or not text.strip():
@@ -571,10 +515,9 @@ def extract_text_embedding(text: str) -> np.ndarray:
 
     except Exception as e:
         print(f"[WARN] RoBERTa embedding failed: {e}")
-        roberta_emb = np.zeros(TEXT_DIM_BASE_LOADED, dtype=np.float32)
+        roberta_emb = np.zeros(TEXT_DIM, dtype=np.float32)
 
-    # Append 10-dim cognitive features → 778-dim total
-    return integrate_into_pipeline(roberta_emb, text)
+    return roberta_emb
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -609,13 +552,9 @@ def questionnaire_contribution(q, has_audio, has_text):
         contribs[m] = round(remainder * weights[m] / total_w) if m in modalities else 0
 
     contribs["questionnaire"] = q_weight
-    # Cognitive is a sub-slice of text (already counted inside text).
-    # Surface it for display by carving it out of the text slice so the
-    # four bars always add up to exactly 100%.
-    cog_slice = round(contribs.get("text", 0) * 0.15)
-    contribs["cognitive"] = cog_slice
-    contribs["text"]      = contribs.get("text", 0) - cog_slice
-    diff = 100 - (contribs["text"] + contribs["audio"] + contribs["questionnaire"] + contribs["cognitive"])
+    # Cognitive section removed in v4 — redistributed to text
+    contribs["cognitive"] = 0
+    diff = 100 - (contribs["text"] + contribs["audio"] + contribs["questionnaire"])
     if modalities:
         contribs[modalities[0]] += diff
 
@@ -722,72 +661,19 @@ def get_recommendations(risk_level, q):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# COGNITIVE INSIGHT BUILDER  (new — surfaces distortion/coping to UI)
+# INSIGHT BUILDERS
 # ─────────────────────────────────────────────────────────────────────
 
 def build_cognitive_insights(text: str, p_dep: float) -> list:
-    """
-    Generate human-readable cognitive distortion + coping insight strings
-    from the same feature vector that was fed into the model.
-    """
-    if not text or not text.strip():
-        return ["No text provided — cognitive distortion analysis not available."]
-
-    cog      = extract_cognitive_features(text)
-    d_names  = list(DISTORTION_PATTERNS.keys())
-    c_names  = list(COPING_PATTERNS.keys())
-    d_scores = cog[:N_DISTORTIONS]
-    c_scores = cog[N_DISTORTIONS:N_DISTORTIONS + N_COPING]
-    risk     = float(cog[-1])
-
-    points = []
-
-    # Dominant distortion
-    if d_scores.max() > 0:
-        dom_d_key = d_names[int(np.argmax(d_scores))]
-        dom_d_val = float(d_scores.max()) * 100
-        points.append(
-            f"Dominant cognitive distortion: {DISTORTION_DISPLAY[dom_d_key]} "
-            f"({dom_d_val:.1f}% pattern density)."
-        )
-    else:
-        points.append("No significant cognitive distortions detected in language.")
-
-    # Dominant coping
-    if c_scores.max() > 0:
-        dom_c_key = c_names[int(np.argmax(c_scores))]
-        dom_c_val = float(c_scores.max()) * 100
-        points.append(
-            f"Primary coping mechanism: {COPING_DISPLAY[dom_c_key]} "
-            f"({dom_c_val:.1f}% pattern density)."
-        )
-    else:
-        points.append("No strong coping mechanism signals detected in language.")
-
-    # Risk score
-    if risk >= 0.5:
-        points.append(
-            f"Cognitive risk score is elevated ({risk:.2f}) — distortion patterns "
-            "significantly outweigh coping signals."
-        )
-    elif risk >= 0.2:
-        points.append(
-            f"Moderate cognitive risk ({risk:.2f}) — distortions partially offset "
-            "by coping language."
-        )
-    else:
-        points.append(
-            f"Low cognitive risk ({risk:.2f}) — balanced or positive cognitive patterns."
-        )
-
-    return points
+    """Cognitive insights removed in v4."""
+    return ["Cognitive feature extraction is deprecated in this model version."]
 
 
 # ─────────────────────────────────────────────────────────────────────
 # CORE PREDICT
 # ─────────────────────────────────────────────────────────────────────
 
-def predict(text, audio_path, q):
+def predict(text: str, audio_path: str, q: dict) -> dict:
     has_audio = audio_path is not None
     has_text  = bool(text and text.strip())
 
@@ -795,7 +681,6 @@ def predict(text, audio_path, q):
     ae = extract_audio_embedding(audio_path) if has_audio \
          else np.zeros(AUDIO_DIM, dtype=np.float32)
 
-    # Text embedding = RoBERTa(768) + cognitive(10) = 778-dim
     te = extract_text_embedding(text)
 
     # ── Normalise using train-fitted scalers ──────────────────────────
@@ -814,142 +699,58 @@ def predict(text, audio_path, q):
     p_dep = float(probs[1])
 
     # ── Risk classification ───────────────────────────────────────────
-    # FIX ISSUE 5: Use the F1-tuned threshold directly from the checkpoint.
-    # Previously MODERATE_THRESHOLD was hard-floored at 0.60, silently
-    # discarding the validation-tuned value. If the tuned threshold was 0.44,
-    # that override changed the decision boundary without any principled basis.
-    # If you observe too many false positives, the correct fix is to raise
-    # the precision constraint in find_best_threshold() (e.g. precision >= 0.40)
-    # and re-train — not to override the threshold post-hoc in production.
     MODERATE_THRESHOLD = float(THRESHOLD)
+    HIGH_THRESHOLD     = MODERATE_THRESHOLD + 0.10
 
-    # High Risk band sits 0.10 above Moderate
-    HIGH_THRESHOLD = MODERATE_THRESHOLD + 0.10
-
-    # ── Guardrail for Non-Clinical / Extremely Short Text ─────────────
-    # FIX ISSUE 7: align word_count guard with training code (< 5, not <= 5)
+    # ── Guardrails ────────────────────────────────────────────────────
     if not has_audio and has_text:
         word_count = len(text.split())
-        cog = extract_cognitive_features(text)
-        cognitive_risk = float(cog[-1])
-
-        # Training uses `word_count < 5` — match exactly to avoid off-by-one
-        if word_count < 5 and cognitive_risk == 0.0:
+        if word_count < 5:
             p_dep = min(p_dep, MODERATE_THRESHOLD - 0.10)
 
-    MODERATE_BAND = HIGH_THRESHOLD - MODERATE_THRESHOLD
+    if has_text and check_sentiment_guardrail(text):
+        if p_dep >= MODERATE_THRESHOLD:
+            p_dep = min(p_dep, MODERATE_THRESHOLD - 0.15)
 
-    # ── Diagnostic log (visible in backend console) ───────────────────
-    print(f"[CLASSIFY] p_dep={p_dep:.4f}  "
-          f"MODERATE_THRESHOLD={MODERATE_THRESHOLD:.4f}  "
-          f"HIGH_THRESHOLD={HIGH_THRESHOLD:.4f}")
-
+    # ── Risk Level Logic ──────────────────────────────────────────────
     if p_dep >= HIGH_THRESHOLD:
         risk_level       = "High"
-        # +1 to avoid 0.0 confidence right at the boundary
-        confidence_score = round(
-            min((p_dep - HIGH_THRESHOLD) / (1.0 - HIGH_THRESHOLD) * 100 + 1, 99), 1
-        )
+        confidence_score = round(min((p_dep - HIGH_THRESHOLD) / (1.0 - HIGH_THRESHOLD) * 100 + 1, 99), 1)
     elif p_dep >= MODERATE_THRESHOLD:
         risk_level       = "Moderate"
-        confidence_score = round(
-            min((p_dep - MODERATE_THRESHOLD) / MODERATE_BAND * 100 + 1, 99), 1
-        )
+        confidence_score = round(min((p_dep - MODERATE_THRESHOLD) / 0.10 * 100 + 1, 99), 1)
     else:
         risk_level       = "Low"
-        confidence_score = round(
-            (MODERATE_THRESHOLD - p_dep) / MODERATE_THRESHOLD * 100, 1
-        )
+        confidence_score = round((MODERATE_THRESHOLD - p_dep) / MODERATE_THRESHOLD * 100, 1)
 
-    # ── Build response payload ────────────────────────────────────────
+    # ── Response Data ─────────────────────────────────────────────────
     contribs  = questionnaire_contribution(q, has_audio, has_text)
     signals   = derive_signals(p_dep, risk_level, q)
     recs      = get_recommendations(risk_level, q)
     q_points  = build_questionnaire_insights(q)
-    cog_pts   = build_cognitive_insights(text, p_dep) if has_text else [
-        "No text provided — cognitive analysis unavailable."
-    ]
 
     text_points = []
     if has_text:
         word_count = len(text.split())
-        text_points.append(
-            f"Analysed {word_count} words via RoBERTa with "
-            f"cognitive distortion overlay (TEXT_DIM={TEXT_DIM})."
-        )
+        text_points.append(f"Analysed {word_count} words via RoBERTa (TEXT_DIM={TEXT_DIM}).")
         if p_dep > 0.6:
-            text_points.append("Linguistic patterns show elevated negative affect and reduced future-orientation.")
+            text_points.append("Linguistic patterns show indicators of elevated emotional distress.")
         elif p_dep > 0.4:
-            text_points.append("Moderate markers of emotional suppression detected in language use.")
+            text_points.append("Moderate linguistic markers of low mood detected.")
         else:
-            text_points.append("Language patterns largely stable with no prominent depressive markers.")
+            text_points.append("Language patterns appear stable with no prominent depressive indicators.")
     else:
-        text_points.append("No text input provided — text modality not analysed.")
+        text_points.append("No text input provided.")
 
     audio_points = []
     if has_audio:
-        audio_points.append(f"Audio processed at {SR}Hz in {CHUNK_SEC}s windows via WavLM-base-plus.")
+        audio_points.append(f"Audio processed via WavLM-base-plus ({AUDIO_DIM}-dim).")
         if p_dep > 0.6:
-            audio_points.append("Vocal biomarkers suggest reduced prosodic variability consistent with depression.")
-        elif p_dep > 0.4:
-            audio_points.append("Mild vocal flatness detected; within borderline range.")
+            audio_points.append("Vocal biomarkers suggest reduced prosodic variability.")
         else:
-            audio_points.append("Vocal patterns within normal range — no significant acoustic depression markers.")
+            audio_points.append("Vocal patterns within normal clinical range.")
     else:
-        audio_points.append("No audio input provided — audio modality not analysed.")
-
-    adet = None
-    if has_text:
-        cog = extract_cognitive_features(text)
-        d_scores = cog[:N_DISTORTIONS]
-        c_scores = cog[N_DISTORTIONS:N_DISTORTIONS + N_COPING]
-        risk     = float(cog[-1])
-        
-        d_names = list(DISTORTION_PATTERNS.keys())
-        c_names = list(COPING_PATTERNS.keys())
-        
-        DISTORTION_DESC = {
-            "overgeneralization": "Applying a single negative event to all future experiences.",
-            "catastrophizing": "Expecting the worst possible outcome.",
-            "personalization": "Taking blame for events outside of personal control.",
-            "negative_self_labeling": "Assigning extreme, negative labels to oneself.",
-            "emotional_reasoning": "Believing negative feelings reflect objective truth."
-        }
-        COPING_DESC = {
-            "help_seeking": "Actively seeking assistance or emotional support.",
-            "problem_solving": "Taking concrete steps to resolve issues.",
-            "positive_reframing": "Finding positive aspects in challenging situations.",
-            "emotional_expression": "Healthy articulation of emotions."
-        }
-        
-        adet_distortions = []
-        for i, name in enumerate(d_names):
-            if d_scores[i] > 0:
-                adet_distortions.append({
-                    "name": DISTORTION_DISPLAY[name],
-                    "density": float(d_scores[i]),
-                    "description": DISTORTION_DESC[name]
-                })
-        
-        adet_coping = []
-        for i, name in enumerate(c_names):
-            if c_scores[i] > 0:
-                adet_coping.append({
-                    "name": COPING_DISPLAY[name],
-                    "density": float(c_scores[i]),
-                    "description": COPING_DESC[name]
-                })
-
-        adet = {
-            "distortions": adet_distortions,
-            "coping": adet_coping,
-            # FIX ISSUE 4: Keep cognitive_risk_score in [0, 1] to match training.
-            # Previously multiplied by 10 with no documentation; if the frontend
-            # expects [0, 1] this caused numeric anomalies. If the UI does need
-            # a [0, 10] scale, do the conversion in the frontend explicitly.
-            "cognitive_risk_score": risk,
-            "audio_features": audio_points
-        }
+        audio_points.append("No audio input provided.")
 
     return {
         "riskLevel":        risk_level,
@@ -958,14 +759,14 @@ def predict(text, audio_path, q):
         "emotionalSignals": signals,
         "insights": {
             "text":          {"points": text_points},
-            "cognitive":     {"points": cog_pts},
             "audio":         {"points": audio_points},
             "questionnaire": {"points": q_points},
+            "cognitive":     {"points": ["Cognitive indicators migrated to text modality in v4."]}
         },
-        "adet":             adet,
-        "recommendations": recs,
-        "modelProb":  round(p_dep * 100, 2),
-        "threshold":  round(THRESHOLD, 2),
+        "adet":             None,
+        "recommendations":  recs,
+        "modelProb":        round(p_dep * 100, 2),
+        "threshold":        round(THRESHOLD, 2),
     }
 
 
@@ -984,7 +785,7 @@ def health():
     return jsonify({
         "status":   "ok",
         "device":   str(DEVICE),
-        "model":    "AudioTextFusionNet-v3",
+        "model":    "AudioTextFusionNet-v4",
         "text_dim": TEXT_DIM,
         "audio_dim": AUDIO_DIM,
     }), 200
@@ -1031,6 +832,573 @@ def analyze():
     finally:
         if tmp_audio and os.path.exists(tmp_audio.name):
             os.unlink(tmp_audio.name)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PDF REPORT GENERATOR  (mirrors generate_report.py exactly)
+# POST /generate-pdf
+#   Body: application/json — the report data dict
+#   Returns: application/pdf binary
+# ─────────────────────────────────────────────────────────────────────
+
+_PDF_COLORS = {
+    "blue_logo":      "#185FA5",
+    "blue_light":     "#E6F1FB",
+    "blue_border":    "#B5D4F4",
+    "blue_text":      "#0C447C",
+    "red_bg":         "#FCEBEB",
+    "red_border":     "#F09595",
+    "red_text":       "#791F1F",
+    "red_dot":        "#E24B4A",
+    "red_head":       "#A32D2D",
+    "amber_bg":       "#FEF8F1",
+    "amber_border":   "#FAC775",
+    "amber_text":     "#633806",
+    "amber_dot":      "#EF9F27",
+    "green_head":     "#3B6D11",
+    "bg_primary":     "#FFFFFF",
+    "bg_secondary":   "#F7F8FA",
+    "border":         "#E5E7EB",
+    "text_primary":   "#111827",
+    "text_secondary": "#6B7280",
+    "low_bg":         "#F0FDF4",
+    "low_border":     "#86EFAC",
+    "low_text":       "#14532D",
+    "low_dot":        "#22C55E",
+    "mod_bg":         "#FFFBEB",
+    "mod_border":     "#FCD34D",
+    "mod_text":       "#78350F",
+    "mod_dot":        "#F59E0B",
+}
+
+
+def _pdf_risk_colors(risk_level: str) -> dict:
+    rl = risk_level.lower()
+    C = _PDF_COLORS
+    if "high" in rl:
+        return dict(bg=C["red_bg"], border=C["red_border"], text=C["red_text"],
+                    dot=C["red_dot"], badge_label="High Risk · Immediate Action Recommended")
+    elif "moderate" in rl or "medium" in rl:
+        return dict(bg=C["mod_bg"], border=C["mod_border"], text=C["mod_text"],
+                    dot=C["mod_dot"], badge_label="Moderate Risk · Intervention Advised")
+    else:
+        return dict(bg=C["low_bg"], border=C["low_border"], text=C["low_text"],
+                    dot=C["low_dot"], badge_label="Low Risk · Continue Monitoring")
+
+
+def _pdf_severity_bar_width(pct: float) -> str:
+    return f"{min(max(pct, 0), 100):.1f}%"
+
+
+def _pdf_severity_bar_color(pct: float) -> str:
+    if pct >= 75:
+        return "linear-gradient(90deg,#FAC775,#E24B4A)"
+    elif pct >= 51:
+        return "linear-gradient(90deg,#FDE68A,#F59E0B)"
+    else:
+        return "linear-gradient(90deg,#86EFAC,#22C55E)"
+
+
+def _build_report_html(data: dict) -> str:
+    C   = _PDF_COLORS
+    rc  = _pdf_risk_colors(data["risk_level"])
+    now = datetime.datetime.now()
+    report_id = data.get("report_id", "PSY-" + now.strftime("%Y-") +
+                          "".join(random.choices(string.digits, k=4)))
+    generated = now.strftime("%d/%m/%Y, %H:%M:%S")
+    prob      = data.get("probability_pct", 0.0)
+    has_prob  = prob > 0
+
+    rl_key = ("high" if "high" in data["risk_level"].lower()
+               else ("moderate" if "moderate" in data["risk_level"].lower() else "low"))
+    alert_msg = {
+        "high":     "<strong>High Risk Detected —</strong> This report requires immediate attention. Please review the recommendations and next steps carefully.",
+        "moderate": "<strong>Moderate Risk Detected —</strong> This report requires attention. Please review the recommendations carefully.",
+        "low":      "<strong>Low Risk —</strong> No severe depressive signals detected. Continue to monitor your wellbeing periodically.",
+    }
+    alert_text = alert_msg[rl_key]
+
+    prob_html = f"""
+        <div class="ps-metric">
+          <div class="ps-metric-label">Probability</div>
+          <div class="ps-metric-value" style="color:{rc['text']};">{prob:.2f}%</div>
+          <div class="ps-severity-bar">
+            <div class="ps-severity-fill" style="width:{_pdf_severity_bar_width(prob)};background:{_pdf_severity_bar_color(prob)};"></div>
+          </div>
+          <div class="ps-metric-sub">{data.get('prob_range_label','Normal range')}</div>
+        </div>
+    """ if has_prob else f"""
+        <div class="ps-metric">
+          <div class="ps-metric-label">Probability</div>
+          <div class="ps-metric-value" style="color:{C['text_secondary']};">—%</div>
+          <div class="ps-metric-sub">Normal range (&lt; 51%)</div>
+        </div>
+    """
+
+    # Risk factors
+    risk_factors_html = ""
+    if data.get("risk_factors"):
+        factors = "".join(f"""
+          <div class="ps-risk-factor">
+            <div class="ps-rf-icon"></div>
+            <div class="ps-rf-text"><span class="ps-rf-label">{f['label']} —</span> {f['body']}</div>
+          </div>
+        """ for f in data["risk_factors"])
+        risk_factors_html = f"""
+          <div class="ps-card">
+            <div class="ps-card-title"><div class="ps-card-title-bar"></div> Risk Analysis</div>
+            <div style="font-size:13px;color:{C['text_secondary']};line-height:1.7;margin-bottom:12px;">
+              The risk classification was assigned based on a convergence of strong signals across all modalities.
+              No single factor alone determined this — it is the combination and intensity of the following contributing patterns:
+            </div>
+            <div class="ps-risk-factors">{factors}</div>
+          </div>
+        """
+
+    # Insights
+    icon_bg = {"audio":"#E6F1FB","text":"#EAF3DE","facial":"#FBEAF0","questionnaire":"#FAEEDA"}
+    insights_html = "".join(f"""
+      <div class="ps-insight">
+        <div class="ps-insight-icon-row">
+          <div class="ps-insight-icon" style="background:{icon_bg.get(ins.get('type','audio'),'#F3F4F6')};font-size:9px;font-weight:600;color:#555;letter-spacing:0;">{ins['icon']}</div>
+          <div class="ps-insight-title">{ins['title']}</div>
+        </div>
+        <div class="ps-insight-body">{ins['body']}</div>
+      </div>
+    """ for ins in data.get("insights", []))
+
+    # Recommendations
+    def rec_items(items):
+        return "".join(f"""
+          <div class="ps-rec-item">
+            <span class="ps-rec-num">{i+1}.</span>
+            <span>{item}</span>
+          </div>
+        """ for i, item in enumerate(items))
+
+    recs = data.get("recommendations", {})
+    recs_html = f"""
+      <div class="ps-rec">
+        <div class="ps-rec-head ps-rec-head-red">Immediate Actions</div>
+        {rec_items(recs.get('immediate', []))}
+      </div>
+      <div class="ps-rec">
+        <div class="ps-rec-head ps-rec-head-blue">Professional Support</div>
+        {rec_items(recs.get('professional', []))}
+      </div>
+      <div class="ps-rec">
+        <div class="ps-rec-head ps-rec-head-green">Lifestyle Support</div>
+        {rec_items(recs.get('lifestyle', []))}
+      </div>
+    """
+
+    # Next steps
+    steps_html = "".join(f"""
+      <div class="ps-step">
+        <span class="ps-step-num">{i+1}</span>
+        <span class="ps-step-text"><span class="ps-step-strong">{step['label']}:</span> {step['body']}</span>
+      </div>
+    """ for i, step in enumerate(data.get("next_steps", [])))
+
+    # Doctors table
+    doctors_html = ""
+    if data.get("doctors"):
+        rows = "".join(f"""
+          <tr>
+            <td class="ps-doc-name">{d['name']}</td>
+            <td class="ps-doc-spec">{d['specialization']}</td>
+            <td class="ps-doc-place">{d['place']}</td>
+          </tr>
+        """ for d in data["doctors"])
+        doctors_html = f"""
+          <div class="ps-card">
+            <div class="ps-card-title"><div class="ps-card-title-bar"></div> Recommended Doctors in {data.get('city','Hyderabad')}</div>
+            <div style="font-size:13px;color:{C['text_secondary']};margin-bottom:10px;">
+              Based on the detected condition (<strong style="color:{C['text_primary']};">{data.get('disorder_name','')}</strong>),
+              the following specialists in {data.get('city','Hyderabad')} are recommended.
+            </div>
+            <table class="ps-doc-table">
+              <thead>
+                <tr>
+                  <th>Doctor Name</th>
+                  <th>Area of Specialization</th>
+                  <th>Place of Work</th>
+                </tr>
+              </thead>
+              <tbody>{rows}</tbody>
+            </table>
+            <div style="font-size:11px;color:{C['text_secondary']};margin-top:10px;line-height:1.6;">
+              Always confirm current clinic timings and availability when booking.
+              The same psychiatrist is usually qualified to treat multiple depressive disorders.
+            </div>
+          </div>
+        """
+
+    # Disorder type block
+    disorder_html = ""
+    if data.get("disorder_name") and data.get("disorder_desc"):
+        tags_html = "".join(f'<span class="ps-tag">{t}</span>' for t in data.get("disorder_tags", []))
+        disorder_html = f"""
+          <div class="ps-divider"></div>
+          <div style="font-size:13px;color:{C['text_secondary']};line-height:1.7;margin-bottom:10px;">
+            <strong style="color:{C['text_primary']};">Depression type detected:</strong>
+            {data['disorder_desc']}
+          </div>
+          <div>{tags_html}</div>
+        """
+
+    badge_html = f"""
+      <span class="ps-risk-badge" style="background:{rc['bg']};border-color:{rc['border']};color:{rc['text']};">
+        <div class="ps-risk-dot" style="background:{rc['dot']};"></div>
+        {rc['badge_label']}
+      </span>
+    """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  color: {C['text_primary']};
+  background: {C['bg_primary']};
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}}
+.ps-root {{ max-width: 860px; margin: 0 auto; padding: 24px; }}
+
+/* Header — table layout (WeasyPrint-safe) */
+.ps-header {{
+  border: 1px solid {C['border']}; border-radius: 12px;
+  padding: 20px 28px; margin-bottom: 12px;
+  background: {C['bg_primary']};
+}}
+.ps-header-table {{ width: 100%; border-collapse: collapse; }}
+.ps-header-table td {{ vertical-align: top; padding: 0; border: none; }}
+.ps-logo {{ display: block; }}
+.ps-logo-icon {{
+  width: 36px; height: 36px; border-radius: 8px;
+  background: {C['blue_logo']};
+  display: inline-block; vertical-align: middle; margin-right: 10px;
+}}
+.ps-logo-icon svg {{ width: 20px; height: 20px; vertical-align: middle; }}
+.ps-logo-name {{ font-size: 18px; font-weight: 600; color: {C['text_primary']}; display: inline-block; vertical-align: middle; }}
+.ps-logo-sub {{ font-size: 11px; color: {C['text_secondary']}; letter-spacing: 0.05em; text-transform: uppercase; display: block; margin-top: 2px; }}
+.ps-header-meta {{ text-align: right; font-size: 12px; color: {C['text_secondary']}; line-height: 1.8; }}
+.ps-header-meta strong {{ color: {C['text_primary']}; font-weight: 500; }}
+
+/* Alert */
+.ps-alert {{
+  border-radius: 8px; padding: 10px 18px; margin-bottom: 12px;
+  font-size: 13px; border: 1px solid;
+}}
+.ps-alert-table {{ width: 100%; border-collapse: collapse; }}
+.ps-alert-table td {{ vertical-align: middle; padding: 0; border: none; }}
+.ps-alert-high     {{ background:{C['red_bg']}; border-color:{C['red_border']}; color:{C['red_text']}; }}
+.ps-alert-moderate {{ background:{C['mod_bg']}; border-color:{C['mod_border']}; color:{C['mod_text']}; }}
+.ps-alert-low      {{ background:{C['low_bg']}; border-color:{C['low_border']}; color:{C['low_text']}; }}
+.ps-alert-dot {{ width: 8px; height: 8px; border-radius: 50%; background: {rc['dot']}; display: inline-block; margin-right: 10px; vertical-align: middle; }}
+
+/* Card */
+.ps-card {{
+  background: {C['bg_primary']}; border: 1px solid {C['border']};
+  border-radius: 12px; padding: 18px 22px; margin-bottom: 12px;
+}}
+.ps-card-title {{
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: {C['text_secondary']}; margin-bottom: 14px;
+}}
+.ps-card-title-bar {{
+  width: 3px; height: 14px; border-radius: 2px;
+  background: {C['blue_logo']};
+  display: inline-block; vertical-align: middle; margin-right: 8px;
+}}
+
+/* Patient grid — table layout */
+.ps-patient-table {{ width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; }}
+.ps-patient-cell {{ background: {C['bg_secondary']}; border-radius: 8px; padding: 10px 12px; width: 25%; }}
+.ps-patient-label {{ font-size: 11px; color: {C['text_secondary']}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }}
+.ps-patient-value {{ font-size: 14px; font-weight: 500; color: {C['text_primary']}; }}
+
+/* Summary */
+.ps-summary-text {{ font-size: 14px; line-height: 1.8; color: {C['text_primary']}; margin-bottom: 12px; }}
+.ps-risk-badge {{
+  display: inline-block;
+  border: 1px solid; border-radius: 8px;
+  padding: 4px 12px; font-size: 13px; font-weight: 500;
+}}
+.ps-risk-dot {{ width: 7px; height: 7px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px; }}
+
+/* Metrics — table layout */
+.ps-metrics-table {{ width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; margin-bottom: 4px; }}
+.ps-metric {{ background: {C['bg_secondary']}; border-radius: 8px; padding: 14px 16px; vertical-align: top; width: 33%; }}
+.ps-metric-label {{ font-size: 11px; color: {C['text_secondary']}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }}
+.ps-metric-value {{ font-size: 22px; font-weight: 500; color: {C['text_primary']}; }}
+.ps-metric-sub {{ font-size: 12px; color: {C['text_secondary']}; margin-top: 2px; }}
+.ps-severity-bar {{ height: 8px; border-radius: 4px; background: {C['border']}; margin: 8px 0 4px; overflow: hidden; }}
+.ps-severity-fill {{ height: 8px; border-radius: 4px; }}
+
+/* Tags */
+.ps-tag {{
+  display: inline-block;
+  background: {C['blue_light']}; border: 1px solid {C['blue_border']};
+  border-radius: 8px; padding: 3px 10px;
+  font-size: 12px; color: {C['blue_text']}; margin: 3px 3px 3px 0;
+}}
+.ps-divider {{ height: 1px; background: {C['border']}; margin: 10px 0; }}
+
+/* Insights — table layout */
+.ps-insights-table {{ width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; }}
+.ps-insight {{ border: 1px solid {C['border']}; border-radius: 8px; padding: 14px 16px; vertical-align: top; width: 50%; }}
+.ps-insight-icon {{
+  width: 28px; height: 28px; border-radius: 6px;
+  display: inline-block; vertical-align: middle; margin-right: 8px;
+  text-align: center; line-height: 28px;
+  font-size: 9px; font-weight: 600; color: #555;
+}}
+.ps-insight-title {{ font-size: 13px; font-weight: 500; color: {C['text_primary']}; display: inline-block; vertical-align: middle; }}
+.ps-insight-body {{ font-size: 13px; color: {C['text_secondary']}; line-height: 1.6; margin-top: 8px; }}
+
+/* Risk factors */
+.ps-risk-factor {{
+  padding: 10px 12px; margin-bottom: 8px;
+  background: {C['amber_bg']}; border: 1px solid {C['amber_border']}; border-radius: 8px;
+}}
+.ps-rf-dot {{ width: 6px; height: 6px; border-radius: 50%; background: {C['amber_dot']}; display: inline-block; vertical-align: middle; margin-right: 8px; }}
+.ps-rf-text {{ font-size: 13px; color: {C['amber_text']}; line-height: 1.5; }}
+.ps-rf-label {{ font-weight: 500; }}
+
+/* Recommendations — table layout */
+.ps-rec-table {{ width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; }}
+.ps-rec {{ border: 1px solid {C['border']}; border-radius: 8px; padding: 14px; vertical-align: top; width: 33%; }}
+.ps-rec-head {{ font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }}
+.ps-rec-head-red   {{ color: {C['red_head']}; }}
+.ps-rec-head-blue  {{ color: {C['blue_logo']}; }}
+.ps-rec-head-green {{ color: {C['green_head']}; }}
+.ps-rec-item {{
+  font-size: 13px; color: {C['text_secondary']}; line-height: 1.6;
+  padding: 5px 0; border-bottom: 1px solid {C['border']};
+}}
+.ps-rec-item:last-child {{ border-bottom: none; }}
+.ps-rec-num {{ font-weight: 500; color: {C['text_primary']}; font-size: 12px; }}
+
+/* Next steps */
+.ps-step {{ margin-bottom: 10px; }}
+.ps-step-num {{
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid {C['border']};
+  display: inline-block; vertical-align: middle;
+  text-align: center; line-height: 22px;
+  font-size: 12px; font-weight: 500; color: {C['text_secondary']};
+  margin-right: 10px;
+}}
+.ps-step-text {{ font-size: 13px; color: {C['text_primary']}; line-height: 1.6; display: inline-block; vertical-align: middle; width: calc(100% - 44px); }}
+.ps-step-strong {{ font-weight: 500; }}
+
+/* Doctor table */
+.ps-doc-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+.ps-doc-table thead tr {{ background: {C['bg_secondary']}; }}
+.ps-doc-table th {{
+  text-align: left; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; color: {C['text_secondary']};
+  padding: 8px 12px; border-bottom: 1px solid {C['border']};
+}}
+.ps-doc-table td {{
+  padding: 10px 12px; border-bottom: 1px solid {C['border']};
+  color: {C['text_primary']}; vertical-align: top;
+}}
+.ps-doc-table tbody tr:last-child td {{ border-bottom: none; }}
+.ps-doc-name {{ font-weight: 500; }}
+.ps-doc-spec  {{ color: {C['text_secondary']}; }}
+.ps-doc-place {{ color: {C['text_secondary']}; }}
+
+/* Disclaimer */
+.ps-disclaimer {{
+  border: 1px solid {C['border']}; border-radius: 8px;
+  padding: 14px 18px; background: {C['bg_secondary']};
+}}
+.ps-disclaimer-title {{
+  font-size: 12px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: {C['text_secondary']}; margin-bottom: 6px;
+}}
+.ps-disclaimer-body {{ font-size: 12px; color: {C['text_secondary']}; line-height: 1.7; }}
+
+/* Footer */
+.ps-footer {{
+  padding-top: 12px; border-top: 1px solid {C['border']};
+  margin-top: 8px; font-size: 11px; color: {C['text_secondary']};
+}}
+.ps-footer-table {{ width: 100%; border-collapse: collapse; }}
+.ps-footer-table td {{ border: none; padding: 0; }}
+
+@page {{ size: A4; margin: 0; }}
+</style>
+</head>
+<body>
+<div class="ps-root">
+
+  <!-- Header -->
+  <div class="ps-header">
+    <div class="ps-logo">
+      <div class="ps-logo-icon">
+        <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 3C7.5 3 5.5 4.8 5.5 7c0 1.4.8 2.7 2 3.4v1.1l-1.2 1.2a.5.5 0 000 .7l1.2 1.2v1.4c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-1.4l1.2-1.2a.5.5 0 000-.7L12.5 11.4V10.4c1.2-.7 2-2 2-3.4C14.5 4.8 12.5 3 10 3z" fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <div>
+        <div class="ps-logo-name">PsychSense</div>
+        <div class="ps-logo-sub">AI Mental Health Report</div>
+      </div>
+    </div>
+    <div class="ps-header-meta">
+      <div><strong>Report ID</strong> &nbsp;{report_id}</div>
+      <div><strong>Generated</strong> &nbsp;{generated}</div>
+      <div><strong>Analysis Mode</strong> &nbsp;{data.get('analysis_mode', 'Text')}</div>
+      <div><strong>Model Version</strong> &nbsp;PsychSense v2.1.0</div>
+    </div>
+  </div>
+
+  <!-- Alert Banner -->
+  <div class="ps-alert ps-alert-{rl_key}">
+    <div class="ps-alert-dot"></div>
+    <span>{alert_text}</span>
+  </div>
+
+  <!-- Patient Information -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Patient Information</div>
+    <div class="ps-patient-grid">
+      <div class="ps-patient-cell">
+        <div class="ps-patient-label">Full Name</div>
+        <div class="ps-patient-value">{data['patient']['name']}</div>
+      </div>
+      <div class="ps-patient-cell">
+        <div class="ps-patient-label">Age</div>
+        <div class="ps-patient-value">{data['patient']['age']} years</div>
+      </div>
+      <div class="ps-patient-cell">
+        <div class="ps-patient-label">Gender</div>
+        <div class="ps-patient-value">{data['patient']['gender']}</div>
+      </div>
+      <div class="ps-patient-cell">
+        <div class="ps-patient-label">Session Date</div>
+        <div class="ps-patient-value">{data['patient']['session_date']}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Executive Summary -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Executive Summary</div>
+    <div class="ps-summary-text">{data['executive_summary']}</div>
+    {badge_html}
+  </div>
+
+  <!-- Assessment Results -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Assessment Results</div>
+    <div class="ps-metrics-grid">
+      {prob_html}
+      <div class="ps-metric">
+        <div class="ps-metric-label">Risk Classification</div>
+        <div class="ps-metric-value" style="font-size:18px;color:{rc['text']};">{data['risk_level']}</div>
+        <div class="ps-metric-sub">{data.get('risk_sub_label','')}</div>
+      </div>
+      <div class="ps-metric">
+        <div class="ps-metric-label">Type Detected</div>
+        <div class="ps-metric-value" style="font-size:15px;color:{C['blue_logo']};">{data.get('disorder_name','No disorder detected')}</div>
+        <div class="ps-metric-sub">{data.get('disorder_short_desc','')}</div>
+      </div>
+    </div>
+    {disorder_html}
+  </div>
+
+  <!-- Risk Analysis -->
+  {risk_factors_html}
+
+  <!-- Behavioural & Emotional Insights -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Behavioural &amp; Emotional Insights</div>
+    <div class="ps-insights-grid">{insights_html}</div>
+  </div>
+
+  <!-- Personalised Recommendations -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Personalised Recommendations</div>
+    <div class="ps-rec-grid">{recs_html}</div>
+  </div>
+
+  <!-- Next Steps -->
+  <div class="ps-card">
+    <div class="ps-card-title"><div class="ps-card-title-bar"></div> Next Steps</div>
+    <div>{steps_html}</div>
+  </div>
+
+  <!-- Recommended Doctors -->
+  {doctors_html}
+
+  <!-- Disclaimer -->
+  <div class="ps-disclaimer">
+    <div class="ps-disclaimer-title">Ethical Disclaimer &amp; Important Notice</div>
+    <div class="ps-disclaimer-body">
+      This report is generated by PsychSense, an AI-powered mental health screening tool. It is intended for
+      <strong>informational and supportive purposes only</strong> and does <strong>not</strong> constitute a clinical diagnosis,
+      medical advice, or a substitute for professional psychiatric evaluation. Results may not account for all individual
+      circumstances, cultural factors, or medical history. Always consult a licensed mental health professional before
+      making any decisions regarding treatment. If you or someone you know is in immediate danger, please contact
+      emergency services or a crisis helpline without delay.
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="ps-footer">
+    <span>PsychSense AI · {report_id} · Confidential</span>
+    <span>Generated {now.strftime('%d %B %Y')} · v2.1.0</span>
+  </div>
+
+</div>
+</body>
+</html>"""
+    return html
+
+
+@app.route("/generate-pdf", methods=["POST"])
+def generate_pdf_endpoint():
+    if not _WEASYPRINT_OK:
+        return jsonify({"error": "WeasyPrint not installed on this server."}), 501
+
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            return jsonify({"error": "Request body must be JSON."}), 400
+
+        # Minimal required fields
+        if "risk_level" not in data or "patient" not in data:
+            return jsonify({"error": "Missing required fields: risk_level, patient"}), 400
+
+        html_str = _build_report_html(data)
+        pdf_bytes = _render_pdf(html_str)
+
+        patient_name = data.get("patient", {}).get("name", "Patient").replace(" ", "_")
+        filename = f"PsychSense_Report_{patient_name}.pdf"
+
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+            }
+        )
+
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "PDF generation failed."}), 500
 
 
 # ─────────────────────────────────────────────────────────────────────

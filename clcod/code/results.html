@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Amarante&family=Yatra+One&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- html2pdf.js removed — PDF is now generated server-side via WeasyPrint (/generate-pdf) -->
 <link rel="stylesheet" href="assets/css/star-border.css">
 <script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{error:"#ba1a1a","on-primary":"#ffffff","on-error":"#ffffff","on-surface-variant":"#5d3f3c",primary:"#8e0008","outline-variant":"#e6bdb8",background:"#fcf9f8","on-primary-container":"#ffc7c0","on-tertiary":"#ffffff",surface:"#fcf9f8","error-container":"#ffdad6","primary-fixed":"#ffdad5","primary-container":"#bb000e","surface-container-high":"#eae7e7","tertiary-fixed":"#ffdbcb","on-primary-fixed":"#410001","surface-variant":"#e5e2e1","inverse-primary":"#ffb4aa","on-surface":"#1c1b1b","surface-container-low":"#f6f3f2","surface-container":"#f0eded","surface-container-lowest":"#ffffff","surface-container-highest":"#e5e2e1","on-background":"#1c1b1b",outline:"#916f6b",secondary:"#5652b4"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},fontFamily:{headline:["Epilogue"],body:["Plus Jakarta Sans"],label:["Space Grotesk"],display:"Epilogue"}}}};</script>
 <style>
@@ -431,7 +431,7 @@
 let userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{"name":"","age":"","gender":""}');
 let aiResult = JSON.parse(sessionStorage.getItem('md_aiResult') || 'null');
 
-const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+const FLASK_API_URL = 'https://sense123-psychsense-backend.hf.space';
 
 // ── Page Nav ───────────────────────────────────────────────────────
 function showPage(id) {
@@ -820,6 +820,11 @@ async function generateAdetChartHtml() {
 
 // ── Download PDF ───────────────────────────────────────────────────
 window.downloadReport = async function() {
+  // Show loading state on button
+  const btn = document.querySelector('[onclick="window.downloadReport()"]');
+  const originalHTML = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = btn.innerHTML.replace(/Download Report|Downloading/gi, 'Generating…'); }
+
   const isDepressed = aiResult?.riskLevel === 'Moderate' || aiResult?.riskLevel === 'High';
   const displayPercent = isDepressed ? (aiResult?.modelProb ?? aiResult?.confidenceScore ?? '—') : null;
   const now = new Date();
@@ -833,275 +838,151 @@ window.downloadReport = async function() {
   const uGender  = userInfo.gender || '—';
   const modes    = ['Audio','Text'].filter(m => aiResult?.contributions?.[m.toLowerCase()] > 0).join(' · ') || 'Text';
 
-  const DEPRESSION_INFO = {
-    'Major Depressive Disorder (MDD)': {desc:'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks.'},
-    'Postpartum Depression':           {desc:'PPD occurs after childbirth, marked by intense sadness, anxiety, and exhaustion that interfere with caring for oneself or the baby.'},
-    'Seasonal Affective Disorder (SAD)':{desc:'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten.'},
-    'Atypical Depression':             {desc:'Atypical depression features mood reactivity along with hypersomnia and increased appetite.'},
-    'Persistent Depressive Disorder (Dysthymia)':{desc:'Dysthymia is a chronic, lower-grade depression lasting two or more years, causing significant long-term impairment.'},
-    'Depressive Episode':              {desc:'A sustained period of depressed mood, reduced energy, and diminished interest in activities. Warrants a full clinical assessment.'},
+  // ── Build the clean data payload for the backend PDF generator ──────
+  const DEPRESSION_INFO_FULL = {
+    'Major Depressive Disorder (MDD)':               { desc: 'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks.' },
+    'Postpartum Depression':                          { desc: 'PPD occurs after childbirth, marked by intense sadness, anxiety, and exhaustion that interfere with caring for oneself or the baby.' },
+    'Seasonal Affective Disorder (SAD)':              { desc: 'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten. Symptoms include hypersomnia, increased appetite, and low energy. Light therapy is a first-line treatment.' },
+    'Atypical Depression':                            { desc: 'Atypical depression features mood reactivity along with hypersomnia and increased appetite.' },
+    'Persistent Depressive Disorder (Dysthymia)':    { desc: 'Dysthymia is a chronic, lower-grade depression lasting two or more years, causing significant long-term impairment.' },
+    'Depressive Episode':                             { desc: 'A sustained period of depressed mood, reduced energy, and diminished interest in activities. Warrants a full clinical assessment.' },
   };
-  const depInfo = depType ? (DEPRESSION_INFO[depType] || {desc:'A depressive episode was identified. Clinical assessment is advised.'}) : null;
 
-  const riskColor   = isDepressed ? (riskClass === 'High' ? '#A32D2D' : '#92400e') : '#166534';
-  const alertBg     = isDepressed ? '#FCEBEB' : '#F0FDF4';
-  const alertBdr    = isDepressed ? '#F09595' : '#86efac';
-  const alertColor  = isDepressed ? '#791F1F' : '#166534';
-  const alertDot    = isDepressed ? '#E24B4A' : '#16a34a';
-  const alertLabel  = isDepressed ? `${riskClass} Risk Detected` : 'Low Risk';
-  const alertText   = isDepressed
-    ? 'This report requires immediate attention. Please review the recommendations and next steps carefully.'
-    : 'No severe depressive signals detected. Continue to monitor your wellbeing periodically.';
+  const probPct        = typeof displayPercent === 'number' ? displayPercent : 0;
+  const depInfoFull    = depType ? (DEPRESSION_INFO_FULL[depType] || { desc: 'A depressive episode was identified. Clinical assessment is advised.' }) : null;
 
-  const sevFill = isDepressed
-    ? `linear-gradient(90deg,#FAC775,#E24B4A)`
-    : `linear-gradient(90deg,#86efac,#16a34a)`;
-  const sevWidth = isDepressed ? (displayPercent ? displayPercent+'%' : '75%') : '20%';
-  const sevLabel = isDepressed
-    ? (displayPercent >= 75 ? 'Severe range (≥ 75%)' : 'Moderate range (60–74%)')
-    : 'Normal range (< 60%)';
-
-  // Tags from AI result
-  const rawTags = (depType ? [depType] : []).concat(aiResult?.tags || []);
-  const tags = rawTags.length ? rawTags : (isDepressed ? ['Depressive Episode','Low Mood','Fatigue Indicators'] : ['No Disorder Detected']);
-  const tagsHtml = tags.map(t =>
-    `<span style="display:inline-block;background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:6px;padding:3px 10px;font-size:12px;color:#0C447C;margin:3px 3px 3px 0;">${t}</span>`
-  ).join('');
-
-  // Insights
-  const insightDefs = [
-    {key:'audio',        icon:'🎙', bg:'#E6F1FB', title:'Speech & Vocal Tone'},
-    {key:'text',         icon:'📝', bg:'#EAF3DE', title:'Language & Text Signals'},
-    {key:'questionnaire',icon:'📋', bg:'#FEF3C7', title:'Questionnaire Insights'},
-    {key:'cognitive',    icon:'🎥', bg:'#FBEAF0', title:'Facial & Visual Cues'},
+  // Insights — map from aiResult to the generate_report.py schema
+  const insightDefs2 = [
+    { key: 'audio',         type: 'audio',         icon: 'MIC', title: 'Voice & Audio Signals' },
+    { key: 'text',          type: 'text',           icon: 'TXT', title: 'Language & Text Signals' },
+    { key: 'cognitive',     type: 'facial',         icon: 'VID', title: 'Facial & Visual Cues' },
+    { key: 'questionnaire', type: 'questionnaire',  icon: 'QST', title: 'Questionnaire Insights' },
   ];
-  const insightsHtml2 = `
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-      ${insightDefs.map(def => {
-        const ins = aiResult?.insights?.[def.key];
-        const body = def.key === 'cognitive'
-          ? 'Visual modality (ViT) is trained and ready — video analysis will be available in a future update.'
-          : ((ins?.points||[]).filter(p=>p&&p!=='undefined').join('. ') || (def.key === 'audio' ? 'No audio input provided.' : 'Analysis complete.'));
-        return `<div style="border:0.5px solid #e2e8f0;border-radius:8px;padding:14px 16px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <div style="width:28px;height:28px;border-radius:6px;background:${def.bg};display:flex;align-items:center;justify-content:center;font-size:14px;">${def.icon}</div>
-            <div style="font-size:13px;font-weight:500;color:#1e293b;">${def.title}</div>
-          </div>
-          <div style="font-size:13px;color:#475569;line-height:1.6;">${body}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
+  const insights = insightDefs2.map(def => {
+    const ins = aiResult?.insights?.[def.key];
+    let body;
+    if (def.key === 'cognitive') {
+      body = 'Visual modality (ViT) is trained and ready — video analysis will be available in a future update.';
+    } else {
+      const pts = (ins?.points || []).filter(p => p && p !== 'undefined');
+      body = pts.join('. ') || (def.key === 'audio' ? 'No audio input provided — audio modality not analysed.' : 'Analysis complete.');
+    }
+    return { type: def.type, icon: def.icon, title: def.title, body };
+  });
 
   // Risk factors
   const riskFactors = isDepressed ? [
-    {label:`Severity score ≥ ${displayPercent || 60}%`, body:"The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks."},
-    {label:'Multimodal agreement', body:`${modes} signals are independently flagging distress, strengthening the reliability of the prediction.`},
-    depInfo ? {label:`${depType} context`, body:depInfo.desc} : null,
-    {label:'Negative cognitive patterns', body:'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.'},
+    { label: `Severity score ≥ ${displayPercent || 60}%`,
+      body: "The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks." },
+    { label: 'Multimodal agreement',
+      body: `${modes} signals are independently flagging distress, strengthening the reliability of the prediction.` },
+    depInfoFull && depType
+      ? { label: `${depType} context`, body: depInfoFull.desc }
+      : null,
+    { label: 'Negative cognitive patterns',
+      body: 'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.' },
   ].filter(Boolean) : [];
-  const riskFactorsHtml = riskFactors.map(f => `
-    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#FEF8F1;border:0.5px solid #FAC775;border-radius:8px;">
-      <div style="width:6px;height:6px;border-radius:50%;background:#EF9F27;flex-shrink:0;margin-top:5px;"></div>
-      <div style="font-size:13px;color:#633806;line-height:1.5;"><span style="font-weight:500;">${f.label} —</span> ${f.body}</div>
-    </div>`).join('');
 
-  // Recommendations
+  // Recommendations — split flat array into three columns for the template
   const recs = aiResult?.recommendations || [];
-  const col1 = recs.slice(0, Math.ceil(recs.length/3));
-  const col2 = recs.slice(Math.ceil(recs.length/3), Math.ceil(recs.length/3*2));
-  const col3 = recs.slice(Math.ceil(recs.length/3*2));
-  const makeCol = (items, label, color) => items.length ? `
-    <div style="border:0.5px solid #e2e8f0;border-radius:8px;padding:14px;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${color};margin-bottom:12px;">${label}</div>
-      ${items.map((r,i)=>`<div style="font-size:12.5px;color:#475569;padding:6px 0;border-bottom:0.5px solid #f1f5f9;display:flex;gap:8px;"><span style="font-weight:700;color:#94a3b8;font-size:11px;flex-shrink:0;min-width:14px;">${i+1}.</span><span style="line-height:1.55;">${r}</span></div>`).join('')}
-    </div>` : '';
+  const chunk = Math.ceil(recs.length / 3);
+  const recommendations = {
+    immediate:    recs.slice(0, chunk),
+    professional: recs.slice(chunk, chunk * 2),
+    lifestyle:    recs.slice(chunk * 2),
+  };
 
   // Next steps
-  const steps = isDepressed ? [
-    {label:'Today',             text:'Share this report with a family member, partner, or trusted friend. You do not need to face this alone.'},
-    {label:'Within 24–48 hours',text:'Book an appointment with a psychiatrist or clinical psychologist. Bring this report to the appointment.'},
-    {label:'Seek urgent help immediately if',text:'You experience thoughts of self-harm or a sudden worsening of symptoms. Call 112 or go to your nearest emergency department.'},
-    {label:'Follow-up session', text:'Schedule a re-assessment with PsychSense in 2–4 weeks to track progress after professional intervention begins.'},
+  const nextSteps = isDepressed ? [
+    { label: 'Today',                        body: 'Share this report with a family member, partner, or trusted friend. You do not need to face this alone.' },
+    { label: 'Within 24–48 hours',           body: 'Book an appointment with a psychiatrist or clinical psychologist. Bring this report to the appointment.' },
+    { label: 'Seek urgent help immediately if', body: 'You experience thoughts of self-harm or a sudden worsening of symptoms. Call 112 or go to your nearest emergency department.' },
+    { label: 'Follow-up session',            body: 'Schedule a re-assessment with PsychSense in 2–4 weeks to track progress after professional intervention begins.' },
   ] : [
-    {label:'Today',             text:'Share this report with a trusted friend or family member as a baseline record.'},
-    {label:'Follow-up session', text:'Schedule a re-assessment with PsychSense in 2–4 weeks to track your wellbeing.'},
+    { label: 'Today',            body: 'Share this report with a trusted friend or family member as a baseline record.' },
+    { label: 'Follow-up session',body: 'Schedule a re-assessment with PsychSense in 2–4 weeks to track your wellbeing.' },
   ];
 
-  // Doctors table
-  let doctorsHtml = '';
+  // Doctors — map DOCTORS_DATA format (workplace) → generate_report.py format (place)
+  let doctors = [];
   if (isDepressed) {
-    const docKey = depType || 'Depressive Episode';
-    const doctors = DOCTORS_DATA[docKey] || DOCTORS_DATA['Depressive Episode'];
-    doctorsHtml = `
-      <div style="background:#fff;border:0.5px solid #cbd5e1;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#475569;border-left:3px solid #185FA5;padding-left:10px;margin-bottom:14px;">Recommended Doctors in Hyderabad</div>
-        <p style="font-size:12.5px;color:#475569;margin-bottom:14px;">Based on the detected condition (<strong>${docKey}</strong>), the following specialists in Hyderabad are recommended.</p>
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-          <thead><tr style="background:#f8fafc;">
-            <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Doctor Name</th>
-            <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Specialization</th>
-            <th style="text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Place of Work</th>
-          </tr></thead>
-          <tbody>
-            ${doctors.map((d,i)=>`<tr style="background:${i%2===0?'#fff':'#f8fafc'};"><td style="padding:9px 12px;color:#1e293b;font-weight:500;border-bottom:0.5px solid #f1f5f9;">${d.name}</td><td style="padding:9px 12px;color:#475569;border-bottom:0.5px solid #f1f5f9;">${d.specialization}</td><td style="padding:9px 12px;color:#475569;border-bottom:0.5px solid #f1f5f9;">${d.workplace}</td></tr>`).join('')}
-          </tbody>
-        </table>
-        <p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.55;">Always confirm current clinic timings and availability when booking.</p>
-      </div>`;
+    const docKey   = depType || 'Depressive Episode';
+    const rawDocs  = DOCTORS_DATA[docKey] || DOCTORS_DATA['Depressive Episode'];
+    doctors = rawDocs.map(d => ({ name: d.name, specialization: d.specialization, place: d.workplace }));
   }
 
-  // ── CARD STYLE (matching psychsense_mental_health_report.html) ──────
-  const card = 'background:#fff;border:0.5px solid #cbd5e1;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem;';
-  const secTitle = (label) =>
-    `<div style="font-family:'Lora',serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#475569;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
-      <div style="width:3px;height:14px;border-radius:2px;background:#185FA5;"></div>${label}
-    </div>`;
+  // Disorder description for the report
+  const disorderDesc = depInfoFull
+    ? `<strong>${depType}</strong> — ${depInfoFull.desc}`
+    : '';
+  const disorderTags = depType
+    ? [depType, ...(aiResult?.tags || [])]
+    : ['No Disorder Detected'];
 
-  const htmlStr = `
-    <div style="font-family:'DM Sans',Arial,sans-serif;font-size:14px;color:#1e293b;max-width:860px;margin:0 auto;padding:1.5rem 1.75rem;background:#fff;">
+  // Probability range label
+  const probRangeLabel = isDepressed
+    ? (probPct >= 75 ? 'Severe range (≥ 75%)' : 'Moderate range (51–75%)')
+    : 'Normal range (< 51%)';
 
-      <!-- HEADER -->
-      <div style="${card}display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;border-radius:8px;background:#185FA5;display:flex;align-items:center;justify-content:center;">
-            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-              <path d="M10 3C7.5 3 5.5 4.8 5.5 7c0 1.4.8 2.7 2 3.4v1.1l-1.2 1.2a.5.5 0 000 .7l1.2 1.2v1.4c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-1.4l1.2-1.2a.5.5 0 000-.7L12.5 11.4V10.4c1.2-.7 2-2 2-3.4C14.5 4.8 12.5 3 10 3z" fill="white" opacity="0.9"/>
-            </svg>
-          </div>
-          <div>
-            <div style="font-family:'Lora',serif;font-size:18px;font-weight:600;color:#1e293b;">PsychSense</div>
-            <div style="font-size:11px;color:#64748b;letter-spacing:0.05em;text-transform:uppercase;">AI Mental Health Report</div>
-          </div>
-        </div>
-        <div style="text-align:right;font-size:12px;color:#64748b;line-height:1.8;">
-          <div><strong style="color:#1e293b;">Report ID</strong> &nbsp;${reportId}</div>
-          <div><strong style="color:#1e293b;">Generated</strong> &nbsp;${dateStr}, ${timeStr} IST</div>
-          <div><strong style="color:#1e293b;">Analysis Mode</strong> &nbsp;Multimodal (${modes})</div>
-          <div><strong style="color:#1e293b;">Model Version</strong> &nbsp;PsychSense v2.1.0</div>
-        </div>
-      </div>
+  const reportPayload = {
+    report_id:          reportId,
+    risk_level:         isDepressed ? `${riskClass} Risk` : 'Low Risk',
+    risk_sub_label:     isDepressed ? (riskClass === 'High' ? 'Immediate action required' : 'Intervention advised') : 'Low levels',
+    analysis_mode:      `Multimodal (${modes})`,
+    probability_pct:    probPct,
+    prob_range_label:   probRangeLabel,
+    disorder_name:      depType || 'No disorder detected',
+    disorder_short_desc: depInfoFull ? 'Detected via multimodal analysis' : '',
+    disorder_desc:      disorderDesc,
+    disorder_tags:      disorderTags,
+    patient: {
+      name:         uName,
+      age:          userInfo.age || '—',
+      gender:       userInfo.gender || '—',
+      session_date: dateStr,
+    },
+    executive_summary: isDepressed
+      ? `PsychSense's multimodal analysis identified significant markers of <strong>${depType || 'a depressive episode'}</strong>. The combined signal places this assessment in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%.`
+      : "PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.",
+    risk_factors:     riskFactors,
+    insights,
+    recommendations,
+    next_steps:       nextSteps,
+    city:             'Hyderabad',
+    doctors,
+  };
 
-      <!-- ALERT BANNER -->
-      <div style="border-radius:8px;padding:0.75rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;font-size:13px;border:0.5px solid ${alertBdr};background:${alertBg};color:${alertColor};">
-        <div style="width:8px;height:8px;border-radius:50%;background:${alertDot};flex-shrink:0;"></div>
-        <span><strong>${alertLabel} —</strong> ${alertText}</span>
-      </div>
+  // ── Call backend and stream PDF to user ──────────────────────────
+  try {
+    const resp = await fetch(`${FLASK_API_URL}/generate-pdf`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(reportPayload),
+    });
 
-      <!-- PATIENT INFORMATION -->
-      <div style="${card}">
-        ${secTitle('Patient Information')}
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-          ${[{l:'Full Name',v:uName},{l:'Age',v:uAge},{l:'Gender',v:uGender},{l:'Session Date',v:dateStr}].map(c=>`
-            <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">${c.l}</div>
-              <div style="font-size:14px;font-weight:500;color:#1e293b;">${c.v}</div>
-            </div>`).join('')}
-        </div>
-      </div>
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
 
-      <!-- EXECUTIVE SUMMARY -->
-      <div style="${card}">
-        ${secTitle('Executive Summary')}
-        <p style="font-size:14px;line-height:1.8;color:#1e293b;margin-bottom:1rem;">
-          ${isDepressed
-            ? `PsychSense's multimodal analysis identified significant markers of <strong>${depType || 'a depressive episode'}</strong> across audio and text inputs. The combined signal places this assessment in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%.`
-            : `PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.`}
-        </p>
-        ${isDepressed ? `<p style="font-size:14px;line-height:1.8;color:#1e293b;margin-bottom:0.75rem;">Behavioural cues suggest ${depInfo ? depInfo.desc.toLowerCase() : 'emotional distress patterns'}. Prompt professional evaluation is strongly advised — this assessment is intended to support, not replace, clinical care.</p>` : ''}
-        <div style="display:inline-flex;align-items:center;gap:6px;background:${alertBg};border:0.5px solid ${alertBdr};border-radius:8px;padding:4px 12px;font-size:13px;font-weight:500;color:${alertColor};">
-          <div style="width:7px;height:7px;border-radius:50%;background:${alertDot};"></div>
-          ${isDepressed ? riskClass+' Risk · Immediate Action Recommended' : 'Low Risk · Continue Monitoring'}
-        </div>
-      </div>
-
-      <!-- ASSESSMENT RESULTS -->
-      <div style="${card}">
-        ${secTitle('Assessment Results')}
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem;">
-          <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Depression Severity</div>
-            <div style="font-size:22px;font-weight:500;color:#1e293b;">${displayPercent !== null ? displayPercent+'%' : '—%'}</div>
-            <div style="height:8px;border-radius:4px;background:#e2e8f0;margin:8px 0 4px;overflow:hidden;">
-              <div style="height:100%;border-radius:4px;background:${sevFill};width:${sevWidth};"></div>
-            </div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">${sevLabel}</div>
-          </div>
-          <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Model Confidence</div>
-            <div style="font-size:22px;font-weight:500;color:#1e293b;">${aiResult?.confidence || '—'}%</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">${isDepressed ? 'High confidence prediction' : 'Reliable prediction'}</div>
-          </div>
-          <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;">
-            <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Risk Classification</div>
-            <div style="font-size:16px;font-weight:500;color:${riskColor};">${isDepressed ? riskClass+' Risk' : 'Low Risk'}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">${isDepressed ? 'Requires urgent review' : 'No action required'}</div>
-          </div>
-        </div>
-        <div style="height:0.5px;background:#e2e8f0;margin:0.75rem 0;"></div>
-        ${depInfo ? `<div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:10px;"><strong style="color:#1e293b;">Depression type detected:</strong> ${depInfo.desc}</div>` : ''}
-        <div>${tagsHtml}</div>
-      </div>
-
-      <!-- BEHAVIOURAL & EMOTIONAL INSIGHTS -->
-      <div style="${card}">
-        ${secTitle('Behavioural & Emotional Insights')}
-        ${insightsHtml2}
-      </div>
-
-      ${isDepressed ? `<!-- RISK ANALYSIS -->
-      <div style="${card}">
-        ${secTitle('Risk Analysis')}
-        <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:12px;">The ${riskClass} Risk classification was assigned based on a convergence of strong signals across all modalities. No single factor alone determined this — it is the combination and intensity of the following contributing patterns:</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">${riskFactorsHtml}</div>
-      </div>` : ''}
-
-      ${recs.length ? `<!-- PERSONALISED RECOMMENDATIONS -->
-      <div style="${card}">
-        ${secTitle('Personalised Recommendations')}
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-          ${makeCol(col1,'Immediate Actions','#A32D2D')}
-          ${makeCol(col2,'Professional Support','#185FA5')}
-          ${makeCol(col3,'Lifestyle Support','#3B6D11')}
-        </div>
-      </div>` : ''}
-
-      <!-- NEXT STEPS -->
-      <div style="${card}">
-        ${secTitle('Next Steps')}
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          ${steps.map((s,i)=>`
-            <div style="display:flex;gap:14px;align-items:flex-start;">
-              <div style="width:24px;height:24px;border-radius:50%;border:0.5px solid #cbd5e1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0;color:#64748b;">${i+1}</div>
-              <div style="font-size:13px;color:#1e293b;line-height:1.6;padding-top:2px;"><span style="font-weight:500;">${s.label}:</span> ${s.text}</div>
-            </div>`).join('')}
-        </div>
-      </div>
-
-      ${doctorsHtml}
-
-      <!-- DISCLAIMER -->
-      <div style="border:0.5px solid #e2e8f0;border-radius:8px;padding:1rem 1.25rem;background:#f8fafc;margin-top:4px;">
-        <div style="font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">Ethical Disclaimer &amp; Important Notice</div>
-        <div style="font-size:12px;color:#64748b;line-height:1.7;">This report is generated by PsychSense, an AI-powered mental health screening tool. It is intended for <strong style="color:#334155;">informational and supportive purposes only</strong> and does <strong style="color:#334155;">not</strong> constitute a clinical diagnosis, medical advice, or a substitute for professional psychiatric evaluation. Results may not account for all individual circumstances, cultural factors, or medical history. Always consult a licensed mental health professional before making any decisions regarding treatment. If you or someone you know is in immediate danger, please contact emergency services or a crisis helpline without delay.</div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:1rem;border-top:0.5px solid #e2e8f0;margin-top:0.5rem;font-size:11px;color:#64748b;">
-        <span>PsychSense AI · Report ID: ${reportId} · Confidential</span>
-        <span>Generated ${dateStr} · v2.1.0</span>
-      </div>
-
-    </div>`;
-
-  html2pdf().set({
-    margin: [8, 8, 8, 8],
-    filename: `PsychSense_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`,
-    image:      { type:'jpeg', quality:0.98 },
-    html2canvas:{ scale:2, useCORS:true, logging:false },
-    jsPDF:      { unit:'mm', format:'a4', orientation:'portrait' },
-    pagebreak:  { mode:['avoid-all','css','legacy'] },
-  }).from(htmlStr).save();
+    const blob     = await resp.blob();
+    const url      = URL.createObjectURL(blob);
+    const anchor   = document.createElement('a');
+    anchor.href    = url;
+    anchor.download = `PsychSense_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('[PsychSense] PDF generation failed:', err);
+    alert('Could not generate PDF: ' + err.message + '\n\nMake sure the PsychSense backend is running.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+  }
 };
+
+
 
 
 // ── Profile ────────────────────────────────────────────────────────

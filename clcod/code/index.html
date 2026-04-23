@@ -339,8 +339,8 @@
           <!-- Profile badge (shown when logged in) -->
           <div id="user-badge" class="hidden items-center gap-3 cursor-pointer"
             onclick="window.location.href='profile.html'">
-            <img id="user-avatar" src="" alt="Profile"
-              class="w-9 h-9 rounded-full border-2 border-primary object-cover" referrerpolicy="no-referrer"
+            <img id="user-avatar" src="" alt="Profile" class="w-9 h-9 rounded-full border-2 border-primary object-cover"
+              referrerpolicy="no-referrer"
               onerror="this.src='https://ui-avatars.com/api/?background=bb000e&color=fff&size=64'">
             <span id="user-name"
               class="font-label text-xs uppercase tracking-widest text-on-surface hidden md:block"></span>
@@ -368,9 +368,10 @@
         <div class="flex flex-col gap-4">
           <h2 class="font-label text-sm md:text-base uppercase tracking-[0.2em] text-primary">AI POWERED MULTI-MODAL
             DEPRESSION DETECTION SYSTEM</h2>
-          <h1 class="text-6xl md:text-8xl lg:text-[100px] tracking-tighter leading-[0.9] text-on-surface transition-all duration-500 hover:-translate-y-2 hover:drop-shadow-[0_20px_40px_rgba(142,0,8,0.2)]">
+          <h1
+            class="text-6xl md:text-8xl lg:text-[100px] tracking-tighter leading-[0.9] text-on-surface transition-all duration-500 hover:-translate-y-2 hover:drop-shadow-[0_20px_40px_rgba(142,0,8,0.2)]">
             <span class="amarante-regular uppercase"><i>Mano</i></span><br class="md:hidden"><span
-              class="yatra-one-regular text-[0.85em] md:text-[0.9em]"> ध्वनी</span>
+              class="yatra-one-regular text-[0.85em] md:text-[0.9em]"> ध्वनि</span>
           </h1>
         </div>
         <p class="font-body text-xl md:text-2xl text-on-surface-variant max-w-2xl leading-relaxed">
@@ -395,7 +396,8 @@
       <div class="max-w-[1920px] mx-auto px-8 w-full">
         <div class="flex items-start gap-8 mb-24">
           <span class="font-label text-sm text-on-surface-variant">01</span>
-          <h2 id="precision-metrics-title" class="font-headline text-4xl md:text-6xl font-bold tracking-tight text-on-surface uppercase w-full md:w-auto text-left">
+          <h2 id="precision-metrics-title"
+            class="font-headline text-4xl md:text-6xl font-bold tracking-tight text-on-surface uppercase w-full md:w-auto text-left">
             Precision Metrics</h2>
           <div class="h-[1px] bg-outline-variant/20 flex-grow mt-6"></div>
         </div>
@@ -505,7 +507,7 @@
     // Backend status check
     const statusDot = document.getElementById('status-dot');
     const statusLabel = document.getElementById('status-label');
-    const BACKEND_URL = 'https://sense123-psychsense.hf.space';
+    const BACKEND_URL = 'https://sense123-psychsense-backend.hf.space';
 
     async function checkBackendHealth() {
       try {
@@ -529,11 +531,11 @@
 
   <!-- Scramble Text Animation for Precision Metrics -->
   <script>
-    (function() {
+    (function () {
       const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*!?';
       function scrambleText(el, finalText, duration) {
         const totalFrames = Math.round(duration / 40);
-        const resolveAt   = (i) => Math.floor(totalFrames * (i / finalText.length) * 0.75 + totalFrames * 0.25);
+        const resolveAt = (i) => Math.floor(totalFrames * (i / finalText.length) * 0.75 + totalFrames * 0.25);
         let frame = 0;
         const iv = setInterval(() => {
           let out = '';

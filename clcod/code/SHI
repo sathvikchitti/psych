@@ -1,0 +1,7 @@
+in backend:
+pip install -r requirements.txt --only-binary=:all:
+pip install transformers -U
+python app.py
+
+in code(for frontend):
+npx serve. 

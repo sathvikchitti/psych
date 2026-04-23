@@ -179,18 +179,59 @@
       background-position: center !important;
       background-attachment: fixed !important;
     }
-    .nav-pill { font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:8px 20px; border-radius:999px; border:1.5px solid rgba(28,27,27,0.12); box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.25s ease; color:#3a3a3a; background:rgba(255,255,255,0.7); text-decoration:none; display:inline-block; }
-    .nav-pill:hover { background:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.13); transform:translateY(-2px); color:#8e0008; border-color:rgba(142,0,8,0.25); }
-    .nav-pill.active { background:#8e0008; color:#fff; border-color:#8e0008; box-shadow:0 4px 16px rgba(142,0,8,0.25); }
-    .amarante-regular { font-family: "Amarante", serif; font-weight: 400; font-style: normal; }
-    .yatra-one-regular { font-family: "Yatra One", system-ui; font-weight: 400; font-style: normal; text-transform: none !important; }
+
+    .nav-pill {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 20px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(28, 27, 27, 0.12);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+      transition: all 0.25s ease;
+      color: #3a3a3a;
+      background: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .nav-pill:hover {
+      background: #fff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.13);
+      transform: translateY(-2px);
+      color: #8e0008;
+      border-color: rgba(142, 0, 8, 0.25);
+    }
+
+    .nav-pill.active {
+      background: #8e0008;
+      color: #fff;
+      border-color: #8e0008;
+      box-shadow: 0 4px 16px rgba(142, 0, 8, 0.25);
+    }
+
+    .amarante-regular {
+      font-family: "Amarante", serif;
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    .yatra-one-regular {
+      font-family: "Yatra One", system-ui;
+      font-weight: 400;
+      font-style: normal;
+      text-transform: none !important;
+    }
   </style>
 </head>
 
 <body class="bg-background text-white antialiased selection:bg-cyan-500/30 bg-fixed-image pt-24 min-h-screen">
 
   <!-- Navigation -->
-  <nav class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm"
+  <nav
+    class="bg-stone-100/90 backdrop-blur-md fixed top-0 left-0 right-0 z-50 w-full border-b border-stone-200 shadow-sm"
     style="z-index: 50;">
     <div class="relative flex items-center w-full px-8 py-4 max-w-[1920px] mx-auto">
       <a class="text-2xl tracking-tighter text-stone-950 flex-shrink-0 flex items-center gap-1 transition-all duration-300 hover:-translate-y-1 hover:drop-shadow-[0_4px_8px_rgba(142,0,8,0.25)]"
@@ -213,7 +254,8 @@
         <div id="auth-section">
           <a id="login-signup-btn" href="login.html"
             class="star-border rounded-sm transition-all duration-300 hover:-translate-y-[2px]">
-            <div class="star-border-inner bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm">
+            <div
+              class="star-border-inner bg-primary text-on-primary font-label text-sm uppercase tracking-wider px-6 py-3 rounded-sm">
               Signup/Login
             </div>
           </a>
@@ -266,7 +308,7 @@
   </footer>
 
   <script>
-    const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
+    const FLASK_API_URL = 'https://sense123-psychsense-backend.hf.space';
 
     // Cycle status messages
     const loadingMessages = ['Processing your inputs…', 'Running WavLM audio analysis…', 'Extracting RoBERTa text embeddings…', 'Analysing cognitive patterns…', 'Running fusion model inference…', 'Generating clinical report…'];
