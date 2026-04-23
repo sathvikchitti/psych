@@ -307,8 +307,16 @@ async function completeQuestionnaire() {
     impairment: derivedImpairment
   };
 
-  if (window.saveReport && aiResult) {
-    await window.saveReport({ userInfo:{...userInfo}, riskLevel:aiResult.riskLevel, confidenceScore:aiResult.confidenceScore, modelProb:aiResult.modelProb??null, emotionalSignals:aiResult.emotionalSignals, contributions:aiResult.contributions, recommendations:aiResult.recommendations, insights:aiResult.insights??null, adet:aiResult.adet??null, depressionType, inputModes:{audio:!!audioBase64,text:!!(textInputVal&&textInputVal.trim())}, questionnaire:questionnaireData });
+  if (aiResult) {
+    // Wait for Firebase auth to be ready before saving (fixes race on first session)
+    const maxWait = 8000;
+    const start = Date.now();
+    while (!window.saveReport && (Date.now() - start) < maxWait) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (window.saveReport) {
+      await window.saveReport({ userInfo:{...userInfo}, riskLevel:aiResult.riskLevel, confidenceScore:aiResult.confidenceScore, modelProb:aiResult.modelProb??null, emotionalSignals:aiResult.emotionalSignals, contributions:aiResult.contributions, recommendations:aiResult.recommendations, insights:aiResult.insights??null, adet:aiResult.adet??null, depressionType, inputModes:{audio:!!audioBase64,text:!!(textInputVal&&textInputVal.trim())}, questionnaire:questionnaireData });
+    }
   }
 
   if (aiResult) {

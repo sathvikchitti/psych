@@ -219,9 +219,20 @@
 <script type="module">
     import { auth, db } from './js/firebase-config.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
-    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+    import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+    let _firebaseUser = null;
+
+    // Expose a direct save function that doesn't need window.currentUser
+    window._saveAgeGenderDirect = async function(age, gender) {
+        if (!_firebaseUser) return;
+        try {
+            await setDoc(doc(db, 'users', _firebaseUser.uid), { age, gender }, { merge: true });
+        } catch(e) { console.error('Failed to save age/gender:', e); }
+    };
 
     onAuthStateChanged(auth, async (user) => {
+        _firebaseUser = user;
         const loginBtn = document.getElementById('login-signup-btn');
         const badgeWrap = document.getElementById('user-badge');
         const avatarNav = document.getElementById('user-avatar');
@@ -281,10 +292,8 @@
 
         sessionStorage.setItem('md_userInfo', JSON.stringify({ name, age, gender }));
 
-        // Also persist age & gender to Firestore so they appear on the profile page
-        if (window.saveUserProfile) {
-            window.saveUserProfile({ age, gender }).catch(() => {});
-        }
+        // Persist age & gender directly to Firestore (does not need window.currentUser)
+        window._saveAgeGenderDirect(age, gender).catch(() => {});
 
         window.location.href = 'analysis.html';
     };
