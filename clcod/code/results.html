@@ -623,7 +623,7 @@ function renderResults(result, depressionType, isDepressed) {
       {key:'audio',icon:'🎙️',bg:'#E6F1FB',title:'Voice & Audio Signals'},
       {key:'text',icon:'📝',bg:'#EAF3DE',title:'Language & Text Signals'},
       {key:'questionnaire',icon:'⚡',bg:'#FAEEDA',title:'Questionnaire Insights'},
-      {key:'cognitive',icon:'🧠',bg:'#F3E8FF',title:'Cognitive Patterns'},
+      
     ];
     insightsGrid.innerHTML = defs.map(def => {
       const ins = result.insights?.[def.key];
@@ -698,7 +698,7 @@ function renderResults(result, depressionType, isDepressed) {
     const steps = isDepressed ? [
       {label:'Today',text:'Share this report with a family member or trusted friend.'},
       {label:'Within 24–48 hours',text:'Book an appointment with a psychiatrist or clinical psychologist. Bring this report.'},
-      {label:'Seek urgent help if',text:'You experience thoughts of self-harm. Call 112 or your nearest emergency department.'},
+      {label:'Seek urgent help if',text:'You experience thoughts of self-harm. Tele MANAS program offers free, 24/7 mental health support via the short code 14416 or toll-free number 1800-89-14416 or your nearest emergency department.'},
       {label:'Follow-up',text:'Schedule a re-assessment in 2–4 weeks to track progress.'},
     ] : [
       {label:'Keep monitoring',text:'Your assessment shows low risk. Schedule a follow-up in 4–6 weeks.'},

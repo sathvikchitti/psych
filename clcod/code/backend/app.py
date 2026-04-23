@@ -1231,6 +1231,88 @@ def _build_report_html(data: dict) -> str:
       </span>
     """
 
+    # ADET — Cognitive Feature Analysis
+    adet_html = ""
+    adet = data.get("adet")
+    if adet:
+        C = _PDF_COLORS
+
+        def _bar(density, color_fill, color_bg):
+            w = f"{min(density * 100, 100):.1f}%"
+            return (f'<div class="ps-adet-bar" style="background:{color_bg};">'
+                    f'<div class="ps-adet-fill" style="width:{w};background:{color_fill};"></div></div>')
+
+        # Distortions column
+        dist_items = ""
+        for d in (adet.get("distortions") or []):
+            dist_items += f"""
+              <div class="ps-adet-item">
+                <div class="ps-adet-row">
+                  <span class="ps-adet-name" style="color:#991B1B;">{d['name']}</span>
+                  <span class="ps-adet-pct" style="color:#F87171;">{round(d['density']*100)}%</span>
+                </div>
+                {_bar(d['density'], '#EF4444', '#FEE2E2')}
+                <div class="ps-adet-desc">{d['description']}</div>
+              </div>"""
+        if not dist_items:
+            dist_items = '<div class="ps-adet-empty">No cognitive distortions detected in text input.</div>'
+
+        # Coping column
+        cope_items = ""
+        for c in (adet.get("coping") or []):
+            cope_items += f"""
+              <div class="ps-adet-item">
+                <div class="ps-adet-row">
+                  <span class="ps-adet-name" style="color:#065F46;">{c['name']}</span>
+                  <span class="ps-adet-pct" style="color:#34D399;">{round(c['density']*100)}%</span>
+                </div>
+                {_bar(c['density'], '#10B981', '#D1FAE5')}
+                <div class="ps-adet-desc">{c['description']}</div>
+              </div>"""
+        if not cope_items:
+            cope_items = '<div class="ps-adet-empty">No positive coping strategies detected in text input.</div>'
+
+        # Cognitive risk score
+        score = adet.get("cognitive_risk_score", 0)
+        score_color = "#DC2626" if score > 6 else ("#D97706" if score > 3.5 else "#16A34A")
+        score_label = "High Elevated Risk" if score > 6 else ("Moderate Risk" if score > 3.5 else "Low Risk")
+        score_html = f"""
+          <div class="ps-adet-score-row">
+            <span class="ps-adet-score-label">Cognitive Rigidity Score</span>
+            <span class="ps-adet-score-val" style="color:{score_color};">{score:.1f} / 10.0 — {score_label}</span>
+          </div>
+          {_bar(score / 10, 'linear-gradient(90deg,#86EFAC,#F59E0B,#EF4444)', '#F3F4F6')}"""
+
+        # Audio features
+        audio_items = "".join(
+            f'<div class="ps-adet-audio-item">{a}</div>'
+            for a in (adet.get("audio_features") or [])
+        )
+
+        adet_html = f"""
+          <div class="ps-card">
+            <div class="ps-card-title"><div class="ps-card-title-bar"></div> Cognitive Feature Analysis (ADET)</div>
+            <div style="font-size:13px;color:{C['text_secondary']};line-height:1.7;margin-bottom:12px;">
+              Automated Depression Evidence Tracker — linguistic patterns in the text input were analysed for
+              cognitive distortions associated with depression and for positive coping mechanisms.
+            </div>
+            {score_html}
+            <div style="margin-top:14px;">
+              <div class="ps-adet-grid">
+                <div class="ps-adet-col">
+                  <div class="ps-adet-sub" style="color:#991B1B;">Cognitive Distortions</div>
+                  {dist_items}
+                </div>
+                <div class="ps-adet-col">
+                  <div class="ps-adet-sub" style="color:#065F46;">Coping Mechanisms</div>
+                  {cope_items}
+                </div>
+              </div>
+            </div>
+            {f'<div style="margin-top:12px;"><div class="ps-adet-sub" style="color:#6D28D9;">Vocal Biomarkers</div>{audio_items}</div>' if audio_items else ''}
+          </div>
+        """
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1392,6 +1474,24 @@ body {{
 .ps-doc-name {{ font-weight: 500; }}
 .ps-doc-spec  {{ color: {C['text_secondary']}; }}
 .ps-doc-place {{ color: {C['text_secondary']}; }}
+
+/* ADET — Cognitive Analysis */
+.ps-adet-grid {{ display: table; width: 100%; border-collapse: separate; border-spacing: 10px 0; margin-bottom: 4px; }}
+.ps-adet-col  {{ display: table-cell; width: 50%; vertical-align: top; }}
+.ps-adet-sub  {{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: {C['text_secondary']}; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid {C['border']}; }}
+.ps-adet-item {{ margin-bottom: 10px; }}
+.ps-adet-row  {{ display: table; width: 100%; margin-bottom: 3px; }}
+.ps-adet-name {{ display: table-cell; font-size: 12px; font-weight: 600; }}
+.ps-adet-pct  {{ display: table-cell; font-size: 11px; text-align: right; }}
+.ps-adet-bar  {{ height: 4px; border-radius: 2px; overflow: hidden; margin-bottom: 3px; }}
+.ps-adet-fill {{ height: 100%; border-radius: 2px; }}
+.ps-adet-desc {{ font-size: 11px; color: {C['text_secondary']}; line-height: 1.5; }}
+.ps-adet-score-row {{ display: table; width: 100%; margin-bottom: 6px; }}
+.ps-adet-score-label {{ display: table-cell; font-size: 12px; color: {C['text_secondary']}; }}
+.ps-adet-score-val   {{ display: table-cell; font-size: 12px; font-weight: 700; text-align: right; }}
+.ps-adet-audio-item  {{ font-size: 12px; color: #6D28D9; margin-bottom: 5px; padding-left: 12px; position: relative; }}
+.ps-adet-audio-item::before {{ content: "•"; position: absolute; left: 0; color: #A78BFA; }}
+.ps-adet-empty {{ font-size: 12px; color: {C['text_secondary']}; font-style: italic; }}
 
 /* Disclaimer */
 .ps-disclaimer {{
