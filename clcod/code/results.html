@@ -898,11 +898,11 @@ window.downloadReport = async function() {
   const nextSteps = isDepressed ? [
     { label: 'Today',                        body: 'Share this report with a family member, partner, or trusted friend. You do not need to face this alone.' },
     { label: 'Within 24–48 hours',           body: 'Book an appointment with a psychiatrist or clinical psychologist. Bring this report to the appointment.' },
-    { label: 'Seek urgent help immediately if', body: 'You experience thoughts of self-harm or a sudden worsening of symptoms. Call Tele MANAS 4/7 mental health support via the short code 14416 or toll-free number 1800-89-14416  or go to your nearest emergency department.' },
-    { label: 'Follow-up session',            body: 'Schedule a re-assessment with ManoDhwini in 2–4 weeks to track progress after professional intervention begins.' },
+    { label: 'Seek urgent help immediately if', body: 'You experience thoughts of self-harm or a sudden worsening of symptoms. Call 112 or go to your nearest emergency department.' },
+    { label: 'Follow-up session',            body: 'Schedule a re-assessment with PsychSense in 2–4 weeks to track progress after professional intervention begins.' },
   ] : [
     { label: 'Today',            body: 'Share this report with a trusted friend or family member as a baseline record.' },
-    { label: 'Follow-up session',body: 'Schedule a re-assessment with ManoDhwini in 2–4 weeks to track your wellbeing.' },
+    { label: 'Follow-up session',body: 'Schedule a re-assessment with PsychSense in 2–4 weeks to track your wellbeing.' },
   ];
 
   // Doctors — map DOCTORS_DATA format (workplace) → generate_report.py format (place)
@@ -944,8 +944,8 @@ window.downloadReport = async function() {
       session_date: dateStr,
     },
     executive_summary: isDepressed
-      ? `ManoDhwini's multimodal analysis identified significant markers of <strong>${depType || 'a depressive episode'}</strong>. The combined signal places this assessment in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%.`
-      : "ManoDhwini's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.",
+      ? `PsychSense's multimodal analysis identified significant markers of <strong>${depType || 'a depressive episode'}</strong>. The combined signal places this assessment in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%.`
+      : "PsychSense's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.",
     risk_factors:     riskFactors,
     insights,
     recommendations,
@@ -971,14 +971,14 @@ window.downloadReport = async function() {
     const url      = URL.createObjectURL(blob);
     const anchor   = document.createElement('a');
     anchor.href    = url;
-    anchor.download = `ManoDhwini_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`;
+    anchor.download = `PsychSense_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
   } catch (err) {
-    console.error('[ManoDhwini] PDF generation failed:', err);
-    alert('Could not generate PDF: ' + err.message + '\n\nMake sure the ManoDhwini backend is running.');
+    console.error('[PsychSense] PDF generation failed:', err);
+    alert('Could not generate PDF: ' + err.message + '\n\nMake sure the PsychSense backend is running.');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
   }

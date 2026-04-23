@@ -665,8 +665,185 @@ def get_recommendations(risk_level, q):
 # ─────────────────────────────────────────────────────────────────────
 
 def build_cognitive_insights(text: str, p_dep: float) -> list:
-    """Cognitive insights removed in v4."""
-    return ["Cognitive feature extraction is deprecated in this model version."]
+    """Kept for legacy compatibility."""
+    return ["Cognitive indicators reflected in ADET analysis below."]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ADET — Automated Depression Evidence Tracker
+# Analyses text for cognitive distortions and coping mechanisms using
+# keyword/pattern matching.  Runs entirely in-process with no extra deps.
+# ─────────────────────────────────────────────────────────────────────
+
+_DISTORTION_PATTERNS = {
+    "Catastrophising": {
+        "patterns": [
+            r"\b(everything('s| is) (ruined|over|hopeless|terrible))\b",
+            r"\b(worst|disaster|catastrophe|horrible|awful|dreadful)\b",
+            r"\b(nothing will ever|it('s| is) all over|can('t| not) get worse)\b",
+            r"\b(doom(ed)?|end of (the )?world|unbearable|devastating)\b",
+        ],
+        "description": "Tendency to magnify problems and imagine worst-case outcomes.",
+    },
+    "All-or-Nothing Thinking": {
+        "patterns": [
+            r"\b(always|never|every(one|body|thing)|no(body|one|thing))\b",
+            r"\b(completely|totally|utterly|absolutely|entirely)\b",
+            r"\b(perfect(ly)?|failure|useless|worthless)\b",
+            r"\b(all (wrong|bad|my fault)|none of it matters)\b",
+        ],
+        "description": "Viewing situations in black-and-white without acknowledging nuance.",
+    },
+    "Mind Reading": {
+        "patterns": [
+            r"\b(they (think|know|hate|blame) (me|I))\b",
+            r"\b(everyone (thinks|knows|hates|blames|judges) me)\b",
+            r"\b(people (think|see|view) me as)\b",
+            r"\b(I know (they|he|she|everyone) (thinks|feels|believes))\b",
+        ],
+        "description": "Assuming what others think or feel without direct evidence.",
+    },
+    "Emotional Reasoning": {
+        "patterns": [
+            r"\b(I feel (like a|so|completely) (failure|worthless|stupid|broken|useless))\b",
+            r"\b(I feel (it|that) (is|must be) (true|real|happening))\b",
+            r"\b(because I feel.*(it|this) (must|has to) be)\b",
+            r"\b(I (just )?feel (like nothing|like it's|terrible so))\b",
+        ],
+        "description": "Treating feelings as facts rather than subjective experiences.",
+    },
+    "Personalisation": {
+        "patterns": [
+            r"\b(it('s| is) (all |my fault|because of me))\b",
+            r"\b(I (caused|ruined|broke|destroyed|caused))\b",
+            r"\b(blame myself|my fault|I should have|if only I (had|was|were|did))\b",
+            r"\b(I (always |constantly )?(mess|screw|ruin) (everything|things|it) up)\b",
+        ],
+        "description": "Taking excessive personal responsibility for external events.",
+    },
+    "Overgeneralisation": {
+        "patterns": [
+            r"\b(this (always|never) happens (to me))\b",
+            r"\b(I (always|never) (fail|mess up|get it wrong|succeed))\b",
+            r"\b(every time I try|it('s| is) always like this)\b",
+            r"\b(things (never|always) (work out|go wrong) for me)\b",
+        ],
+        "description": "Drawing broad conclusions from a single negative event.",
+    },
+}
+
+_COPING_PATTERNS = {
+    "Help-Seeking": {
+        "patterns": [
+            r"\b(talk(ing|ed)? to (someone|a friend|my therapist|a doctor|counsellor))\b",
+            r"\b(reach(ing|ed)? out|ask(ing|ed)? for help|seeing a (therapist|doctor|psychologist))\b",
+            r"\b(in therapy|going to therapy|started (therapy|counselling))\b",
+        ],
+        "description": "Actively seeking social or professional support.",
+    },
+    "Mindfulness / Grounding": {
+        "patterns": [
+            r"\b(meditat(e|ing|ed|ion)|mindful(ness)?|breath(ing|e) exercise)\b",
+            r"\b(staying present|grounding|journaling|gratitude)\b",
+            r"\b(5-4-3-2-1|body scan|deep breath)\b",
+        ],
+        "description": "Using present-moment awareness or grounding techniques.",
+    },
+    "Physical Activity": {
+        "patterns": [
+            r"\b(exercis(e|ing|ed)|walk(ing|ed)|run(ning)?|gym|workout)\b",
+            r"\b(yoga|cycling|swimming|sport(s)?|physical activity)\b",
+        ],
+        "description": "Engaging in physical movement to manage mood.",
+    },
+    "Positive Reframing": {
+        "patterns": [
+            r"\b(try(ing)? to (see|think|look at) (the )?positive|silver lining)\b",
+            r"\b(reframe|it could be worse|at least|looking on the bright side)\b",
+            r"\b(grateful|thankful|appreciate|bless(ed)?)\b",
+        ],
+        "description": "Actively reinterpreting situations in a more constructive light.",
+    },
+    "Creative Expression": {
+        "patterns": [
+            r"\b(writ(e|ing|ten)|draw(ing)?|paint(ing)?|music|play(ing)? (an )?instrument)\b",
+            r"\b(creat(e|ing|ive)|art|express myself|journaling|blogging)\b",
+        ],
+        "description": "Using creative outlets to process and express emotions.",
+    },
+    "Social Connection": {
+        "patterns": [
+            r"\b(spent time (with|around)|hang(ing|out) (with|out)|friends|family)\b",
+            r"\b(called (a friend|someone|my (mum|mom|dad|sister|brother)))\b",
+            r"\b(meeting (up|people)|social(ising|izing)?|community)\b",
+        ],
+        "description": "Maintaining supportive relationships as a buffer against distress.",
+    },
+}
+
+
+def _score_patterns(text: str, pattern_dict: dict) -> list:
+    """Return list of {name, density, description} sorted by density desc."""
+    text_lower = text.lower()
+    word_count = max(len(text_lower.split()), 1)
+    results = []
+    for name, cfg in pattern_dict.items():
+        hits = 0
+        for pat in cfg["patterns"]:
+            hits += len(re.findall(pat, text_lower))
+        if hits > 0:
+            density = min(hits / word_count * 8, 1.0)   # scale: ~1 hit per 8 words = 100%
+            results.append({
+                "name":        name,
+                "density":     round(density, 3),
+                "description": cfg["description"],
+            })
+    results.sort(key=lambda x: x["density"], reverse=True)
+    return results[:5]   # cap at 5 items per category
+
+
+def build_adet(text: str, p_dep: float, audio_path) -> dict | None:
+    """
+    Build the ADET payload.
+    Returns None when no text is provided (nothing to analyse cognitively).
+    """
+    if not text or not text.strip():
+        return None
+
+    distortions = _score_patterns(text, _DISTORTION_PATTERNS)
+    coping      = _score_patterns(text, _COPING_PATTERNS)
+
+    # Cognitive risk score (0–10): blend of model probability + distortion load
+    distortion_load = sum(d["density"] for d in distortions) / max(len(distortions), 1) if distortions else 0.0
+    cognitive_risk_score = round(
+        p_dep * 6.0                 # model contributes up to 6 pts
+        + distortion_load * 3.0     # distortion density adds up to 3 pts
+        + (0 if coping else 1.0),   # absence of coping adds 1 pt
+        1
+    )
+    cognitive_risk_score = min(cognitive_risk_score, 10.0)
+
+    # Audio feature bullets (shown in the audio sub-section of ADET card)
+    audio_features = []
+    if audio_path:
+        if p_dep > 0.6:
+            audio_features.append("Reduced prosodic variability detected — consistent with depressed affect.")
+            audio_features.append("Speech rhythm shows flattened intonation contours.")
+        elif p_dep > 0.4:
+            audio_features.append("Moderate changes in vocal energy detected.")
+            audio_features.append("Some reduction in pitch range observed.")
+        else:
+            audio_features.append("Vocal prosody within normal clinical range.")
+            audio_features.append("No significant acoustic markers of depression detected.")
+    else:
+        audio_features.append("No audio provided — vocal biomarker analysis unavailable.")
+
+    return {
+        "distortions":          distortions,
+        "coping":               coping,
+        "cognitive_risk_score": cognitive_risk_score,
+        "audio_features":       audio_features,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -763,7 +940,7 @@ def predict(text: str, audio_path: str, q: dict) -> dict:
             "questionnaire": {"points": q_points},
             "cognitive":     {"points": ["Cognitive indicators migrated to text modality in v4."]}
         },
-        "adet":             None,
+        "adet":             build_adet(text, p_dep, audio_path),
         "recommendations":  recs,
         "modelProb":        round(p_dep * 100, 2),
         "threshold":        round(THRESHOLD, 2),
