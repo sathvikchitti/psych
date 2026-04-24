@@ -335,6 +335,15 @@
 
   <!-- Inject app.js logic for profile rendering -->
   <script>
+    // ── Resolve Firestore Timestamp or ISO string → JS Date ──────────
+    function _toDate(v) {
+      if (!v) return null;
+      if (typeof v === 'object' && typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+      if (typeof v.toDate === 'function') return v.toDate();
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
     // Minimal goTo shim so app.js can navigate
     window.goTo = function (page) {
       if (page === 'landing') { window.location.href = 'index.html'; return; }
@@ -376,6 +385,7 @@
 
       // Load reports
       try { _profileReportsCache = window.loadReports ? await window.loadReports() : []; } catch (_) { _profileReportsCache = []; }
+      window._cachedReports = _profileReportsCache;
 
       const totalEl = document.getElementById('pf-total-sessions');
       if (totalEl) totalEl.textContent = _profileReportsCache.length;
@@ -402,16 +412,16 @@
 
       if (tab === 'hourly') {
         for (let h = 23; h >= 0; h--) { const d = new Date(now); d.setMinutes(0, 0, 0); d.setHours(d.getHours() - h); buckets.push({ label: d.getHours() + ':00', ts: d.getTime(), value: null }); }
-        reports.forEach(r => { const t = new Date(r.createdAt).getTime(); const age = now - t; if (age > 24 * 3600000) return; const hi = Math.floor((now - t) / 3600000); const idx = 23 - hi; if (idx >= 0) { const val = r.modelProb ?? r.confidenceScore ?? null; if (val !== null && (buckets[idx].value === null || t > buckets[idx]._latest)) { buckets[idx].value = val; buckets[idx]._latest = t; } } });
+        reports.forEach(r => { const t = (_toDate(r.createdAt)||new Date()).getTime(); const age = now - t; if (age > 24 * 3600000) return; const hi = Math.floor((now - t) / 3600000); const idx = 23 - hi; if (idx >= 0) { const val = r.modelProb ?? r.confidenceScore ?? null; if (val !== null && (buckets[idx].value === null || t > buckets[idx]._latest)) { buckets[idx].value = val; buckets[idx]._latest = t; } } });
       } else if (tab === 'daily') {
         for (let d = 6; d >= 0; d--) { const dt = new Date(now); dt.setDate(dt.getDate() - d); buckets.push({ label: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), dateStr: dt.toDateString(), value: null, _latest: 0 }); }
-        reports.forEach(r => { const dt = new Date(r.createdAt); const b = buckets.find(x => x.dateStr === dt.toDateString()); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; const t = dt.getTime(); if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
+        reports.forEach(r => { const dt = (_toDate(r.createdAt)||new Date()); const b = buckets.find(x => x.dateStr === dt.toDateString()); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; const t = dt.getTime(); if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
       } else if (tab === 'weekly') {
         for (let w = 7; w >= 0; w--) { const dt = new Date(now); dt.setDate(dt.getDate() - w * 7); const ws = dt.getTime() - (dt.getDay()) * 86400000; buckets.push({ label: 'Wk ' + dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), weekStart: ws, weekEnd: ws + 7 * 86400000, value: null, _latest: 0 }); }
-        reports.forEach(r => { const t = new Date(r.createdAt).getTime(); const b = buckets.find(x => t >= x.weekStart && t < x.weekEnd); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
+        reports.forEach(r => { const t = (_toDate(r.createdAt)||new Date()).getTime(); const b = buckets.find(x => t >= x.weekStart && t < x.weekEnd); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
       } else {
         for (let m = 11; m >= 0; m--) { const dt = new Date(now.getFullYear(), now.getMonth() - m, 1); buckets.push({ label: dt.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), month: dt.getMonth(), year: dt.getFullYear(), value: null, _latest: 0 }); }
-        reports.forEach(r => { const dt = new Date(r.createdAt); const b = buckets.find(x => x.month === dt.getMonth() && x.year === dt.getFullYear()); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; const t = dt.getTime(); if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
+        reports.forEach(r => { const dt = (_toDate(r.createdAt)||new Date()); const b = buckets.find(x => x.month === dt.getMonth() && x.year === dt.getFullYear()); if (!b) return; const val = r.modelProb ?? r.confidenceScore ?? null; const t = dt.getTime(); if (val !== null && (b.value === null || t > b._latest)) { b.value = val; b._latest = t; } });
       }
 
       const chartEl = document.getElementById('pf-chart-svg');
@@ -458,7 +468,7 @@
         return;
       }
       histEl.innerHTML = reports.map((r, idx) => {
-        const dt = new Date(r.createdAt);
+        const dt = (_toDate(r.createdAt)||new Date());
         const date = dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
         const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const risk = r.riskLevel || 'Low';
@@ -469,6 +479,7 @@
         const hasAudio = r.inputModes?.audio ?? false;
         const hasText = r.inputModes?.text ?? false;
         const depType = r.depressionType ? `<span style="font-size:11px;color:#64748b;">${r.depressionType}</span>` : '';
+        const rIdx = idx;
         return `<div class="session-row">
       <div style="min-width:110px;"><div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:#111;">${date}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${time}</div></div>
       <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
@@ -480,12 +491,158 @@
       </div>
       <div style="text-align:center;min-width:60px;"><div style="font-size:22px;font-weight:800;font-family:'Epilogue',sans-serif;color:#8e0008;">${pb}%</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">PROBABILITY</div></div>
       <span class="risk-pill" style="background:${rBg};border:1px solid ${rBdr};color:${rClr};">${risk} Risk</span>
-      <button onclick="window.location.href='results.html'" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(0,0,0,0.1);border-radius:9999px;padding:6px 14px;color:#64748b;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
-        <span class="material-symbols-outlined" style="font-size:14px;">open_in_new</span>View
-      </button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button onclick="window.viewHistoricalReport(${rIdx})" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(0,0,0,0.1);border-radius:9999px;padding:6px 14px;color:#64748b;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+          <span class="material-symbols-outlined" style="font-size:14px;">open_in_new</span>View
+        </button>
+        <button onclick="window.downloadHistoricalReport(${rIdx})" id="dl-btn-${rIdx}" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(0,0,0,0.1);border-radius:9999px;padding:6px 14px;color:#64748b;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+          <span class="material-symbols-outlined" style="font-size:14px;">download</span>PDF
+        </button>
+      </div>
     </div>`;
       }).join('');
     }
+
+    // ── Historical report helpers ──────────────────────────────────────────
+    // Cache the loaded reports so View/Download can access them by index
+    window._cachedReports = [];
+
+    window.viewHistoricalReport = function(idx) {
+      const r = window._cachedReports[idx];
+      if (!r) return;
+      // Store report data into sessionStorage so results.html can read it
+      sessionStorage.setItem('md_aiResult', JSON.stringify(r));
+      sessionStorage.setItem('md_historical_report', JSON.stringify(r));
+      // Preserve userInfo but patch name from currentUser if blank
+      const existing = JSON.parse(sessionStorage.getItem('md_userInfo') || '{}');
+      if (!existing.name && window.currentUser?.name) {
+        existing.name = window.currentUser.name;
+        sessionStorage.setItem('md_userInfo', JSON.stringify(existing));
+      }
+      window.location.href = 'results.html';
+    };
+
+    const FLASK_API_URL_PF = 'https://sense123-psychsense.hf.space';
+
+    window.downloadHistoricalReport = async function(idx) {
+      const r = window._cachedReports[idx];
+      if (!r) return;
+      const btn = document.getElementById(`dl-btn-${idx}`);
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">hourglass_empty</span>…'; }
+
+      // Build the same payload structure as results.html downloadReport()
+      const DEPRESSION_INFO_FULL = {
+        'Major Depressive Disorder (MDD)':            { desc: 'MDD is characterised by persistent low mood, loss of interest, and a range of physical and cognitive symptoms lasting at least two weeks.' },
+        'Postpartum Depression':                       { desc: 'PPD occurs after childbirth, marked by intense sadness, anxiety, and exhaustion that interfere with caring for oneself or the baby.' },
+        'Seasonal Affective Disorder (SAD)':           { desc: 'SAD is a recurrent depression tied to seasonal changes, typically emerging in autumn/winter when daylight hours shorten.' },
+        'Atypical Depression':                         { desc: 'Atypical depression features mood reactivity along with hypersomnia and increased appetite.' },
+        'Persistent Depressive Disorder (Dysthymia)': { desc: 'Dysthymia is a chronic, lower-grade depression lasting two or more years, causing significant long-term impairment.' },
+        'Depressive Episode':                          { desc: 'A sustained period of depressed mood, reduced energy, and diminished interest in activities. Warrants a full clinical assessment.' },
+      };
+
+      const isDepressed = r.riskLevel === 'Moderate' || r.riskLevel === 'High';
+      const displayPercent = isDepressed ? (r.modelProb ?? r.confidenceScore ?? '—') : null;
+      const dt = (_toDate(r.createdAt)||new Date());
+      const dateStr = dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+      const reportId = r.id ? `MD-${r.id.slice(0,8).toUpperCase()}` : ('MD-' + dt.getFullYear() + '-' + Math.floor(1000 + Math.random()*9000));
+      const depType = (r.depressionType && r.depressionType !== '—') ? r.depressionType : (isDepressed ? 'Depressive Episode' : null);
+      const riskClass = r.riskLevel || 'Low';
+      const uName = window.currentUser?.name || 'Anonymous';
+      const uInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{}');
+      const modes = ['Audio','Text'].filter(m => r.contributions?.[m.toLowerCase()] > 0).join(' · ') || (r.inputModes?.text ? 'Text' : r.inputModes?.audio ? 'Audio' : 'Text');
+      const depInfoFull = depType ? (DEPRESSION_INFO_FULL[depType] || { desc: 'A depressive episode was identified. Clinical assessment is advised.' }) : null;
+      const probPct = typeof displayPercent === 'number' ? displayPercent : 0;
+
+      const insightDefs = [
+        { key: 'audio',         type: 'audio',        icon: 'MIC', title: 'Voice & Audio Signals' },
+        { key: 'text',          type: 'text',          icon: 'TXT', title: 'Language & Text Signals' },
+        { key: 'cognitive',     type: 'facial',        icon: 'VID', title: 'Facial & Visual Cues' },
+        { key: 'questionnaire', type: 'questionnaire', icon: 'QST', title: 'Questionnaire Insights' },
+      ];
+      const insights = insightDefs.map(def => {
+        const ins = r.insights?.[def.key];
+        let body;
+        if (def.key === 'cognitive') {
+          body = 'Visual modality (ViT) is trained and ready — video analysis will be available in a future update.';
+        } else {
+          const pts = (ins?.points || []).filter(p => p && p !== 'undefined');
+          body = pts.join('. ') || (def.key === 'audio' ? 'No audio input provided — audio modality not analysed.' : 'Analysis complete.');
+        }
+        return { type: def.type, icon: def.icon, title: def.title, body };
+      });
+
+      const recs = r.recommendations || [];
+      const chunk = Math.ceil(recs.length / 3);
+      const recommendations = { immediate: recs.slice(0, chunk), professional: recs.slice(chunk, chunk*2), lifestyle: recs.slice(chunk*2) };
+
+      const riskFactors = isDepressed ? [
+        { label: `Severity score ≥ ${displayPercent || 60}%`, body: "The model's output crosses the clinical high-risk threshold established from validated depression screening benchmarks." },
+        { label: 'Multimodal agreement', body: `${modes} signals are independently flagging distress, strengthening the reliability of the prediction.` },
+        depInfoFull && depType ? { label: `${depType} context`, body: depInfoFull.desc } : null,
+        { label: 'Negative cognitive patterns', body: 'Language analysis detected persistent distress framing and reduced future-oriented speech, associated with higher-risk presentations.' },
+      ].filter(Boolean) : [];
+
+      const nextSteps = isDepressed ? [
+        { label: 'Today', body: 'Share this report with a family member, partner, or trusted friend. You do not need to face this alone.' },
+        { label: 'Within 24–48 hours', body: 'Book an appointment with a psychiatrist or clinical psychologist. Bring this report to the appointment.' },
+        { label: 'Seek urgent help immediately if', body: 'You experience thoughts of self-harm or a sudden worsening of symptoms. Call Tele MANAS: 14416 or 1800-89-14416, or go to your nearest emergency department.' },
+        { label: 'Follow-up session', body: 'Schedule a re-assessment with ManoDhwani in 2–4 weeks to track progress after professional intervention begins.' },
+      ] : [
+        { label: 'Today', body: 'Share this report with a trusted friend or family member as a baseline record.' },
+        { label: 'Follow-up session', body: 'Schedule a re-assessment with ManoDhwani in 2–4 weeks to track your wellbeing.' },
+      ];
+
+      const probRangeLabel = isDepressed ? (probPct >= 75 ? 'Severe range (≥ 75%)' : 'Moderate range (51–75%)') : 'Normal range (< 51%)';
+      const disorderDesc = depInfoFull ? `<strong>${depType}</strong> — ${depInfoFull.desc}` : '';
+      const disorderTags = depType ? [depType, ...(r.tags || [])] : ['No Disorder Detected'];
+
+      const reportPayload = {
+        report_id:           reportId,
+        risk_level:          isDepressed ? `${riskClass} Risk` : 'Low Risk',
+        risk_sub_label:      isDepressed ? (riskClass === 'High' ? 'Immediate action required' : 'Intervention advised') : 'Low levels',
+        analysis_mode:       `Multimodal (${modes})`,
+        probability_pct:     probPct,
+        prob_range_label:    probRangeLabel,
+        disorder_name:       depType || 'No disorder detected',
+        disorder_short_desc: depInfoFull ? 'Detected via multimodal analysis' : '',
+        disorder_desc:       disorderDesc,
+        disorder_tags:       disorderTags,
+        patient: { name: uName, age: uInfo.age || '—', gender: uInfo.gender || '—', session_date: dateStr },
+        executive_summary: isDepressed
+          ? `ManoDhwani's multimodal analysis identified significant markers of <strong>${depType || 'a depressive episode'}</strong>. The combined signal places this assessment in the <strong>${riskClass} Risk</strong> category, with an overall severity score of ${displayPercent}%.`
+          : "ManoDhwani's multimodal analysis did not identify significant markers of depression. The combined signals placed this assessment in the <strong>Low Risk</strong> category.",
+        risk_factors:   riskFactors,
+        insights,
+        recommendations,
+        next_steps:     nextSteps,
+        city:           'Hyderabad',
+        doctors:        [],
+        trajectory_chart_svg: '',
+      };
+
+      try {
+        const resp = await fetch(`${FLASK_API_URL_PF}/generate-pdf`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reportPayload),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `ManoDhwani_Report_${uName.replace(/\s+/g,'_')}_${dateStr.replace(/\s/g,'_')}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('PDF generation failed. Please try again.');
+        console.error('[ManoDhwani] PDF generation failed:', err);
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">download</span>PDF'; }
+      }
+    };
   </script>
 
   <!-- Chart Modal Popup -->
@@ -530,16 +687,16 @@
       let buckets = [];
       if (tab === 'hourly') {
         for (let h = 23; h >= 0; h--) { const d = new Date(now); d.setMinutes(0,0,0); d.setHours(d.getHours()-h); buckets.push({label:d.getHours()+':00',ts:d.getTime(),value:null,_latest:0}); }
-        reports.forEach(r => { const t=new Date(r.createdAt).getTime(); const age=now-t; if(age>24*3600000)return; const hi=Math.floor((now-t)/3600000); const idx=23-hi; if(idx>=0){const val=r.modelProb??r.confidenceScore??null; if(val!==null&&(buckets[idx].value===null||t>buckets[idx]._latest)){buckets[idx].value=val;buckets[idx]._latest=t;}} });
+        reports.forEach(r => { const t=(_toDate(r.createdAt)||new Date()).getTime(); const age=now-t; if(age>24*3600000)return; const hi=Math.floor((now-t)/3600000); const idx=23-hi; if(idx>=0){const val=r.modelProb??r.confidenceScore??null; if(val!==null&&(buckets[idx].value===null||t>buckets[idx]._latest)){buckets[idx].value=val;buckets[idx]._latest=t;}} });
       } else if (tab === 'daily') {
         for (let d=6;d>=0;d--){const dt=new Date(now);dt.setDate(dt.getDate()-d);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),dateStr:dt.toDateString(),value:null,_latest:0});}
-        reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.dateStr===dt.toDateString());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+        reports.forEach(r=>{const dt=(_toDate(r.createdAt)||new Date());const b=buckets.find(x=>x.dateStr===dt.toDateString());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
       } else if (tab === 'weekly') {
         for (let w=7;w>=0;w--){const dt=new Date(now);dt.setDate(dt.getDate()-w*7);const ws=dt.getTime()-(dt.getDay())*86400000;buckets.push({label:'Wk '+dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}),weekStart:ws,weekEnd:ws+7*86400000,value:null,_latest:0});}
-        reports.forEach(r=>{const t=new Date(r.createdAt).getTime();const b=buckets.find(x=>t>=x.weekStart&&t<x.weekEnd);if(!b)return;const val=r.modelProb??r.confidenceScore??null;if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+        reports.forEach(r=>{const t=(_toDate(r.createdAt)||new Date()).getTime();const b=buckets.find(x=>t>=x.weekStart&&t<x.weekEnd);if(!b)return;const val=r.modelProb??r.confidenceScore??null;if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
       } else {
         for (let m=11;m>=0;m--){const dt=new Date(now.getFullYear(),now.getMonth()-m,1);buckets.push({label:dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'}),month:dt.getMonth(),year:dt.getFullYear(),value:null,_latest:0});}
-        reports.forEach(r=>{const dt=new Date(r.createdAt);const b=buckets.find(x=>x.month===dt.getMonth()&&x.year===dt.getFullYear());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
+        reports.forEach(r=>{const dt=(_toDate(r.createdAt)||new Date());const b=buckets.find(x=>x.month===dt.getMonth()&&x.year===dt.getFullYear());if(!b)return;const val=r.modelProb??r.confidenceScore??null;const t=dt.getTime();if(val!==null&&(b.value===null||t>b._latest)){b.value=val;b._latest=t;}});
       }
       const chartEl = document.getElementById(containerId);
       if (!chartEl) return;

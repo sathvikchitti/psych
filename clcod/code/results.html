@@ -431,6 +431,12 @@
 let userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{"name":"","age":"","gender":""}');
 let aiResult = JSON.parse(sessionStorage.getItem('md_aiResult') || 'null');
 
+// ── Historical report detection ─────────────────────────────────────
+const _historicalReport = JSON.parse(sessionStorage.getItem('md_historical_report') || 'null');
+const _isHistoricalView = !!_historicalReport;
+// Clear so next fresh session isn't affected
+if (_isHistoricalView) sessionStorage.removeItem('md_historical_report');
+
 const FLASK_API_URL = 'https://sense123-psychsense.hf.space';
 
 // ── Page Nav ───────────────────────────────────────────────────────
@@ -505,10 +511,13 @@ function renderResults(result, depressionType, isDepressed) {
   // Re-read userInfo from sessionStorage in case auth just filled it in
   userInfo = JSON.parse(sessionStorage.getItem('md_userInfo') || '{\"name\":\"\",\"age\":\"\",\"gender\":\"\"}');
   const name = userInfo.name || 'Anonymous';
-  const reportId = 'MD-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+
+  // Use historical date if viewing a past report, otherwise now
+  const _reportDate = (result.createdAt && _isHistoricalView) ? (_toDate(result.createdAt) || new Date()) : new Date();
+  const reportId = result.id ? `MD-${result.id.slice(0,8).toUpperCase()}` : ('MD-' + _reportDate.getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000));
   window._lastReportId = reportId;
-  const dateStr = new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-  const timeStr = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+  const dateStr = _reportDate.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+  const timeStr = _reportDate.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
   const modes = ['audio','text'].filter(m => result?.contributions?.[m] > 0).map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' · ') || 'Text';
 
   const DEPRESSION_INFO = {
@@ -525,6 +534,33 @@ function renderResults(result, depressionType, isDepressed) {
   // ── Header ──
   document.getElementById('results-patient').textContent = `Patient: ${name} · ID: ${reportId}`;
   document.getElementById('results-report-meta').textContent = `Generated ${dateStr} ${timeStr} · Mode: ${modes} · ManoDhwani v2.1.0`;
+
+  // ── Historical view banner ──
+  const existingBanner = document.getElementById('historical-view-banner');
+  if (existingBanner) existingBanner.remove();
+  if (_isHistoricalView) {
+    const banner = document.createElement('div');
+    banner.id = 'historical-view-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(30,41,59,0.96);backdrop-filter:blur(12px);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 24px rgba(0,0,0,0.18);';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="material-symbols-outlined" style="color:#94a3b8;font-size:18px;">history</span>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;color:#e2e8f0;text-transform:uppercase;letter-spacing:0.08em;">Viewing Historical Report</span>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:11px;color:#64748b;">${dateStr} · ${timeStr}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="window.downloadReport()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:9999px;padding:6px 14px;color:#e2e8f0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+          <span class="material-symbols-outlined" style="font-size:14px;">download</span>Download PDF
+        </button>
+        <button onclick="window.location.href='profile.html'" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:9999px;padding:6px 14px;color:#e2e8f0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+          <span class="material-symbols-outlined" style="font-size:14px;">arrow_back</span>Back to Profile
+        </button>
+      </div>
+    `;
+    document.body.prepend(banner);
+    // Offset page content so it's not hidden under the banner
+    document.body.style.paddingTop = '48px';
+  }
 
   // ── Patient Info ──
   const patGrid = document.getElementById('patient-info-grid');
@@ -647,6 +683,7 @@ function renderResults(result, depressionType, isDepressed) {
   }
 
   // ── Trajectory Chart — wait for Firebase auth to expose loadReports ──
+  // Poll up to 30 seconds (60 × 500ms). Firebase onAuthStateChanged can be slow.
   (function waitForLoadReports(attempts) {
     if (window.loadReports) {
       generateAdetChartHtml().then(html => {
@@ -654,9 +691,16 @@ function renderResults(result, depressionType, isDepressed) {
         if (el) el.innerHTML = html;
       });
     } else if (attempts > 0) {
-      setTimeout(() => waitForLoadReports(attempts - 1), 300);
+      setTimeout(() => waitForLoadReports(attempts - 1), 500);
+    } else {
+      const el = document.getElementById('adet-chart-container');
+      if (el) el.innerHTML = `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center py-4">Could not load history — please refresh the page.</p>`;
     }
-  })(15);
+  })(60);
+
+  // Also register a hook so if auth resolves after the chart already gave up,
+  // it still re-renders when loadReports becomes available.
+  window._pendingChartRefresh = true;
 
   // ── Risk Factors ──
   const riskCard = document.getElementById('risk-analysis-card');
@@ -786,45 +830,84 @@ window.renderADET = function(result) {
 };
 
 // ── Trajectory Chart ───────────────────────────────────────────────
+// ── Resolve Firestore Timestamp or string/number → JS Date ──────────
+function _toDate(v) {
+  if (!v) return null;
+  // Firestore Timestamp object: {seconds, nanoseconds}
+  if (typeof v === 'object' && typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+  // Firestore Timestamp with toDate() method
+  if (typeof v.toDate === 'function') return v.toDate();
+  // ISO string, number ms, etc.
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 async function generateAdetChartHtml() {
   let reports = [];
   if (window.loadReports) {
-    try { reports = await window.loadReports(); } catch(e) {}
+    try { reports = await window.loadReports(); } catch(e) { console.error('[chart] loadReports error', e); }
   }
-  if (!reports || reports.length < 2) {
-    return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center">Complete assessments on at least two different dates to view your longitudinal trajectory.</p>`;
+  if (!reports || reports.length === 0) {
+    return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center py-6">No assessment data found. Complete your first assessment to start tracking.</p>`;
   }
-  const dailyMap = new Map();
-  reports.forEach(r => {
-    const d = new Date(r.createdAt);
-    const k = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-    if (!dailyMap.has(k) || d > new Date(dailyMap.get(k).createdAt)) dailyMap.set(k, r);
-  });
-  const daily = [...dailyMap.values()].sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).slice(-7);
-  if (daily.length < 2) return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center">Need assessments on at least two different dates.</p>`;
 
-  const W=800, H=180, px=40, py=40;
-  const pW = W-2*px, pH = H-2*py;
-  const stepX = pW / (daily.length-1);
-  const pts = daily.map((r,i) => {
-    const val = r.modelProb != null ? r.modelProb : (r.confidenceScore||0);
-    return {x:px+(i*stepX), y:H-py-(val/100*pH), val, date:new Date(r.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})};
+  // Normalise: resolve createdAt to a real JS Date on each report
+  const withDates = reports.map(r => ({ ...r, _date: _toDate(r.createdAt) })).filter(r => r._date);
+
+  if (withDates.length < 2) {
+    return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center py-6">Complete assessments on at least two different dates to view your longitudinal trajectory.</p>`;
+  }
+
+  // Deduplicate to one entry per calendar date (keep latest on that day)
+  const dailyMap = new Map();
+  withDates.forEach(r => {
+    const k = r._date.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+    if (!dailyMap.has(k) || r._date > dailyMap.get(k)._date) dailyMap.set(k, r);
   });
+
+  // Sort chronologically and take last 7 days
+  const daily = [...dailyMap.values()].sort((a,b) => a._date - b._date).slice(-7);
+
+  if (daily.length < 2) {
+    return `<p class="font-label text-xs text-neutral-400 uppercase tracking-widest text-center py-6">Need assessments on at least two different calendar dates to see the trend.</p>`;
+  }
+
+  const W=800, H=200, px=48, py=40;
+  const pW = W-2*px, pH = H-2*py;
+  const stepX = pW / (daily.length - 1);
+  const pts = daily.map((r, i) => {
+    const val = r.modelProb != null ? r.modelProb : (r.confidenceScore || 0);
+    const label = r._date.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+    return { x: px + i * stepX, y: H - py - (val / 100 * pH), val, label };
+  });
+
+  // Area fill under the line
+  const areaPath = `M${pts[0].x},${H-py} ` + pts.map(p=>`L${p.x},${p.y}`).join(' ') + ` L${pts[pts.length-1].x},${H-py} Z`;
+
   let svg = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible;font-family:'Space Grotesk',sans-serif;">`;
+  svg += `<defs><linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#bb000e" stop-opacity="0.18"/><stop offset="100%" stop-color="#bb000e" stop-opacity="0.01"/></linearGradient></defs>`;
+
+  // Grid lines
   [0,25,50,75,100].forEach(l => {
-    const y = H-py-(l/100*pH);
-    svg += `<line x1="${px}" y1="${y}" x2="${W-px}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>`;
+    const y = H - py - (l / 100 * pH);
+    svg += `<line x1="${px}" y1="${y}" x2="${W-px}" y2="${y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>`;
     svg += `<text x="${px-8}" y="${y+4}" fill="#94a3b8" font-size="10" text-anchor="end">${l}%</text>`;
   });
+
+  // Area + line
+  svg += `<path d="${areaPath}" fill="url(#chartGrad)"/>`;
   svg += `<polyline points="${pts.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#bb000e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  // Dots, value labels, date labels
   pts.forEach(p => {
     const c = p.val >= 62 ? '#ef4444' : p.val >= 52 ? '#f59e0b' : '#22c55e';
-    svg += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${c}" stroke="#fff" stroke-width="2"/>`;
-    svg += `<text x="${p.x}" y="${p.y-10}" fill="${c}" font-size="11" font-weight="700" text-anchor="middle">${Math.round(p.val)}%</text>`;
-    svg += `<text x="${p.x}" y="${H-py+18}" fill="#94a3b8" font-size="10" text-anchor="middle">${p.date}</text>`;
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="${c}" stroke="#fff" stroke-width="2"/>`;
+    svg += `<text x="${p.x}" y="${p.y-12}" fill="${c}" font-size="11" font-weight="700" text-anchor="middle">${Math.round(p.val)}%</text>`;
+    svg += `<text x="${p.x}" y="${H-py+18}" fill="#94a3b8" font-size="10" text-anchor="middle">${p.label}</text>`;
   });
+
   svg += '</svg>';
-  return `<div style="width:100%;overflow-x:auto;">${svg}</div>`;
+  return `<div style="width:100%;overflow-x:auto;padding-bottom:4px;">${svg}</div>`;
 }
 
 // ── Download PDF ───────────────────────────────────────────────────
@@ -1039,9 +1122,9 @@ async function renderProfilePage() {
       if (window.loadReports) {
         generateAdetChartHtml().then(html => { chartEl.innerHTML = html; });
       } else if (n > 0) {
-        setTimeout(() => waitForChart(n - 1), 300);
+        setTimeout(() => waitForChart(n - 1), 500);
       }
-    })(15);
+    })(60);
   }
 }
 
@@ -1052,7 +1135,7 @@ async function loadHistory() {
   if (window.loadReports) { try { reports = await window.loadReports(); } catch(e) {} }
   if (!reports.length) { listEl.innerHTML = '<p class="font-label text-xs text-neutral-400 uppercase tracking-widest">No assessments found. Complete your first analysis to see history here.</p>'; return; }
   listEl.innerHTML = reports.map(r => {
-    const d = new Date(r.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    const _rd = _toDate(r.createdAt); const d = _rd ? _rd.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
     const prob = Math.round(r.modelProb ?? r.confidenceScore ?? 0);
     const riskColor = r.riskLevel === 'High' ? '#ef4444' : r.riskLevel === 'Moderate' ? '#f59e0b' : '#22c55e';
     return `<div class="glass-panel p-5 flex justify-between items-center">
@@ -1126,6 +1209,15 @@ async function loadHistory() {
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch(e) { console.error('loadReports:', e); return []; }
     };
+
+    // If the trajectory chart is waiting for auth, render it now
+    if (window._pendingChartRefresh) {
+      window._pendingChartRefresh = false;
+      generateAdetChartHtml().then(html => {
+        const el = document.getElementById('adet-chart-container');
+        if (el) el.innerHTML = html;
+      });
+    }
 
     window.loadUserProfile = async function() {
       try {
