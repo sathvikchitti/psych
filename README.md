@@ -1,6 +1,6 @@
 # 🧠 ManoDhwani — Multimodal Depression Detection Platform
 
-> *ManoDhwani* (మనోధ్వని) — "Sound of the Mind" in Telugu.  
+> *ManoDhwani* (मनोध्वानि ) — "Sound of the Mind" in Sanskrit.  
 > An AI-powered mental health screening tool that analyses voice, language, and questionnaire responses to assess depression risk.
 
 ---
